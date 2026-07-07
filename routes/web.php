@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FrontendController;
+use App\Http\Controllers\Api\FrontendFormDataController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\MultiStepFormController;
 use Illuminate\Support\Facades\Auth;
@@ -49,9 +50,15 @@ Route::get('/student-admission/step/{step}', [MultiStepFormController::class, 's
 Route::post('/student-admission/step/{step}', [MultiStepFormController::class, 'postStep'])->name('form.step.post');
 
 
-Route::get('/payment-success',function(){
+Route::get('/payment-success', function (\Illuminate\Http\Request $request) {
+    if ($request->has('session_id')) {
+        return app(FrontendController::class)->paymentSuccess($request);
+    }
+
     return view('student.payment-confirm');
 })->name('payment.success');
+
+Route::get('/payment-cancel', [FrontendController::class, 'paymentCancel'])->name('payment.cancel');
 
 Route::get('/parents-update/{id}', [MultiStepFormController::class, 'parentUpdate'])->name('parent-update');
 Route::put('/parents-update/{id}', [MultiStepFormController::class, 'parentUpdateData'])->name('parents-update');
@@ -72,6 +79,8 @@ Route::post('/apply-coupon', [FrontendController::class, 'applyCoupon'])->name('
 
 
 Route::get('/',[FrontendController::class,'index'])->name('index');
+
+Route::get('/api/frontend/csrf', [FrontendFormDataController::class, 'csrf']);
 
 Route::get('/calendly-events', [FrontendController::class, 'fetchEvents']);
 

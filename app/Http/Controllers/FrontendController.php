@@ -44,9 +44,7 @@ class FrontendController extends Controller
 {
     public function index()
     {
-
-            return view('frontend.index');
-
+        return view('frontend.index');
     }
 
     // Book a call
@@ -161,6 +159,10 @@ class FrontendController extends Controller
 
         Enquire::create($data);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
         return back()->with('success', 'Data Submit Successfully');
     }
     // Referral
@@ -176,6 +178,10 @@ class FrontendController extends Controller
         // dd($data);
 
         Referral::create($data);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return back()->with('success', 'Data Submit Successfully');
     }
