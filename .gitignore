@@ -1,0 +1,64 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.env.backup
+.env.production
+auth.json
+
+# PHP / Composer
+/vendor
+.phpactor.json
+.phpunit.result.cache
+/.phpunit.cache
+
+# Node / frontend
+/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+/public/build
+/public/hot
+/public/storage
+
+# Laravel runtime & cache
+/storage/*.key
+/storage/pail
+/storage/logs/*.log
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/.gitignore
+/bootstrap/cache/*.php
+
+# Logs (project-wide)
+*.log
+
+# Database dumps & backups
+*.sql
+*.sqlite
+*.sqlite-journal
+*.zip
+*.tar
+*.tar.gz
+*.gz
+*.bak
+*.backup
+
+# IDE & editor folders
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# Laravel Sail / Homestead
+Homestead.json
+Homestead.yaml

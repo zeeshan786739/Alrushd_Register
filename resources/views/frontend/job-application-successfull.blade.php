@@ -1,0 +1,55 @@
+@extends('layouts.app')
+
+@section('title','Al-rushd Online School - Job Applications Successfully')
+
+@section('css')
+<style>
+    .progress-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .form-card {
+        background: #0C2A58;;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .form-box-title {
+        text-align: center;
+        font-size: 32px;
+        font-weight: 500;
+        color: #FFF;
+    }
+    @media (max-width:576px) {
+        .form-box-title{
+            font-size: 24px;
+        }
+    }
+</style>
+@endsection
+
+@section('content')
+ <a href="{{ route('job-applications') }}" class="logo d-flex align-items-center m-auto" style="background: #f6f9fc;padding-top:10px;padding-bottom:10px;">
+    <img src="{{ asset('frontend/') }}/assets/img/logo.png" alt="" width="70" style="margin:auto;">
+</a>
+<section class="section">
+
+    <div class="container py-5">
+        <!-- Form Card -->
+        <div class="mx-auto" style="max-width:500px;">
+            <!-- Step 5 -->
+            <div class="form-card">
+                <p class="text-center">
+                    <i class="fa fa-check-circle" style="color: #AE9A66;font-size: 32px;"></i>
+                </p>
+                <h4 class="form-box-title">Thank you for your submission, we will be in touch shortly.</h4>
+
+            </div>
+        </div>
+    </div>
+</section>
+
+
+@endsection

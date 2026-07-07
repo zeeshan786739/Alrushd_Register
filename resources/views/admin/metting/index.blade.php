@@ -1,0 +1,134 @@
+@extends('admin.layouts.app')
+
+@section('title') Meeting Form @endsection
+
+@section('content')
+
+<!-- 🔍 Filter Form -->
+<form method="GET" action="{{ route('admin.metting-form.index') }}"
+    class="bg-primary mt-3 mb-5 mx-2 p-10 rounded row text-light" style="text-align: left;">
+
+    <div class="col-lg-4">
+        <label class="fw-bold" for="search">Search Here</label>
+        <input type="text" name="search" class="form-control search" placeholder="Search Name or Email..."
+            value="{{ request('search') }}">
+    </div>
+    <div class="col-lg-3">
+        <label class="fw-bold" for="start_date">Start Date</label>
+        <input type="date" name="start_date" class="form-control search" value="{{ request('start_date') }}">
+    </div>
+    <div class="col-lg-3">
+        <label class="fw-bold" for="end_date">End Date</label>
+        <input type="date" name="end_date" class="form-control search" value="{{ request('end_date') }}">
+    </div>
+    <div class="col-lg-2 mt-24">
+        <button type="submit" class="btn btn-warning">Filter</button>
+        <a href="{{ route('admin.metting-form.index') }}" class="btn btn-dark">Reset</a>
+    </div>
+
+</form>
+
+<div class="col-12">
+    <div class="card basic-data-table">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title text-primary mb-0">Meeting Lists</h6>
+
+            <!-- ✅ Pagination Section -->
+            <div class="d-flex justify-content-end mt-5">
+                {{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}
+            </div>
+        </div>
+
+
+        <div class="card-body">
+            <table class="table bordered-table mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">
+                            <div class="form-check style-check d-flex align-items-center">
+
+                                <label class="form-check-label">
+                                    S.L
+                                </label>
+                            </div>
+                        </th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Date/Time</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($data as $item)
+
+                    <tr>
+                        <td>
+                            <div class="form-check style-check d-flex align-items-center">
+
+                                <label class="form-check-label">
+                                    {{ $loop->iteration }}
+                                </label>
+                            </div>
+                        </td>
+                        <td>{{ $item->name }}</td>
+                        <td>{{ $item->email }}</td>
+                        <td>{{ $item->location }}</td>
+                        <td>
+                            <p class="mb-0">Date : {{ $item->date }}</p>
+                            <p class="mb-0">Time : {{ $item->time }}</p>
+                            <p class="mb-0">TimeZone : {{ $item->timezone }}</p>
+                        </td>
+
+                        <td>
+
+                            <a href="{{ route('admin.metting-form.show', $item->id) }}"
+                                class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
+                                <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
+                            </a>
+
+
+                            <form id="delete-form-{{ $item->id }}"
+                                action="{{ route('admin.metting-form.destroy', $item->id) }}" method="POST"
+                                style="display: none;">
+                                @csrf @method('DELETE')
+                            </form>
+                            <a href="javascript:void(0)" data-id="{{ $item->id }}"
+                                class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
+                                <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
+                            </a>
+
+                        </td>
+                    </tr>
+
+                    @endforeach
+
+
+
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+@section('script')
+<script>
+    $('.delete-btn').on('click', function(e) {
+        e.preventDefault();
+        var id = $(this).data('id');
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Do you really want to delete this item?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, cancel',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $('#delete-form-' + id).submit();
+            }
+        });
+    });
+</script>
+@endsection
+@endsection
