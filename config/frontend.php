@@ -78,4 +78,21 @@ return [
         'admission_step' => '/student-admission/step',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Legacy SPA routes with dedicated React pages (not Form Center dynamic)
+    |--------------------------------------------------------------------------
+    */
+    'spa_legacy_routes' => [
+        'job-applications',
+        'staff-application',
+        'debit-form',
+        'enquire-now',
+        'referral',
+        'book-a-call',
+        'student-admission',
+        'open-event',
+        'admin/login',
+    ],
+
 ];

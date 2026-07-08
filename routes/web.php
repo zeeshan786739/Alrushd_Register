@@ -82,6 +82,10 @@ Route::get('/',[FrontendController::class,'index'])->name('index');
 
 Route::get('/api/frontend/csrf', [FrontendFormDataController::class, 'csrf']);
 
+Route::get('/api/frontend/forms', [\App\Http\Controllers\Api\DynamicFormController::class, 'index']);
+Route::get('/api/frontend/forms/{slug}', [\App\Http\Controllers\Api\DynamicFormController::class, 'show']);
+Route::post('/api/frontend/forms/{slug}/submit', [\App\Http\Controllers\Api\DynamicFormController::class, 'submit']);
+
 Route::get('/calendly-events', [FrontendController::class, 'fetchEvents']);
 
 Route::get('/book-a-call',[FrontendController::class,'bookCall'])->name('book-a-call');

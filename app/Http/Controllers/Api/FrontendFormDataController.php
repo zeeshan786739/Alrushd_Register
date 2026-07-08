@@ -74,6 +74,13 @@ class FrontendFormDataController extends Controller
             $payload['terms'] = null;
         }
 
+        foreach (config('form_options', []) as $key => $values) {
+            if (in_array($key, ['field_types'], true) || ! is_array($values)) {
+                continue;
+            }
+            $payload[$key] = array_map(fn ($item) => is_array($item) ? $item : ['value' => $item, 'label' => $item], $values);
+        }
+
         return response()->json($payload);
     }
 

@@ -547,5 +547,4 @@
     </div>
 
 
-</div>
 @endsection

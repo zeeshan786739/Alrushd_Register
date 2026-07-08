@@ -1,101 +1,86 @@
 @extends('admin.layouts.app')
 
-@section('title') Roles List @endsection
+@section('title') Roles @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => 'User Management',
+        'subtitle' => 'Define roles and assign permissions to control access across the CRM.',
+        'breadcrumbs' => [['label' => 'Roles']],
+        'actions' => auth()->user()->can('create role') ? [[
+            'label' => 'Add Role',
+            'url' => route('admin.roles.create'),
+            'class' => 'btn-primary-600 radius-8 px-20 py-11',
+            'icon' => 'solar:add-circle-linear',
+        ]] : [],
+    ])
 
+    @include('admin.role-permission.partials.module-nav', ['activeTab' => 'roles'])
 
-<div class="card basic-data-table">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="card-title text-primary mb-0">Roles Lists</h6>
-        @can('create role')
-        <a href="{{ route('admin.roles.create') }}" class="btn btn-primary btn-sm">+ Add</a>
-        @endcan
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
+                <h6 class="mb-0 fw-semibold fc-panel-title">
+                    <iconify-icon icon="solar:shield-user-linear"></iconify-icon>
+                    Roles
+                    <span class="fc-badge fc-badge-neutral ms-8">{{ $roles->count() }}</span>
+                </h6>
+                @include('admin.partials.search-bar', ['placeholder' => 'Search roles…'])
+            </div>
+
+            @if($roles->isEmpty())
+                <div class="um-empty-state">
+                    <iconify-icon icon="solar:shield-user-linear" class="d-block mx-auto"></iconify-icon>
+                    <h6 class="fw-semibold mb-8">No roles yet</h6>
+                    <p class="text-secondary-light text-sm mb-0">Create a role to group permissions for your team.</p>
+                </div>
+            @else
+                <div class="table-responsive">
+                    <table class="table bordered-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-24" style="width:60px">#</th>
+                                <th>Role</th>
+                                <th style="width:140px">Permissions</th>
+                                <th class="text-end pe-24" style="width:120px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($roles as $role)
+                            @can('view role')
+                            <tr class="fc-form-row">
+                                <td class="ps-24 fw-semibold text-secondary-light">{{ $loop->iteration }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-12">
+                                        <span class="um-user-avatar" style="width:32px;height:32px;font-size:11px;border-radius:8px;">
+                                            {{ strtoupper(substr($role->name, 0, 2)) }}
+                                        </span>
+                                        <div>
+                                            <span class="um-user-name d-block">{{ ucwords(str_replace(['-','_'], ' ', $role->name)) }}</span>
+                                            <span class="text-secondary-light text-xs">{{ $role->name }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fc-badge fc-badge-primary">{{ $role->permissions->count() }} assigned</span>
+                                </td>
+                                <td class="text-end pe-24">
+                                    @include('admin.partials.table-actions', [
+                                        'editUrl' => route('admin.roles.edit', $role->id),
+                                        'deleteId' => $role->id,
+                                        'deleteRoute' => route('admin.roles.destroy', $role->id),
+                                        'canView' => false,
+                                        'canEdit' => auth()->user()->can('edit role'),
+                                        'canDelete' => auth()->user()->can('delete role'),
+                                    ])
+                                </td>
+                            </tr>
+                            @endcan
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
     </div>
-
-
-    <div class="card-body">
-        <table class="table bordered-table mb-0" data-page-length='10'>
-            <thead>
-                <tr>
-                    <th scope="col">
-                        <div class="form-check style-check d-flex align-items-center">
-                            <input class="form-check-input" type="checkbox">
-                            <label class="form-check-label">
-                                S.L
-                            </label>
-                        </div>
-                    </th>
-                    <th scope="col">Role</th>
-                    <!-- <th scope="col" style="width: 300px;">Permissions</th> -->
-                    <th scope="col">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($roles as $role)
-                @can('view role')
-                <tr>
-                    <td>
-                        {{ $loop->iteration }}
-                    </td>
-                    <td><a href="javascript:void(0)" class="text-primary-600">{{ $role->name }}</a></td>
-                    <!-- <td>
-                        @foreach($role->permissions as $permission)
-                        <span class="badge bg-primary me-1">{{ $permission->name }}</span>
-                        @endforeach
-                    </td> -->
-
-                    <td>
-                        @can('view role')
-                        <a href="{{ route('admin.roles.edit', $role->id) }}"
-                            class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
-                        </a>
-                        @endcan
-                        @can('edit role')
-                        <a href="{{ route('admin.roles.edit', $role->id) }}"
-                            class="w-32-px h-32-px bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="lucide:edit"></iconify-icon>
-                        </a>
-                        @endcan
-                        @can('delete role')
-                        <form id="delete-form-{{ $role->id }}" action="{{ route('admin.roles.destroy', $role->id) }}" method="POST" style="display: none;">
-                            @csrf @method('DELETE')
-                        </form>
-                        <a href="javascript:void(0)" data-id="{{ $role->id }}"
-                            class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
-                        </a>
-                        @endcan
-                    </td>
-                </tr>
-                @endcan
-                @endforeach
-
-
-
-            </tbody>
-        </table>
-    </div>
-</div>
-@section('script')
-<script>
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you really want to delete this item?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#delete-form-' + id).submit();
-            }
-        });
-    });
-</script>
-@endsection
 @endsection

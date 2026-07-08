@@ -43,6 +43,7 @@
     <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/lib/audioplayer.css" />
     <!-- main css -->
     <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/style.css" />
+    <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/alrushad-overrides.css" />
     <style>
         .swal2-title {
             font-size: 16px !important;
@@ -76,6 +77,11 @@
 
 <body>
 
+<div id="crm-page-loader" aria-hidden="true" aria-label="Loading page">
+    <div class="crm-loader-spinner"></div>
+    <span class="crm-loader-text">Loading…</span>
+</div>
+
 <aside class="sidebar">
     <button type="button" class="sidebar-close-btn">
         <iconify-icon icon="radix-icons:cross-2"></iconify-icon>
@@ -92,7 +98,7 @@
     </div>
 </aside>
 
-<main class="dashboard-main" style="background: #dfd7d7;">
+<main class="dashboard-main">
     <div class="navbar-header">
         <div class="row align-items-center justify-content-between">
             <div class="col-auto">
@@ -568,6 +574,9 @@
         </div>
     </footer>
 </main>
+
+@yield('modals')
+
 <!-- jQuery library js -->
 <script src="{{ asset('admin/') }}/assets/js/lib/jquery-3.7.1.min.js"></script>
 <!-- Bootstrap js -->
@@ -601,6 +610,7 @@
 
 <!-- main js -->
 <script src="{{ asset('admin/') }}/assets/js/app.js"></script>
+<script src="{{ asset('admin/') }}/assets/js/alrushad-ui.js"></script>
 
 <script src="{{ asset('admin/') }}/assets/js/homeTwoChart.js"></script>
 
@@ -623,9 +633,6 @@
             }, false)
         })
     })()
-</script>
-<script>
-    let table = new DataTable('#dataTable');
 </script>
 @if(session('success'))
 <script>

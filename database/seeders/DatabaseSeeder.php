@@ -220,6 +220,12 @@ class DatabaseSeeder extends Seeder
             'view referal_form',
             'delete referal_form',
 
+            // form center permissions
+            'create form_center',
+            'edit form_center',
+            'view form_center',
+            'delete form_center',
+
 
              // setting permissions
             'create setting',
@@ -257,5 +263,8 @@ class DatabaseSeeder extends Seeder
         if (!$admin->hasRole($role)) {
             $admin->assignRole($role);
         }
+
+        $this->call(FormDefinitionsSeeder::class);
+        $this->call(MigrateLegacyFormSubmissionsSeeder::class);
     }
 }

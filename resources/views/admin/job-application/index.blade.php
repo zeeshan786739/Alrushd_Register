@@ -1,144 +1,91 @@
 @extends('admin.layouts.app')
 
-@section('title') {{$pageTitle}} @endsection
+@section('title') {{ $pageTitle }} @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => $pageTitle,
+        'subtitle' => 'Review and manage job application submissions from the public website.',
+        'breadcrumbs' => [['label' => 'Form Submissions'], ['label' => 'Job Applications']],
+    ])
 
+    @include('admin.partials.filter-bar', [
+        'action' => route('admin.job-applications-form.index'),
+        'resetUrl' => route('admin.job-applications-form.index'),
+        'fields' => [
+            ['name' => 'search', 'label' => 'Search', 'placeholder' => 'Name, email, phone or country…'],
+            ['name' => 'start_date', 'label' => 'From', 'type' => 'date'],
+            ['name' => 'end_date', 'label' => 'To', 'type' => 'date'],
+        ],
+    ])
 
-<!-- 🔍 Filter Form -->
-<form method="GET" action="{{ route('admin.job-applications-form.index') }}"
-    class="bg-primary mt-3 mb-5 mx-2 p-10 rounded row text-light" style="text-align: left;">
-
-    <div class="col-lg-4">
-        <label class="fw-bold" for="search">Search Here</label>
-        <input type="text" name="search" class="form-control search" placeholder="Search name, email, phone or country..."
-            value="{{ request('search') }}">
-    </div>
-    <div class="col-lg-3">
-        <label class="fw-bold" for="start_date">Start Date</label>
-        <input type="date" name="start_date" class="form-control search" value="{{ request('start_date') }}">
-    </div>
-    <div class="col-lg-3">
-        <label class="fw-bold" for="end_date">End Date</label>
-        <input type="date" name="end_date" class="form-control search" value="{{ request('end_date') }}">
-    </div>
-    <div class="col-lg-2 mt-24">
-        <button type="submit" class="btn btn-warning">Filter</button>
-        <a href="{{ route('admin.job-applications-form.index') }}" class="btn btn-dark">Reset</a>
-    </div>
-
-</form>
-
-<div class="col-12">
-    <div class="card basic-data-table">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="card-title text-primary mb-0">{{ $pageTitle }}</h6>
-
-            <!-- ✅ Pagination Section -->
-            <div class="d-flex justify-content-end mt-5">
-                {{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
+                <h6 class="mb-0 fw-semibold fc-panel-title">
+                    <iconify-icon icon="solar:document-text-linear"></iconify-icon>
+                    Submissions
+                    <span class="fc-badge fc-badge-neutral ms-8">{{ $data->total() }}</span>
+                </h6>
+                @if($data->hasPages())
+                    <div class="fc-pagination">{{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
+                @endif
             </div>
 
-        </div>
-
-
-
-        <div class="card-body">
-            <table class="table bordered-table mb-0" data-page-length='10'>
-                <thead>
-                    <tr>
-                        <th scope="col">
-                            <div class="form-check style-check d-flex align-items-center">
-
-                                <label class="form-check-label">
-                                    S.L
-                                </label>
-                            </div>
-                        </th>
-                        <th scope="col">Date of Submission</th>
-                        <th scope="col">Name</th>
-                        <th scope="col">Email</th>
-                        <th scope="col">Phone</th>
-                        <th scope="col">Country</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($data as $item)
-
-                    <tr>
-                        <td>
-                            <div class="form-check style-check d-flex align-items-center">
-
-                                <label class="form-check-label">
-                                    {{ $loop->iteration }}
-                                </label>
-                            </div>
-                        </td>
-                        <td>{{ $item->date_of_submission }}</td>
-                        <td>{{ $item->name }}</td>
-                        <td>{{ $item->email }}</td>
-                        <td>{{ $item->phone }}</td>
-                        <td>{{ $item->country_of_residence }}</td>
-
-                        <td>
-                            @if ($item->status == 1)
-                            <span class="badge bg-success">Approved</span>
-                            @else
-                            <span class="badge bg-primary">Pending</span>
-                            @endif
-                        </td>
-
-                        <td>
-
-                            <a href="{{ route('admin.job-applications-form.view', $item->id) }}"
-                                class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
-                                <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
-                            </a>
-
-
-                            <form id="delete-form-{{ $item->id }}"
-                                action="{{ route('admin.job-applications-form.destroy', $item->id) }}" method="POST"
-                                style="display: none;">
-                                @csrf @method('DELETE')
-                            </form>
-                            <a href="javascript:void(0)" data-id="{{ $item->id }}"
-                                class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                                <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
-                            </a>
-
-                        </td>
-                    </tr>
-
-                    @endforeach
-
-
-
-                </tbody>
-            </table>
-
+            @if($data->isEmpty())
+                <div class="um-empty-state">
+                    <iconify-icon icon="solar:inbox-linear" class="d-block mx-auto"></iconify-icon>
+                    <h6 class="fw-semibold mb-8">No submissions found</h6>
+                    <p class="text-secondary-light text-sm mb-0">Try adjusting your search or date filters.</p>
+                </div>
+            @else
+                <div class="table-responsive">
+                    <table class="table bordered-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-24" style="width:60px">#</th>
+                                <th>Submitted</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Country</th>
+                                <th style="width:110px">Status</th>
+                                <th class="text-end pe-24" style="width:100px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($data as $item)
+                            <tr class="fc-form-row">
+                                <td class="ps-24 fw-semibold text-secondary-light">{{ $loop->iteration + ($data->currentPage() - 1) * $data->perPage() }}</td>
+                                <td class="text-secondary-light text-sm">{{ $item->date_of_submission }}</td>
+                                <td><span class="fw-medium">{{ $item->name }}</span></td>
+                                <td>{{ $item->email }}</td>
+                                <td>{{ $item->phone }}</td>
+                                <td>{{ $item->country_of_residence }}</td>
+                                <td>
+                                    @if($item->status == 1)
+                                        <span class="fc-badge fc-badge-success">Approved</span>
+                                    @else
+                                        <span class="fc-badge fc-badge-primary">Pending</span>
+                                    @endif
+                                </td>
+                                <td class="text-end pe-24">
+                                    @include('admin.partials.table-actions', [
+                                        'viewUrl' => route('admin.job-applications-form.view', $item->id),
+                                        'deleteId' => $item->id,
+                                        'deleteRoute' => route('admin.job-applications-form.destroy', $item->id),
+                                        'canEdit' => false,
+                                    ])
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @if($data->hasPages())
+                    <div class="fc-pagination px-24 py-16 border-top">{{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
+                @endif
+            @endif
         </div>
     </div>
-</div>
-@section('script')
-<script>
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you really want to delete this item?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#delete-form-' + id).submit();
-            }
-        });
-    });
-</script>
-@endsection
 @endsection

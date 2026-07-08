@@ -1,77 +1,67 @@
 @extends('admin.layouts.app')
 
-@section('title') Add Role @endsection
+@section('title') Edit Role @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => 'Edit Role',
+        'subtitle' => 'Update role name and permission assignments.',
+        'breadcrumbs' => [
+            ['label' => 'Roles', 'url' => route('admin.roles.index')],
+            ['label' => ucwords(str_replace(['-','_'], ' ', $role->name))],
+        ],
+        'actions' => [['label' => 'Back', 'url' => route('admin.roles.index'), 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11', 'icon' => 'solar:alt-arrow-left-linear']],
+    ])
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title text-primary mb-0"><span class="icon">
-                <iconify-icon icon="fa-solid:save"></iconify-icon>
-            </span> Update Roles</h5>
+    @include('admin.role-permission.partials.module-nav', ['activeTab' => 'roles'])
 
-        @can('view role')
-        <a href="{{ route('admin.roles.index') }}" class="btn btn-primary btn-sm">← Back</a>
-        @endcan
-    </div>
-    <div class="card-body">
-        <form class="row gy-3 needs-validation" value="{{ $role->name }}" novalidate action="{{ route('admin.roles.update',$role->id) }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            @method('PUT')
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-24">
+            <form class="needs-validation" novalidate action="{{ route('admin.roles.update', $role->id) }}" method="POST">
+                @csrf @method('PUT')
 
-
-            <div class="col-md-12">
-                <label class="form-label">Name</label>
-                <div class="has-validation">
-                    <input type="text" value="{{ $role->name }}" name="name" id="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name') }}"
-                        required placeholder="Role Name">
-                    @error('name')
-                    <span class="text-danger">{{$message}}</span>
-                    @enderror
-
-                </div>
-            </div>
-
-
-            <div class="col-md-12">
-                <label class="form-label">Permissions</label>
-                <div class="row mt-2">
-                    @foreach($permissions as $permission)
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input type="checkbox"
-                                class="form-check-input permission-checkbox mt-1"
-                                id="permission_{{ $permission->id }}"
-                                name="permissions[]"
-                                value="{{ $permission->name }}"
-                                {{ in_array($permission->name, $rolePermissions) ? 'checked' : '' }}>
-
-                            <label class="form-check-label ms-1" for="permission_{{ $permission->id }}">
-                                {{ ucwords(str_replace('-', ' ', $permission->name)) }}
-                            </label>
+                <div class="um-form-section">
+                    <div class="um-form-section-title">
+                        <iconify-icon icon="solar:shield-user-linear"></iconify-icon>
+                        Role Details
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-sm">Role Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control radius-8 @error('name') is-invalid @enderror"
+                                   value="{{ old('name', $role->name) }}" required>
+                            @error('name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
                     </div>
-                    @endforeach
                 </div>
 
-                @error('permissions')
-                <span class="text-danger">{{ $message }}</span>
-                @enderror
-            </div>
+                <div class="um-form-section">
+                    <div class="um-form-section-title">
+                        <iconify-icon icon="solar:key-linear"></iconify-icon>
+                        Assign Permissions <span class="text-danger">*</span>
+                    </div>
+                    <div class="um-perm-grid">
+                        @foreach($permissions as $permission)
+                        <label class="um-perm-item" for="permission_{{ $permission->id }}">
+                            <input type="checkbox" class="form-check-input flex-shrink-0 mt-1"
+                                   id="permission_{{ $permission->id }}" name="permissions[]"
+                                   value="{{ $permission->name }}"
+                                   {{ in_array($permission->name, old('permissions', $rolePermissions)) ? 'checked' : '' }}>
+                            <span class="text-sm">{{ ucwords(str_replace('_', ' ', $permission->name)) }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                    @error('permissions')<div class="text-danger text-sm mt-8">{{ $message }}</div>@enderror
+                </div>
 
-
-
-
-            <div class="col-md-12 text-end">
-                @can('view role')
-                <a href="{{ route('admin.roles.index') }}" class="btn btn-primary btn-sm">← Back</a>
-                @endcan
-                <button class="btn btn-sm btn-success-600" type="submit"><span class="icon">
-                        <iconify-icon icon="fa-solid:edit"></iconify-icon>
-                    </span> Update</button>
-            </div>
-        </form>
+                <div class="d-flex justify-content-end gap-12">
+                    <a href="{{ route('admin.roles.index') }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11 fc-btn">Cancel</a>
+                    <button type="submit" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn">
+                        <iconify-icon icon="solar:diskette-linear"></iconify-icon>
+                        <span>Update Role</span>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
-
 @endsection

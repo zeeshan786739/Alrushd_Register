@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\CuponController;
 use App\Http\Controllers\Admin\DebitController;
+use App\Http\Controllers\Admin\FormManagerController;
 use App\Http\Controllers\Admin\EnquireController;
 use App\Http\Controllers\Admin\GenderController;
 use App\Http\Controllers\Admin\MeetSpeakerController;
@@ -84,6 +85,23 @@ Route::prefix('admin')->name('admin.')
     // Group
     Route::resource('coupons',CuponController::class);
     Route::resource('time-tables',TimeTableController::class);
+
+    // Form Center — dynamic form builder & submissions
+    Route::get('form-center', [FormManagerController::class, 'index'])->name('form-manager.index');
+    Route::get('form-center/create', [FormManagerController::class, 'create'])->name('form-manager.create');
+    Route::post('form-center', [FormManagerController::class, 'store'])->name('form-manager.store');
+    Route::get('form-center/{form}/edit', [FormManagerController::class, 'edit'])->name('form-manager.edit');
+    Route::put('form-center/{form}', [FormManagerController::class, 'update'])->name('form-manager.update');
+    Route::delete('form-center/{form}', [FormManagerController::class, 'destroy'])->name('form-manager.destroy');
+    Route::post('form-center/{form}/toggle', [FormManagerController::class, 'toggleActive'])->name('form-manager.toggle');
+    Route::post('form-center/{form}/toggle-placement', [FormManagerController::class, 'togglePlacement'])->name('form-manager.toggle-placement');
+    Route::post('form-center/{form}/toggle-landing', [FormManagerController::class, 'toggleLanding'])->name('form-manager.toggle-landing');
+    Route::put('form-center/{form}/settings', [FormManagerController::class, 'updateSettings'])->name('form-manager.settings');
+    Route::post('form-center/{form}/duplicate', [FormManagerController::class, 'duplicate'])->name('form-manager.duplicate');
+    Route::get('form-center/{form}/entries', [FormManagerController::class, 'entries'])->name('form-manager.entries');
+    Route::get('form-center/{form}/entries/{entry}', [FormManagerController::class, 'entryShow'])->name('form-manager.entries.show');
+    Route::patch('form-center/{form}/entries/{entry}/status', [FormManagerController::class, 'entryUpdateStatus'])->name('form-manager.entries.status');
+    Route::delete('form-center/{form}/entries/{entry}', [FormManagerController::class, 'entryDestroy'])->name('form-manager.entries.destroy');
 
     // Form Submission
     Route::resource('staff-applications-form',StaffApplicationController::class);
