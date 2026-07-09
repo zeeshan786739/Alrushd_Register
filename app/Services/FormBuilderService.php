@@ -48,6 +48,7 @@ class FormBuilderService
         $form->save();
 
         $stepIds = [];
+        $stepsMeta = [];
         foreach ($payload['steps'] ?? [] as $index => $stepData) {
             $step = isset($stepData['id'])
                 ? FormStep::where('form_id', $form->id)->find($stepData['id'])
@@ -63,6 +64,10 @@ class FormBuilderService
             ]);
             $step->save();
             $stepIds[] = $step->id;
+            $stepsMeta[(string) $step->id] = [
+                'description' => $stepData['description'] ?? '',
+                'transition' => $stepData['transition'] ?? 'slide',
+            ];
 
             $fieldIds = [];
             foreach ($stepData['fields'] ?? [] as $fieldIndex => $fieldData) {
@@ -99,6 +104,10 @@ class FormBuilderService
 
         FormStep::where('form_id', $form->id)->whereNotIn('id', $stepIds)->delete();
         FormField::where('form_id', $form->id)->whereNull('form_step_id')->delete();
+
+        $settings = $form->settings ?? [];
+        $settings['steps_meta'] = $stepsMeta;
+        $form->update(['settings' => $settings]);
 
         return $form->fresh(['steps.fields']);
     }
@@ -181,9 +190,15 @@ class FormBuilderService
             'handler' => $form->handler,
             'sort_order' => $form->sort_order,
             'settings' => $form->settings ?? [],
-            'steps' => $form->steps->map(fn (FormStep $step) => [
+            'steps' => $form->steps->map(function (FormStep $step) use ($form) {
+                $meta = ($form->settings['steps_meta'] ?? [])[(string) $step->id] ?? [];
+
+                return [
                 'id' => $step->id,
+                'key' => 'step_'.$step->sort_order,
                 'title' => $step->title,
+                'description' => $meta['description'] ?? '',
+                'transition' => $meta['transition'] ?? 'slide',
                 'sort_order' => $step->sort_order,
                 'fields' => $step->fields->map(fn (FormField $field) => [
                     'id' => $field->id,
@@ -197,7 +212,8 @@ class FormBuilderService
                     'col_span' => $field->col_span,
                     'settings' => $field->settings,
                 ])->values(),
-            ])->values(),
+            ];
+            })->values(),
         ];
     }
 }

@@ -14,11 +14,13 @@ use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\QualificationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\WebsiteCmsController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\CuponController;
 use App\Http\Controllers\Admin\DebitController;
-use App\Http\Controllers\Admin\FormManagerController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EnquireController;
+use App\Http\Controllers\Admin\FormManagerController;
 use App\Http\Controllers\Admin\GenderController;
 use App\Http\Controllers\Admin\MeetSpeakerController;
 use App\Http\Controllers\Admin\MettingFormController;
@@ -62,9 +64,7 @@ Route::prefix('admin')->name('admin.')
 ->middleware(['auth:admin', 'admin.only', 'admin.has.role'])
 ->group(function () {
 
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
@@ -75,7 +75,18 @@ Route::prefix('admin')->name('admin.')
     Route::get('/change-password', [AdminProfileController::class, 'changePassword'])->name('change.password');
     Route::put('/change-password', [AdminProfileController::class, 'updatePassword'])->name('change.password.update');
 
-    Route::resource('settings',SettingController::class);
+    Route::get('settings', [WebsiteCmsController::class, 'index'])->name('settings.index');
+    Route::prefix('website-cms')->name('website-cms.')->group(function () {
+        Route::post('draft', [WebsiteCmsController::class, 'saveDraft'])->name('draft');
+        Route::post('publish', [WebsiteCmsController::class, 'publish'])->name('publish');
+        Route::post('discard', [WebsiteCmsController::class, 'discard'])->name('discard');
+        Route::post('reset-section', [WebsiteCmsController::class, 'resetSection'])->name('reset-section');
+        Route::post('preview', [WebsiteCmsController::class, 'preview'])->name('preview');
+        Route::post('upload', [WebsiteCmsController::class, 'upload'])->name('upload');
+        Route::post('restore-version', [WebsiteCmsController::class, 'restoreVersion'])->name('restore-version');
+    });
+
+    Route::resource('settings', SettingController::class)->except(['index']);
 
     // Role Management
     Route::resource('roles',RoleController::class);

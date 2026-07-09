@@ -47,11 +47,10 @@ class Form extends Model
 
     public function routePath(): string
     {
-        $legacy = ltrim((string) $this->legacy_route, '/');
-        $spaLegacyRoutes = config('frontend.spa_legacy_routes', []);
+        if ($this->handler === 'custom') {
+            $legacy = ltrim((string) $this->legacy_route, '/');
 
-        if ($legacy !== '' && in_array($legacy, $spaLegacyRoutes, true)) {
-            return '/'.$legacy;
+            return $legacy !== '' ? '/'.$legacy : '/forms/'.$this->slug;
         }
 
         return '/forms/'.$this->slug;
@@ -59,18 +58,50 @@ class Form extends Model
 
     public function successPath(): string
     {
-        $success = ltrim((string) $this->success_route, '/');
-        $spaLegacyRoutes = config('frontend.spa_legacy_routes', []);
+        if ($this->handler === 'custom') {
+            $success = ltrim((string) $this->success_route, '/');
 
-        if ($success !== '' && in_array($success, $spaLegacyRoutes, true)) {
-            return '/'.$success;
+            return $success !== '' ? '/'.$success : '/forms/'.$this->slug.'/success';
         }
 
+        $success = ltrim((string) $this->success_route, '/');
         if ($success !== '' && str_starts_with($success, 'forms/')) {
             return '/'.$success;
         }
 
         return '/forms/'.$this->slug.'/success';
+    }
+
+    public function usesDynamicRenderer(): bool
+    {
+        return $this->handler !== 'custom';
+    }
+
+    public static function resolveForLegacyRedirect(string $path): ?self
+    {
+        $path = ltrim($path, '/');
+
+        return static::query()
+            ->where(function ($query) use ($path) {
+                $query->where('slug', $path)
+                    ->orWhere('legacy_route', $path)
+                    ->orWhere('legacy_route', '/'.$path);
+            })
+            ->first();
+    }
+
+    public static function resolveForPublicPath(string $path): ?self
+    {
+        $path = ltrim($path, '/');
+
+        return static::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($path) {
+                $query->where('slug', $path)
+                    ->orWhere('legacy_route', $path)
+                    ->orWhere('legacy_route', '/'.$path);
+            })
+            ->first();
     }
 
     public static function placementKeys(): array

@@ -1,5 +1,7 @@
   // ================================== Crm Home widgets charts Start =================================
   function createChart(chartId, chartColor) {
+    const el = document.querySelector(`#${chartId}`);
+    if (!el) return;
 
     let currentYear = new Date().getFullYear();
 
@@ -111,23 +113,23 @@
       },
     };
 
-    var chart = new ApexCharts(document.querySelector(`#${chartId}`), options);
+    var chart = new ApexCharts(el, options);
     chart.render();
   }
 
   // Call the function for each chart with the desired ID and color
-  createChart('new-user-chart', '#487fff');
-  createChart('active-user-chart', '#45b369');
-  createChart('total-sales-chart', '#f4941e');
-  createChart('conversion-user-chart', '#8252e9');
-  createChart('leads-chart', '#de3ace');
-  createChart('total-profit-chart', '#00b8f2');
+  createChart('new-user-chart', '#0F274A');
+  createChart('active-user-chart', '#16a34a');
+  createChart('total-sales-chart', '#C5A86D');
+  createChart('form-submissions-chart', '#7c3aed');
   // ================================== Crm Home widgets charts End =================================
 
 
   // ================================ Revenue Growth Area Chart Start ================================ 
   function createChartTwo(chartId, chartColor) {
-    
+    const el = document.querySelector(`#${chartId}`);
+    if (!el) return;
+
     var options = {
       series: [
           {
@@ -247,7 +249,7 @@
       },
     };
 
-    var chart = new ApexCharts(document.querySelector(`#${chartId}`), options);
+    var chart = new ApexCharts(el, options);
     chart.render();
   }
   createChartTwo('revenue-chart', '#487fff');

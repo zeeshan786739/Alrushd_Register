@@ -14,58 +14,71 @@
         ],
     ])
 
-    <div class="row gy-4 mb-24">
+    <div class="row gy-4 mb-24" id="formStatFilters">
         <div class="col-xxl-3 col-sm-6">
-            <div class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-1 fc-stat-card">
+            <button type="button"
+                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-1 fc-stat-card fc-stat-filter w-100 text-start is-active"
+                    data-stat-filter="all"
+                    aria-pressed="true">
                 <div class="card-body p-0 d-flex align-items-center gap-3">
                     <span class="w-48-px h-48-px bg-primary-600 text-white d-flex justify-content-center align-items-center rounded-circle">
                         <iconify-icon icon="solar:document-text-linear" class="text-xl"></iconify-icon>
                     </span>
                     <div>
                         <span class="fw-medium text-secondary-light text-sm d-block mb-4">Total Forms</span>
-                        <h6 class="fw-bold mb-0 text-lg">{{ $stats['total_forms'] }}</h6>
+                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="total">{{ $stats['total_forms'] }}</h6>
                     </div>
                 </div>
-            </div>
+            </button>
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <div class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-2 fc-stat-card">
+            <button type="button"
+                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-2 fc-stat-card fc-stat-filter w-100 text-start"
+                    data-stat-filter="active"
+                    aria-pressed="false">
                 <div class="card-body p-0 d-flex align-items-center gap-3">
                     <span class="w-48-px h-48-px bg-success-main text-white d-flex justify-content-center align-items-center rounded-circle">
                         <iconify-icon icon="solar:check-circle-linear" class="text-xl"></iconify-icon>
                     </span>
                     <div>
                         <span class="fw-medium text-secondary-light text-sm d-block mb-4">Active Forms</span>
-                        <h6 class="fw-bold mb-0 text-lg">{{ $stats['active_forms'] }}</h6>
+                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="active">{{ $stats['active_forms'] }}</h6>
                     </div>
                 </div>
-            </div>
+            </button>
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <div class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-3 fc-stat-card">
+            <button type="button"
+                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-3 fc-stat-card fc-stat-filter w-100 text-start"
+                    data-stat-filter="landing"
+                    aria-pressed="false">
                 <div class="card-body p-0 d-flex align-items-center gap-3">
                     <span class="w-48-px h-48-px bg-yellow text-white d-flex justify-content-center align-items-center rounded-circle">
                         <iconify-icon icon="solar:global-linear" class="text-xl"></iconify-icon>
                     </span>
                     <div>
                         <span class="fw-medium text-secondary-light text-sm d-block mb-4">On Landing Page</span>
-                        <h6 class="fw-bold mb-0 text-lg">{{ $stats['landing_forms'] }}</h6>
+                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="landing">{{ $stats['landing_forms'] }}</h6>
                     </div>
                 </div>
-            </div>
+            </button>
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <div class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-4 fc-stat-card">
+            <button type="button"
+                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-4 fc-stat-card fc-stat-filter w-100 text-start"
+                    data-stat-filter="submissions"
+                    aria-pressed="false">
                 <div class="card-body p-0 d-flex align-items-center gap-3">
                     <span class="w-48-px h-48-px bg-purple text-white d-flex justify-content-center align-items-center rounded-circle">
                         <iconify-icon icon="solar:inbox-linear" class="text-xl"></iconify-icon>
                     </span>
                     <div>
-                        <span class="fw-medium text-secondary-light text-sm d-block mb-4">Total Submissions</span>
-                        <h6 class="fw-bold mb-0 text-lg">{{ number_format($stats['total_submissions']) }}</h6>
+                        <span class="fw-medium text-secondary-light text-sm d-block mb-4">With Submissions</span>
+                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="submissions">{{ $forms->where('entries_count', '>', 0)->count() }}</h6>
+                        <span class="text-secondary-light text-xs">{{ number_format($stats['total_submissions']) }} total entries</span>
                     </div>
                 </div>
-            </div>
+            </button>
         </div>
     </div>
 
@@ -93,13 +106,19 @@
                 <div>
                     <h6 class="mb-4 fw-semibold fc-panel-title">
                         <iconify-icon icon="solar:documents-linear"></iconify-icon>
-                        All Forms
+                        <span id="formTableTitle">All Forms</span>
                     </h6>
-                    <p class="text-secondary-light text-sm mb-0">Unified storage in <span class="text-primary-600 fw-medium">form_entries</span></p>
+                    <p class="text-secondary-light text-sm mb-0">
+                        <span id="formTableSubtitle">Showing all forms</span>
+                        <span class="text-primary-600 fw-medium" id="formTableCount"></span>
+                    </p>
                 </div>
+                <button type="button" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 text-sm d-none" id="clearFormFilter">
+                    Clear filter
+                </button>
             </div>
             <div class="table-responsive">
-                <table class="table bordered-table mb-0 align-middle">
+                <table class="table bordered-table mb-0 align-middle" id="formsTable">
                     <thead>
                         <tr>
                             <th class="ps-24">Form</th>
@@ -129,10 +148,15 @@
                             data-form-row
                             data-form-id="{{ $form->id }}"
                             data-form-name="{{ $form->name }}"
+                            data-is-active="{{ $form->is_active ? '1' : '0' }}"
+                            data-on-landing="{{ $form->hasPlacement('landing') ? '1' : '0' }}"
+                            data-entries-count="{{ $form->entries_count }}"
                             data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
                             data-toggle-url="{{ route('admin.form-manager.toggle', $form) }}"
                             data-toggle-placement-url="{{ route('admin.form-manager.toggle-placement', $form) }}"
-                            data-placements="{{ implode(',', $form->placements()) }}">
+                            data-placements="{{ implode(',', $form->placements()) }}"
+                            data-form-url="{{ url($form->routePath()) }}"
+                            data-destroy-url="{{ route('admin.form-manager.destroy', $form) }}">
                             <td class="ps-24">
                                 <div class="d-flex align-items-center gap-12">
                                     <span class="fc-form-icon" style="background: {{ $color }}18; color: {{ $color }};">
@@ -204,26 +228,45 @@
                                         <iconify-icon icon="solar:settings-linear"></iconify-icon>
                                     </button>
                                     <a href="{{ route('admin.form-manager.entries', $form) }}"
-                                       class="fc-action-icon copy"
+                                       class="fc-action-icon view"
                                        title="View submissions"
                                        aria-label="View submissions">
                                         <iconify-icon icon="solar:inbox-linear"></iconify-icon>
                                     </a>
+                                    <button type="button"
+                                            class="fc-action-icon link border-0"
+                                            title="Copy form URL"
+                                            aria-label="Copy form URL"
+                                            data-copy-form-url="{{ url($form->routePath()) }}">
+                                        <iconify-icon icon="solar:link-round-linear"></iconify-icon>
+                                    </button>
                                     <form action="{{ route('admin.form-manager.duplicate', $form) }}" method="POST" class="d-inline">
                                         @csrf
                                         <button type="submit"
-                                                class="fc-action-icon copy"
+                                                class="fc-action-icon duplicate"
                                                 title="Duplicate form"
                                                 aria-label="Duplicate form">
                                             <iconify-icon icon="solar:copy-linear"></iconify-icon>
                                         </button>
                                     </form>
+                                    <button type="button"
+                                            class="fc-action-icon delete border-0"
+                                            title="Delete form"
+                                            aria-label="Delete form"
+                                            data-delete-form>
+                                        <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
                         @endforeach
                     </tbody>
                 </table>
+                <div class="d-none px-24 py-40 text-center" id="formFilterEmpty">
+                    <iconify-icon icon="solar:filter-linear" class="text-3xl text-secondary-light mb-12 d-block"></iconify-icon>
+                    <h6 class="fw-semibold mb-8">No forms match this filter</h6>
+                    <p class="text-secondary-light text-sm mb-0">Try another stat card or clear the filter.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -330,7 +373,85 @@
         button.textContent = isActive ? 'Active' : 'Inactive';
         button.classList.toggle('fc-badge-primary', isActive);
         button.classList.toggle('fc-badge-neutral', !isActive);
+
+        const row = button.closest('[data-form-row]');
+        if (row) {
+            row.dataset.isActive = isActive ? '1' : '0';
+            applyFormFilter(currentFormFilter);
+        }
     }
+
+    const filterMeta = {
+        all: { title: 'All Forms', subtitle: 'Showing all forms' },
+        active: { title: 'Active Forms', subtitle: 'Showing active forms only' },
+        landing: { title: 'On Landing Page', subtitle: 'Showing forms on the landing page' },
+        submissions: { title: 'With Submissions', subtitle: 'Showing forms that have submissions' },
+    };
+
+    let currentFormFilter = 'all';
+
+    function applyFormFilter(filter) {
+        currentFormFilter = filter;
+        const rows = Array.from(document.querySelectorAll('[data-form-row]'));
+        const table = document.getElementById('formsTable');
+        const emptyState = document.getElementById('formFilterEmpty');
+        const clearBtn = document.getElementById('clearFormFilter');
+        const titleEl = document.getElementById('formTableTitle');
+        const subtitleEl = document.getElementById('formTableSubtitle');
+        const countEl = document.getElementById('formTableCount');
+        let visibleCount = 0;
+
+        rows.forEach(function (row) {
+            const isActive = row.dataset.isActive === '1';
+            const onLanding = row.dataset.onLanding === '1';
+            const entriesCount = parseInt(row.dataset.entriesCount || '0', 10);
+            let visible = true;
+
+            if (filter === 'active') visible = isActive;
+            else if (filter === 'landing') visible = onLanding;
+            else if (filter === 'submissions') visible = entriesCount > 0;
+
+            row.classList.toggle('d-none', !visible);
+            if (visible) visibleCount += 1;
+        });
+
+        if (filter === 'submissions') {
+            rows
+                .filter(function (row) { return !row.classList.contains('d-none'); })
+                .sort(function (a, b) {
+                    return parseInt(b.dataset.entriesCount || '0', 10) - parseInt(a.dataset.entriesCount || '0', 10);
+                })
+                .forEach(function (row) {
+                    row.parentElement?.appendChild(row);
+                });
+        }
+
+        document.querySelectorAll('[data-stat-filter]').forEach(function (card) {
+            const isSelected = card.dataset.statFilter === filter;
+            card.classList.toggle('is-active', isSelected);
+            card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+
+        if (titleEl && filterMeta[filter]) titleEl.textContent = filterMeta[filter].title;
+        if (subtitleEl && filterMeta[filter]) subtitleEl.textContent = filterMeta[filter].subtitle;
+        if (countEl) countEl.textContent = visibleCount ? ' · ' + visibleCount + ' shown' : '';
+        if (clearBtn) clearBtn.classList.toggle('d-none', filter === 'all');
+        if (table) table.classList.toggle('d-none', visibleCount === 0);
+        if (emptyState) emptyState.classList.toggle('d-none', visibleCount > 0);
+    }
+
+    document.querySelectorAll('[data-stat-filter]').forEach(function (card) {
+        card.addEventListener('click', function () {
+            const filter = card.dataset.statFilter || 'all';
+            applyFormFilter(filter === currentFormFilter && filter !== 'all' ? 'all' : filter);
+        });
+    });
+
+    document.getElementById('clearFormFilter')?.addEventListener('click', function () {
+        applyFormFilter('all');
+    });
+
+    applyFormFilter('all');
 
     const modalEl = document.getElementById('formSettingsModal');
     const form = document.getElementById('formSettingsForm');
@@ -377,6 +498,8 @@
             try {
                 const data = await putJson(form.action, { placements: placements });
                 updateRowPlacements(activeSettingsRow, data.placements || []);
+                activeSettingsRow.dataset.onLanding = (data.placements || []).includes('landing') ? '1' : '0';
+                applyFormFilter(currentFormFilter);
                 modal.hide();
                 showToast(data.message || 'Display settings saved.');
             } catch (error) {
@@ -449,11 +572,103 @@
                     placement: placementBtn.dataset.togglePlacement,
                 });
                 updateRowPlacements(row, data.placements || []);
+                row.dataset.onLanding = (data.placements || []).includes('landing') ? '1' : '0';
+                applyFormFilter(currentFormFilter);
                 showToast(data.message || 'Display updated.');
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 placementBtn.classList.remove('is-loading');
+            }
+            return;
+        }
+
+        const copyUrlBtn = event.target.closest('[data-copy-form-url]');
+        if (copyUrlBtn) {
+            event.preventDefault();
+            const url = copyUrlBtn.dataset.copyFormUrl || '';
+            if (!url) return;
+
+            const copyText = async function () {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(url);
+                    return;
+                }
+                const input = document.createElement('textarea');
+                input.value = url;
+                input.setAttribute('readonly', '');
+                input.style.position = 'absolute';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+            };
+
+            try {
+                await copyText();
+                showToast('Form URL copied to clipboard.');
+            } catch (error) {
+                showToast('Could not copy URL. Please copy manually: ' + url, 'error');
+            }
+            return;
+        }
+
+        const deleteBtn = event.target.closest('[data-delete-form]');
+        if (deleteBtn) {
+            event.preventDefault();
+            const row = deleteBtn.closest('[data-form-row]');
+            if (!row) return;
+
+            const formName = row.dataset.formName || 'this form';
+            const destroyUrl = row.dataset.destroyUrl;
+            if (!destroyUrl) return;
+
+            const runDelete = async function () {
+                deleteBtn.classList.add('is-loading');
+                try {
+                    const formData = new FormData();
+                    formData.append('_method', 'DELETE');
+                    formData.append('_token', csrfToken);
+
+                    const response = await fetch(destroyUrl, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Could not delete form.');
+                    }
+
+                    row.remove();
+                    applyFormFilter(currentFormFilter);
+                    showToast(data.message || 'Form deleted.');
+                } catch (error) {
+                    showToast(error.message, 'error');
+                } finally {
+                    deleteBtn.classList.remove('is-loading');
+                }
+            };
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Delete form?',
+                    html: 'This will permanently remove <strong>' + escapeHtml(formName) + '</strong> and all its submissions.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    confirmButtonText: 'Yes, delete',
+                    cancelButtonText: 'Cancel',
+                }).then(function (result) {
+                    if (result.isConfirmed) runDelete();
+                });
+            } else if (confirm('Delete "' + formName + '"? This cannot be undone.')) {
+                runDelete();
             }
         }
     });

@@ -25,12 +25,14 @@
         body {
             font-size: 16px;
             font-family: "Roboto", sans-serif;
+            background-color: #F9F7F0;
+            color: #1A2B4B;
         }
 
         .custom-btn {
-            color: #FFF;
-            background-color: #AE9A66;
-            border-color: #AE9A66;
+            color: #1A2B4B;
+            background-color: #C5A86D;
+            border-color: #C5A86D;
             border-radius: 999px;
             padding: 15px 24px;
             font-weight: 600;
@@ -38,9 +40,9 @@
         }
 
         .custom-btn:hover {
-            background-color: #183e77;
+            background-color: #1A2B4B;
             color: #FFF;
-            border-color: #061e42;
+            border-color: #1A2B4B;
         }
 
         /* Progress Bar */
@@ -51,7 +53,7 @@
 
         .progress {
             height: 4px;
-            background-color: #2c3e50;
+            background-color: #e5e0d5;
             max-width: 100%;
             margin: auto;
         }
@@ -68,18 +70,18 @@
         }
 
         .progress-bar {
-            background-color: #AE9A66;
+            background-color: #C5A86D;
         }
 
         /* Progress Bar */
         .step-one h3 {
             font-size: 32px;
             font-weight: 600;
-            color: #AE9A66;
+            color: #1A2B4B;
         }
 
         .schoolbox.active {
-            border: 1px solid #AE9A66;
+            border: 1px solid #C5A86D;
         }
 
         /* Form */
@@ -91,13 +93,13 @@
         select {
             padding: 15px 24px !important;
             border-radius: 8px !important;
-            background-color: #183e77 !important;
-            color: #FFF !important;
-            border: 1px solid #183e77 !important;
+            background-color: #ffffff !important;
+            color: #1A2B4B !important;
+            border: 1px solid #ddd8cc !important;
         }
 
         .form-select {
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 16 16'%3e%3cpath d='M7.247 11.14l-4.796-5.481C2.071 5.253 2.522 4.5 3.2 4.5h9.6c.678 0 1.129.753.749 1.159l-4.796 5.481a1 1 0 0 1-1.506 0z'/%3e%3c/svg%3e") !important;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%231A2B4B' viewBox='0 0 16 16'%3e%3cpath d='M7.247 11.14l-4.796-5.481C2.071 5.253 2.522 4.5 3.2 4.5h9.6c.678 0 1.129.753.749 1.159l-4.796 5.481a1 1 0 0 1-1.506 0z'/%3e%3c/svg%3e") !important;
         }
 
         .iti--separate-dial-code {
@@ -282,10 +284,10 @@
         .select2-container--default .select2-selection--single {
             -webkit-appearance: none !important;
             appearance: none !important;
-            background-color: #183e77 !important;
-            border: none !important;
+            background-color: #ffffff !important;
+            border: 1px solid #ddd8cc !important;
             border-radius: 8px !important;
-            color: #fff !important;
+            color: #1A2B4B !important;
             height: 50px !important;
             letter-spacing: -.03125rem !important;
             padding: 12px 24px !important;
@@ -293,7 +295,7 @@
         }
 
         .select2-container--default .select2-selection--single .select2-selection__rendered {
-            color: #fff;
+            color: #1A2B4B;
         }
 
         .iti {
@@ -309,7 +311,7 @@
         }
 
         .iti--separate-dial-code .iti__selected-dial-code {
-            color: #FFF;
+            color: #1A2B4B;
         }
 
         .iti__country {
@@ -319,8 +321,8 @@
     @yield('css')
 </head>
 
-<body style="min-height: 100vh;background-color:#061e42;">
-    <a href="{{ route('form.step',1) }}" class="logo d-flex align-items-center m-auto" style="background: #ECF4FF;padding-top:10px;padding-bottom:10px;">
+<body style="min-height: 100vh;background-color:#F9F7F0;">
+    <a href="{{ route('form.step',1) }}" class="logo d-flex align-items-center m-auto" style="background: #ffffff;padding-top:10px;padding-bottom:10px;border-bottom:1px solid #e5e0d5;">
         <img src="{{ asset('frontend/') }}/assets/img/logo.png" alt="" width="70" style="margin:auto;">
     </a>
     @yield('student')

@@ -5,8 +5,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@yield('title')</title>
-    <link rel="icon" type="image/png" href="{{ asset('admin/') }}/assets/images/favicon.png" sizes="16x16" />
+    <title>@yield('title') — Al Rushd</title>
+    <link rel="icon" type="image/png" href="{{ asset('frontend/assets/img/logo.png') }}" sizes="16x16" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- remix icon font css  -->
     <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/remixicon.css" />
     <!-- BootStrap css -->
@@ -77,6 +80,36 @@
 
 <body>
 
+@php
+    $crmSetting = \App\Models\Setting::first();
+    $crmDefaultLogo = asset('frontend/assets/img/logo.png');
+    $crmLogoUrl = $crmDefaultLogo;
+
+    if ($crmSetting?->header_logo) {
+        $logoPath = $crmSetting->header_logo;
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($logoPath)) {
+            $crmLogoUrl = asset('storage/' . ltrim($logoPath, '/'));
+        } elseif (str_starts_with($logoPath, 'http://') || str_starts_with($logoPath, 'https://')) {
+            $crmLogoUrl = $logoPath;
+        }
+    }
+
+    $crmBrandName = $crmSetting?->company_name ?? 'Al Rushd';
+
+    $adminUser = auth()->guard('admin')->user();
+    $adminAvatarDefault = asset('admin/assets/images/user.png');
+    $adminAvatar = $adminAvatarDefault;
+    if ($adminUser?->image) {
+        $avatarPath = $adminUser->image;
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($avatarPath)) {
+            $adminAvatar = asset('storage/' . ltrim($avatarPath, '/'));
+        } elseif (str_starts_with($avatarPath, 'http://') || str_starts_with($avatarPath, 'https://')) {
+            $adminAvatar = $avatarPath;
+        }
+    }
+    $adminInitials = strtoupper(substr($adminUser?->name ?? 'A', 0, 1));
+@endphp
+
 <div id="crm-page-loader" aria-hidden="true" aria-label="Loading page">
     <div class="crm-loader-spinner"></div>
     <span class="crm-loader-text">Loading…</span>
@@ -87,10 +120,13 @@
         <iconify-icon icon="radix-icons:cross-2"></iconify-icon>
     </button>
     <div>
-        <a href="{{ route('admin.dashboard') }}" class="sidebar-logo">
-            <img src="{{ optional(\App\Models\Setting::first())->header_logo ? Storage::url(\App\Models\Setting::first()->header_logo) : '' }}" alt="site logo" class="light-logo">
-            <img src="{{ optional(\App\Models\Setting::first())->header_logo ? Storage::url(\App\Models\Setting::first()->header_logo) : '' }}" alt="site logo" class="dark-logo">
-            <img src="{{ optional(\App\Models\Setting::first())->header_logo ? Storage::url(\App\Models\Setting::first()->header_logo) : '' }}" alt="site logo" class="logo-icon">
+        <a href="{{ route('admin.dashboard') }}" class="sidebar-logo sidebar-logo--brand" title="{{ $crmBrandName }}">
+            <img src="{{ $crmLogoUrl }}" alt="{{ $crmBrandName }}" class="crm-logo-img" width="40" height="40"
+                onerror="this.onerror=null;this.src='{{ $crmDefaultLogo }}';">
+            <span class="crm-brand-text">
+                <span class="crm-brand-name">{{ $crmBrandName }}</span>
+                <span class="crm-brand-tag">Admin</span>
+            </span>
         </a>
     </div>
     <div class="sidebar-menu-area">
@@ -103,12 +139,12 @@
         <div class="row align-items-center justify-content-between">
             <div class="col-auto">
                 <div class="d-flex flex-wrap align-items-center gap-4">
-                    <button type="button" class="sidebar-toggle">
-                        <iconify-icon icon="heroicons:bars-3-solid" class="icon text-2xl non-active"></iconify-icon>
-                        <iconify-icon icon="iconoir:arrow-right" class="icon text-2xl active"></iconify-icon>
-                    </button>
-                    <button type="button" class="sidebar-mobile-toggle">
-                        <iconify-icon icon="heroicons:bars-3-solid" class="icon"></iconify-icon>
+                    <button type="button"
+                            class="sidebar-toggle"
+                            aria-label="Collapse sidebar"
+                            aria-expanded="true"
+                            title="Collapse sidebar">
+                        <iconify-icon icon="solar:round-alt-arrow-left-linear" class="sidebar-toggle-icon text-2xl"></iconify-icon>
                     </button>
                     <!-- <form class="navbar-search">
                         <input type="text" name="search" placeholder="Search">
@@ -117,12 +153,64 @@
                 </div>
             </div>
             <div class="col-auto">
-                <div class="d-flex flex-wrap align-items-center gap-3">
-                    <a href="{{ url('/') }}" target="_blank"
-                        class="w-40-px h-40-px bg-neutral-200 rounded-circle d-flex justify-content-center align-items-center"><iconify-icon icon="mdi:web" width="20" height="20"></iconify-icon></a>
+                <div class="d-flex flex-wrap align-items-center gap-3 crm-navbar-actions">
+                    <a href="{{ url('/') }}" target="_blank" rel="noopener"
+                        class="crm-nav-btn" title="View website">
+                        <iconify-icon icon="mdi:web" width="22" height="22"></iconify-icon>
+                    </a>
 
-                    <button type="button" data-theme-toggle
-                        class="w-40-px h-40-px bg-neutral-200 rounded-circle d-flex justify-content-center align-items-center"></button>
+                    <button type="button" data-theme-toggle class="crm-nav-btn" title="Toggle theme"
+                        aria-label="Toggle theme">
+                        <iconify-icon icon="solar:sun-linear" class="crm-theme-icon" width="22" height="22"></iconify-icon>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="crm-nav-avatar" type="button" data-bs-toggle="dropdown" aria-label="Account menu">
+                            <img src="{{ $adminAvatar }}" alt="{{ $adminUser?->name }}"
+                                class="crm-nav-avatar__img"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                            <span class="crm-nav-avatar__fallback" style="display:none">{{ $adminInitials }}</span>
+                        </button>
+                        <div class="dropdown-menu to-top dropdown-menu-sm">
+                            <div
+                                class="py-12 px-16 radius-8 bg-primary-50 mb-16 d-flex align-items-center justify-content-between gap-2">
+                                <div>
+                                    <h6 class="text-lg text-primary-light fw-semibold mb-2">{{ $adminUser?->name }}</h6>
+                                </div>
+                                <button type="button" class="hover-text-danger">
+                                    <iconify-icon icon="radix-icons:cross-1" class="icon text-xl"></iconify-icon>
+                                </button>
+                            </div>
+                            <ul class="to-top-list">
+                                <li>
+                                    <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-primary d-flex align-items-center gap-3"
+                                        href="{{ route('admin.profile.settings') }}">
+                                        <iconify-icon icon="solar:user-linear" class="icon text-xl"></iconify-icon> My
+                                        Profile</a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-primary d-flex align-items-center gap-3"
+                                        href="{{ route('admin.change.password') }}">
+                                        <iconify-icon icon="icon-park-outline:setting-two"
+                                            class="icon text-xl"></iconify-icon> Password Change</a>
+                                </li>
+                                <li>
+
+                                    <form method="POST" action="{{ route('admin.logout') }}">
+                                        @csrf
+                                        <a onclick="event.preventDefault();
+                                            this.closest('form').submit();" class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-danger d-flex align-items-center gap-3"
+                                            href="{{route('admin.logout')}}">
+                                            <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log
+                                            Out</a>
+                                    </form>
+
+
+                                </li>
+                            </ul>
+                        </div>
+                    </div><!-- Profile dropdown end -->
                     <!-- <div class="dropdown d-none d-sm-inline-block">
                         <button
                             class="has-indicator w-40-px h-40-px bg-neutral-200 rounded-circle d-flex justify-content-center align-items-center"
@@ -503,58 +591,6 @@
                     </div> -->
                     <!-- Notification dropdown end -->
 
-                    <div class="dropdown">
-                        <button class="d-flex justify-content-center align-items-center rounded-circle" type="button"
-                            data-bs-toggle="dropdown">
-                            @if(auth()->guard('admin')->user()->image)
-                            <img src="{{ Storage::url(auth()->guard('admin')->user()->image) }}" alt="image"
-                                class="w-40-px h-40-px object-fit-cover rounded-circle">
-                            @else
-                            <img src="{{ asset('admin/') }}/assets/images/user.png" alt="image"
-                                class="w-40-px h-40-px object-fit-cover rounded-circle">
-                            @endif
-                        </button>
-                        <div class="dropdown-menu to-top dropdown-menu-sm">
-                            <div
-                                class="py-12 px-16 radius-8 bg-primary-50 mb-16 d-flex align-items-center justify-content-between gap-2">
-                                <div>
-                                    <h6 class="text-lg text-primary-light fw-semibold mb-2">{{ auth()->guard('admin')->user()->name }}</h6>
-                                    <!-- <span class="text-secondary-light fw-medium text-sm">Admin</span> -->
-                                </div>
-                                <button type="button" class="hover-text-danger">
-                                    <iconify-icon icon="radix-icons:cross-1" class="icon text-xl"></iconify-icon>
-                                </button>
-                            </div>
-                            <ul class="to-top-list">
-                                <li>
-                                    <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-primary d-flex align-items-center gap-3"
-                                        href="{{ route('admin.profile.settings') }}">
-                                        <iconify-icon icon="solar:user-linear" class="icon text-xl"></iconify-icon> My
-                                        Profile</a>
-                                </li>
-
-                                <li>
-                                    <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-primary d-flex align-items-center gap-3"
-                                        href="{{ route('admin.change.password') }}">
-                                        <iconify-icon icon="icon-park-outline:setting-two"
-                                            class="icon text-xl"></iconify-icon> Password Change</a>
-                                </li>
-                                <li>
-
-                                    <form method="POST" action="{{ route('admin.logout') }}">
-                                        @csrf
-                                        <a onclick="event.preventDefault();
-                                            this.closest('form').submit();" class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-danger d-flex align-items-center gap-3"
-                                            href="{{route('admin.logout')}}">
-                                            <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log
-                                            Out</a>
-                                    </form>
-
-
-                                </li>
-                            </ul>
-                        </div>
-                    </div><!-- Profile dropdown end -->
                 </div>
             </div>
         </div>

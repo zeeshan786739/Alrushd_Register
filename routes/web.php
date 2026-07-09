@@ -80,6 +80,12 @@ Route::post('/apply-coupon', [FrontendController::class, 'applyCoupon'])->name('
 
 Route::get('/',[FrontendController::class,'index'])->name('index');
 
+Route::get('/forms/{slug}', [FrontendController::class, 'dynamicForm'])->name('dynamic-form');
+Route::get('/forms/{slug}/success', [FrontendController::class, 'dynamicFormSuccess'])->name('dynamic-form.success');
+
+Route::get('/Forms/{slug}', fn (string $slug) => redirect('/forms/'.strtolower($slug), 301));
+Route::get('/Forms/{slug}/success', fn (string $slug) => redirect('/forms/'.strtolower($slug).'/success', 301));
+
 Route::get('/api/frontend/csrf', [FrontendFormDataController::class, 'csrf']);
 
 Route::get('/api/frontend/forms', [\App\Http\Controllers\Api\DynamicFormController::class, 'index']);
@@ -114,13 +120,9 @@ Route::get('debit/success',[FrontendController::class,'debitSubmissionSuccwss'])
 
 Route::get('/staff-application',[FrontendController::class,'staffAdmissionForm'])->name('staff-admission');
 Route::get('/job-applications',[FrontendController::class,'jobAdmissionForm'])->name('job-applications');
-Route::get('/job-applications-success',function(){
-    return view('frontend.job-application-successfull');
-})->name('job-applications.success');
+Route::get('/job-applications-success', [FrontendController::class, 'jobApplicationsSuccess'])->name('job-applications.success');
 
-Route::get('/staff-application-success',function(){
-    return view('frontend.staff-application-successfull');
-})->name('staff-applications.success');
+Route::get('/staff-application-success', [FrontendController::class, 'staffApplicationsSuccess'])->name('staff-applications.success');
 
 
 Route::post('/staff-applications-form',[FrontendController::class,'staffAdmissionFormStore']);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Helpers\ImageHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Http\Controllers\Admin\WebsiteCmsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,8 +24,8 @@ class SettingController extends Controller
      */
     public function index()
     {
-        $data = Setting::first();
-        return view('admin.settings.index', compact('data'));
+        $data = Setting::firstOrCreate([]);
+        return app(WebsiteCmsController::class)->index();
     }
 
     /**
@@ -37,12 +38,7 @@ class SettingController extends Controller
      */
     public function store(Request $request)
     {
-
-        dd($request->all());
-        $data = Setting::first();
-
-       
-
+        $data = Setting::firstOrCreate([]);
 
         $input = $request->except(['_token', '_method']);
 

@@ -1,213 +1,163 @@
-@extends('layouts.app')
+@extends('layouts.landing')
 
-@section('title','Al-rushd Online School - Home')
-
-@section('css')
-<style>
-   .hero-section {
-      position: relative;
-      min-height: 80vh;
-      background-color: #061E42;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 50px 20px;
-      color: white;
-    }
-
-    #particles-js {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 2;
-    }
-
-    .hero-title {
-      font-size: 48px;
-      font-weight: 600;
-      color: white;
-    }
-
-    .hero-buttons .btn {
-      margin: 10px 10px 30px;
-      padding: 10px 25px;
-      border-radius: 25px;
-      font-weight: 500;
-    }
-
-    .btn-staff {
-      background-color: #C6A76E;
-      color: #fff;
-      border: none;
-    }
-
-    .btn-staff:hover{
-        background-color: #C6A76E;
-    }
-
-    .btn-student {
-      background-color: transparent;
-      color: #fff;
-      border: 1px solid #fff;
-    }
-
-    .hero-images {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .hero-images img {
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .hero-images img:hover {
-        transform: scale(1.05);
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-    }
-
-    .img1{
-        width: 181px;
-        height: 234px;
-        border-radius: 16px;
-        object-fit: cover;
-    }
-    .img2{
-        width: 209px;
-        height: 290px;
-        border-radius: 16px;
-        object-fit: cover;
-    }
-    .img3{
-        width: 181px;
-        height: 234px;
-        border-radius: 16px;
-        object-fit: cover;
-    }
-
-    @media (max-width: 768px) {
-      .hero-title {
-        font-size: 1.5rem;
-      }
-
-      .hero-images img {
-        width: 150px;
-        height: 220px;
-      }
-      .btn-staff{
-        margin-bottom: 10px !important;
-      }
-    }
-    canvas {
-        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.1));
-    }
-</style>
-@endsection
+@section('title', ($cms['seo']['meta_title'] ?? null) ?: 'Al Rushd Online School — Where Young Minds Thrive')
 
 @section('content')
+@php
+    $b = $cms['branding'] ?? [];
+    $nav = $cms['navbar'] ?? [];
+    $hero = $cms['hero'] ?? [];
+    $about = $cms['about'] ?? [];
+    $features = $cms['features'] ?? [];
+    $formsSec = $cms['forms_section'] ?? [];
+    $statsSec = $cms['statistics'] ?? [];
+    $programsSec = $cms['programs'] ?? [];
+    $hiw = $cms['how_it_works'] ?? [];
+    $testi = $cms['testimonials'] ?? [];
+    $faqSec = $cms['faq'] ?? [];
+    $contactSec = $cms['contact'] ?? [];
+    $cta = $cms['cta'] ?? [];
+    $footer = $cms['footer'] ?? [];
+    $social = $cms['social'] ?? [];
+    $gallery = $cms['gallery'] ?? [];
+    $sectionsOrder = $cms['sections_order'] ?? [
+        'hero', 'statistics', 'about', 'features', 'forms_section',
+        'how_it_works', 'programs', 'gallery', 'testimonials', 'faq', 'contact', 'cta',
+    ];
+@endphp
 
- <a href="{{ url('/') }}" class="logo d-flex align-items-center m-auto" style="background: #f6f9fc;padding-top:10px;padding-bottom:10px;">
-    <img src="{{ asset('frontend/') }}/assets/img/logo.png" alt="" width="70" style="margin:auto;">
-</a>
+<div class="lp-scroll-progress" id="lpScrollProgress" aria-hidden="true"></div>
 
+{{-- ── Navbar ── --}}
+<nav class="lp-nav" id="lpNav" aria-label="Main navigation">
+    <div class="lp-container lp-nav-inner">
+        <a href="#home" class="lp-nav-brand">
+            <img src="{{ $b['logo'] ?? asset('frontend/assets/img/logo.png') }}" alt="{{ $b['company_name'] ?? 'Al Rushd' }}" class="lp-nav-logo" loading="eager">
+            <span class="lp-nav-logo-text">{{ $b['short_name'] ?? ($b['company_name'] ?? 'Al Rushd') }}</span>
+        </a>
 
-<section class="hero-section">
-  <div id="particles-js"></div>
+        <ul class="lp-nav-menu" id="lpNavMenu">
+            @foreach(($nav['menu_items'] ?? []) as $item)
+                @if($item['enabled'] ?? true)
+                <li><a href="{{ $item['href'] }}" class="lp-nav-link" data-section="{{ ltrim($item['href'], '#') }}">{{ $item['label'] }}</a></li>
+                @endif
+            @endforeach
+            <li class="lp-nav-dropdown">
+                <button type="button" class="lp-nav-link lp-nav-dropdown-trigger" aria-expanded="false" aria-haspopup="true">
+                    Forms <i class="fa fa-chevron-down lp-nav-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="lp-nav-dropdown-menu">
+                    @foreach ($formCards as $card)
+                    <a href="{{ url($card['href']) }}" class="lp-nav-dropdown-item">
+                        <i class="fa {{ $card['icon'] }}"></i> {{ $card['label'] }}
+                    </a>
+                    @endforeach
+                </div>
+            </li>
+            <li class="lp-nav-mobile-actions">
+                <a href="{{ $nav['login_url'] ?? '/admin/login' }}" class="lp-btn lp-btn--outline-dark">{{ $nav['login_text'] ?? 'Login' }}</a>
+                <a href="{{ $nav['apply_url'] ?? '#forms' }}" class="lp-btn lp-btn--primary">{{ $nav['apply_text'] ?? 'Apply Now' }}</a>
+            </li>
+        </ul>
 
-  <div class="hero-content">
-    <h1 class="hero-title mb-4">Welcome to Al Rushd <br> Where Young Minds Thrive</h1>
-    <div class="hero-buttons">
-    <a href="{{ route('job-applications') }}" class="btn btn-staff">Job Application</a>
-      <a href="{{ route('staff-admission') }}" class="btn btn-staff">Staff Admission</a>
-      <a href="{{ url('student-admission/step/1') }}" class="btn btn-student">Student Admission</a>
-      <a href="{{ route('book-a-call') }}" class="btn btn-staff">Contact Us</a>
-      <a href="{{ route('debit.form') }}" class="btn btn-student">Debit Form</a>
-      <a href="{{ url('/admin/login') }}" class="btn btn-student">Profile</a>
+        <div class="lp-nav-actions">
+            @if($nav['show_search'] ?? true)
+            <button type="button" class="lp-nav-search" id="lpSearchBtn" aria-label="Search forms">
+                <i class="fa fa-search"></i>
+            </button>
+            @endif
+            @if($nav['show_login'] ?? true)
+            <a href="{{ $nav['login_url'] ?? '/admin/login' }}" class="lp-nav-login">{{ $nav['login_text'] ?? 'Login' }}</a>
+            @endif
+            @if($nav['show_apply'] ?? true)
+            <a href="{{ $nav['apply_url'] ?? '#forms' }}" class="lp-btn lp-btn--primary lp-nav-cta">{{ $nav['apply_text'] ?? 'Apply Now' }}</a>
+            @endif
+            <button type="button" class="lp-nav-toggle" id="lpNavToggle" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
     </div>
-    <div class="hero-images">
-      <img class="img1" src="{{ asset('frontend/assets/img/01.jpg') }}" alt="Kid 1">
-      <img class="img2" src="{{ asset('frontend/assets/img/02.png') }}" alt="Kid 2">
-      <img class="img3" src="{{ asset('frontend/assets/img/03.jpg') }}" alt="Kid 3">
+</nav>
+
+{{-- Search overlay --}}
+<div class="lp-search-overlay" id="lpSearchOverlay">
+    <div class="lp-search-box">
+        <input type="text" class="lp-search-input" id="lpSearchInput" placeholder="Search forms..." autocomplete="off">
+        <div class="lp-search-results" id="lpSearchResults"></div>
     </div>
-  </div>
-</section>
+</div>
+
+@include('frontend.partials.landing-sections')
+
+{{-- ── Footer ── --}}
+<footer class="lp-footer">
+    <div class="lp-container">
+        <div class="lp-footer-grid">
+            <div class="lp-footer-brand">
+                <img src="{{ $b['footer_logo'] ?? ($b['logo'] ?? asset('frontend/assets/img/logo.png')) }}" alt="{{ $b['company_name'] ?? 'Al Rushd' }}" loading="lazy">
+                <p>{{ $footer['description'] ?? '' }}</p>
+                <div class="lp-footer-social">
+                    @if(($social['enabled']['facebook'] ?? false) && !empty($social['facebook']))
+                    <a href="{{ $social['facebook'] }}" target="_blank" rel="noopener" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                    @endif
+                    @if(($social['enabled']['twitter'] ?? false) && !empty($social['twitter']))
+                    <a href="{{ $social['twitter'] }}" target="_blank" rel="noopener" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                    @endif
+                    @if(($social['enabled']['instagram'] ?? false) && !empty($social['instagram']))
+                    <a href="{{ $social['instagram'] }}" target="_blank" rel="noopener" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    @endif
+                    @if(($social['enabled']['linkedin'] ?? false) && !empty($social['linkedin']))
+                    <a href="{{ $social['linkedin'] }}" target="_blank" rel="noopener" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                    @endif
+                </div>
+            </div>
+            <div>
+                <h4 class="lp-footer-title">Quick Links</h4>
+                <ul class="lp-footer-links">
+                    @foreach(($footer['quick_links'] ?? []) as $link)
+                    <li><a href="{{ $link['href'] }}">{{ $link['label'] }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
+            <div>
+                <h4 class="lp-footer-title">Admissions</h4>
+                <ul class="lp-footer-links">
+                    @foreach (array_slice($formCards, 0, 5) as $card)
+                    <li><a href="{{ url($card['href']) }}">{{ $card['label'] }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
+            <div>
+                <h4 class="lp-footer-title">Stay Updated</h4>
+                <p style="font-size:14px;color:rgba(255,255,255,0.55);margin:0 0 8px">Subscribe to our newsletter for news and updates.</p>
+                <form class="lp-footer-newsletter" onsubmit="event.preventDefault();alert('Thank you for subscribing!');">
+                    <input type="email" placeholder="Your email" required aria-label="Email for newsletter">
+                    <button type="submit">Subscribe</button>
+                </form>
+                <ul class="lp-footer-links" style="margin-top:20px">
+                    <li><a href="mailto:{{ $landing['contact']['email'] }}">{{ $landing['contact']['email'] }}</a></li>
+                    <li><a href="tel:{{ str_replace(' ', '', $landing['contact']['phone']) }}">{{ $landing['contact']['phone'] }}</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="lp-footer-bottom">
+            <span>{{ $b['copyright'] ?? '© '.date('Y').' Al Rushd Online School.' }}</span>
+            <div class="lp-footer-legal">
+                <a href="{{ $footer['privacy_url'] ?? '#' }}">Privacy Policy</a>
+                <a href="{{ $footer['terms_url'] ?? '#' }}">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<button type="button" class="lp-back-top" id="lpBackTop" aria-label="Back to top">
+    <i class="fa fa-arrow-up"></i>
+</button>
+
 @endsection
 
-@section('script')
-<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+@section('script-before')
 <script>
-particlesJS("particles-js", {
-  particles: {
-    number: {
-      value: 50,
-      density: {
-        enable: true,
-        value_area: 800
-      }
-    },
-    color: {
-      value: "#ffffff"
-    },
-    shape: {
-      type: "circle"
-    },
-    opacity: {
-      value: 0.5,
-      random: false
-    },
-    size: {
-      value: 6, // bigger circles
-      random: true
-    },
-    line_linked: {
-      enable: true,
-      distance: 150, // distance to draw line between
-      color: "#ffffff",
-      opacity: 0.3,
-      width: 1
-    },
-    move: {
-      enable: true,
-      speed: 2,
-      direction: "none",
-      out_mode: "out"
-    }
-  },
-  interactivity: {
-    detect_on: "canvas",
-    events: {
-      onhover: {
-        enable: true,
-        mode: "grab" // Connect line between particles on hover
-      },
-      onclick: {
-        enable: false,
-        mode: "push"
-      },
-      resize: true
-    },
-    modes: {
-      grab: {
-        distance: 200,
-        line_linked: {
-          opacity: 0.6
-        }
-      }
-    }
-  },
-  retina_detect: true
-});
-
+    window.__lpFormCards = @json(collect($formCards)->map(fn($c) => ['label' => $c['label'], 'href' => url($c['href']), 'description' => $c['description']]));
 </script>
-
 @endsection

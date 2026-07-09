@@ -387,8 +387,8 @@
 @can('view setting')
 <li>
     <a href="{{ route('admin.settings.index') }}">
-        <iconify-icon icon="solar:settings-outline" class="menu-icon"></iconify-icon>
-        <span>Settings</span>
+        <iconify-icon icon="solar:monitor-smartphone-linear" class="menu-icon"></iconify-icon>
+        <span>Website CMS</span>
     </a>
 </li>
 @endcan

@@ -15,21 +15,66 @@
     item.toggleClass("dropdown-open");
   });
 
-  $(".sidebar-toggle").on("click", function(){
-    $(this).toggleClass("active");
-    $(".sidebar").toggleClass("active");
-    $(".dashboard-main").toggleClass("active");
-  });
+  function updateSidebarToggleState($btn) {
+    if (!$btn.length) return;
 
-  $(".sidebar-mobile-toggle").on("click", function(){
-    $(".sidebar").addClass("sidebar-open");
-    $("body").addClass("overlay-active");
+    const isMobile = window.matchMedia("(max-width: 1199px)").matches;
+    const isCollapsed = $btn.hasClass("active");
+    const isMobileOpen = $(".sidebar").hasClass("sidebar-open");
+    const icon = $btn.find(".sidebar-toggle-icon")[0];
+
+    if (icon) {
+      if (isMobile) {
+        icon.setAttribute(
+          "icon",
+          isMobileOpen ? "radix-icons:cross-2" : "solar:round-alt-arrow-right-linear"
+        );
+      } else {
+        icon.setAttribute(
+          "icon",
+          isCollapsed ? "solar:round-alt-arrow-right-linear" : "solar:round-alt-arrow-left-linear"
+        );
+      }
+    }
+
+    let label = "Collapse sidebar";
+    if (isMobile) {
+      label = isMobileOpen ? "Close menu" : "Open menu";
+    } else if (isCollapsed) {
+      label = "Expand sidebar";
+    }
+
+    $btn.attr("aria-label", label);
+    $btn.attr("title", label);
+    $btn.attr("aria-expanded", isMobile ? (isMobileOpen ? "true" : "false") : (isCollapsed ? "false" : "true"));
+  }
+
+  $(".sidebar-toggle").on("click", function(){
+    const isMobile = window.matchMedia("(max-width: 1199px)").matches;
+
+    if (isMobile) {
+      $(".sidebar").toggleClass("sidebar-open");
+      $("body").toggleClass("overlay-active");
+    } else {
+      $(this).toggleClass("active");
+      $(".sidebar").toggleClass("active");
+      $(".dashboard-main").toggleClass("active");
+    }
+
+    updateSidebarToggleState($(this));
   });
 
   $(".sidebar-close-btn").on("click", function(){
     $(".sidebar").removeClass("sidebar-open");
     $("body").removeClass("overlay-active");
+    updateSidebarToggleState($(".sidebar-toggle"));
   });
+
+  $(window).on("resize", function () {
+    updateSidebarToggleState($(".sidebar-toggle"));
+  });
+
+  updateSidebarToggleState($(".sidebar-toggle"));
 
   //to keep the current page active
   $(function () {
@@ -65,9 +110,14 @@ function calculateSettingAsThemeString({ localStorageTheme }) {
 * Utility function to update the button text and aria-label.
 */
 function updateButton({ buttonEl, isDark }) {
-  const newCta = isDark ? "dark" : "light";
+  const newCta = isDark ? "Switch to light theme" : "Switch to dark theme";
   buttonEl.setAttribute("aria-label", newCta);
-  buttonEl.innerText = newCta;
+  buttonEl.setAttribute("title", newCta);
+
+  const icon = buttonEl.querySelector(".crm-theme-icon");
+  if (icon) {
+    icon.setAttribute("icon", isDark ? "solar:moon-linear" : "solar:sun-linear");
+  }
 }
 
 /**

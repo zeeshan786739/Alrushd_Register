@@ -28,7 +28,7 @@ class FormManagerController extends Controller
         $stats = [
             'total_forms' => $forms->count(),
             'active_forms' => $forms->where('is_active', true)->count(),
-            'landing_forms' => $forms->where('show_on_landing', true)->count(),
+            'landing_forms' => $forms->filter(fn (Form $form) => $form->hasPlacement('landing'))->count(),
             'total_submissions' => $forms->sum('entries_count'),
         ];
 
@@ -106,9 +106,16 @@ class FormManagerController extends Controller
         return $this->redirectAfterSave($form, $request, 'Form updated successfully.');
     }
 
-    public function destroy(Form $form): RedirectResponse
+    public function destroy(Form $form, Request $request): RedirectResponse|JsonResponse
     {
+        $name = $form->name;
         $form->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Form "'.$name.'" deleted successfully.',
+            ]);
+        }
 
         return redirect()->route('admin.form-manager.index')->with('success', 'Form deleted.');
     }
@@ -323,6 +330,14 @@ class FormManagerController extends Controller
             'steps.*.fields.*.key' => 'required|string|max:255',
             'steps.*.fields.*.label' => 'required|string|max:255',
             'steps.*.fields.*.type' => 'required|string|max:50',
+            'steps.*.fields.*.placeholder' => 'nullable|string|max:255',
+            'steps.*.fields.*.required' => 'nullable|boolean',
+            'steps.*.fields.*.options' => 'nullable|array',
+            'steps.*.fields.*.options.*' => 'nullable|string|max:255',
+            'steps.*.fields.*.options_source' => 'nullable|string|max:255',
+            'steps.*.fields.*.validation' => 'nullable',
+            'steps.*.fields.*.col_span' => 'nullable|integer|min:1|max:2',
+            'steps.*.fields.*.settings' => 'nullable|array',
         ]);
 
         if ($data['steps'] === []) {
@@ -376,6 +391,7 @@ class FormManagerController extends Controller
             'success' => true,
             'message' => $message,
             'wizard_step' => $nextStep,
+            'update_url' => route('admin.form-manager.update', $form),
             'edit_url' => route('admin.form-manager.edit', $form),
         ]);
     }
