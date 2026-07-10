@@ -1,6 +1,36 @@
 <?php
 
 return [
+    /*
+    | CRM-managed lists (Admission Form sidebar modules).
+    | Resolved from database via FormOptionsResolver — keep in sync with admin CRUD modules.
+    */
+    'option_sources' => [
+        '' => 'Static options (manual list)',
+        'nationalities' => 'Nationalities (Admission Form)',
+        'genders' => 'Genders (Admission Form)',
+        'relationships' => 'Relationships (Admission Form)',
+        'payment_countries' => 'Payment Countries (Admission Form)',
+        'admission_dates' => 'Admission Dates (Admission Form)',
+        'schools' => 'Schools (Admission Form)',
+        'student_groups' => 'Student Groups (Admission Form)',
+        'student_years' => 'Year Groups (Admission Form)',
+        'student_packages' => 'Packages (Admission Form)',
+        'student_languages' => 'Languages (Admission Form)',
+        'student_subjects' => 'Subjects (Admission Form)',
+        'countries' => 'Countries (all countries)',
+        'debit_groups' => 'Debit Groups (Student Setup)',
+        'ethnicity' => 'Ethnicity (static list)',
+        'job_marital' => 'Job marital status (static)',
+        'staff_marital' => 'Staff marital status (static)',
+        'job_departments' => 'Job departments (static)',
+        'employment_types' => 'Employment types (static)',
+        'working_hours' => 'Working hours (static)',
+        'hear_about_job' => 'How did you hear about job (static)',
+        'job_positions' => 'Job positions (static)',
+        'yes_no' => 'Yes / No (static)',
+    ],
+
     'genders' => ['Male', 'Female', 'Others'],
     'job_marital' => ['Single', 'Married', 'UnMarried', 'Others'],
     'staff_marital' => ['Single', 'Married', 'Others'],
@@ -41,6 +71,7 @@ return [
         'radio' => 'Radio buttons',
         'checkbox' => 'Checkbox',
         'file' => 'File upload',
+        'section' => 'Section divider',
         'repeater' => 'Repeatable group',
     ],
 

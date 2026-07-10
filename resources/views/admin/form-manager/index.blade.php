@@ -211,11 +211,21 @@
                             </td>
                             <td class="text-end pe-24">
                                 <div class="fc-table-actions">
+                                    @if($form->usesDynamicRenderer())
+                                    <a href="{{ url($form->routePath()) }}"
+                                       target="_blank"
+                                       rel="noopener"
+                                       class="fc-action-icon view"
+                                       title="Preview live form"
+                                       aria-label="Preview live form">
+                                        <i class="ri-eye-line" aria-hidden="true"></i>
+                                    </a>
+                                    @endif
                                     <a href="{{ route('admin.form-manager.edit', $form) }}"
                                        class="fc-action-icon edit"
                                        title="Customize form"
                                        aria-label="Customize form">
-                                        <iconify-icon icon="solar:pen-linear"></iconify-icon>
+                                        <i class="ri-pencil-line" aria-hidden="true"></i>
                                     </a>
                                     <button type="button"
                                             class="fc-action-icon view border-0"
@@ -225,20 +235,20 @@
                                             data-form-name="{{ $form->name }}"
                                             data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
                                             data-placements="{{ implode(',', $form->placements()) }}">
-                                        <iconify-icon icon="solar:settings-linear"></iconify-icon>
+                                        <i class="ri-settings-3-line" aria-hidden="true"></i>
                                     </button>
                                     <a href="{{ route('admin.form-manager.entries', $form) }}"
-                                       class="fc-action-icon view"
+                                       class="fc-action-icon link"
                                        title="View submissions"
                                        aria-label="View submissions">
-                                        <iconify-icon icon="solar:inbox-linear"></iconify-icon>
+                                        <i class="ri-inbox-line" aria-hidden="true"></i>
                                     </a>
                                     <button type="button"
-                                            class="fc-action-icon link border-0"
+                                            class="fc-action-icon duplicate border-0"
                                             title="Copy form URL"
                                             aria-label="Copy form URL"
                                             data-copy-form-url="{{ url($form->routePath()) }}">
-                                        <iconify-icon icon="solar:link-round-linear"></iconify-icon>
+                                        <i class="ri-link" aria-hidden="true"></i>
                                     </button>
                                     <form action="{{ route('admin.form-manager.duplicate', $form) }}" method="POST" class="d-inline">
                                         @csrf
@@ -246,7 +256,7 @@
                                                 class="fc-action-icon duplicate"
                                                 title="Duplicate form"
                                                 aria-label="Duplicate form">
-                                            <iconify-icon icon="solar:copy-linear"></iconify-icon>
+                                            <i class="ri-file-copy-line" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                     <button type="button"
@@ -254,7 +264,7 @@
                                             title="Delete form"
                                             aria-label="Delete form"
                                             data-delete-form>
-                                        <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                                        <i class="ri-delete-bin-line" aria-hidden="true"></i>
                                     </button>
                                 </div>
                             </td>

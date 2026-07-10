@@ -126,6 +126,12 @@
     }
 
     function renderField(field) {
+        if (field.type === 'section') {
+            return `<div class="ar-form-section ar-field--full">
+                <h3 class="ar-form-section__title">${escapeHtml(field.label)}</h3>
+            </div>`;
+        }
+
         const col = fieldWidthClass(field.col_span || 2);
         const required = field.required ? 'required' : '';
         const placeholder = field.placeholder ? `placeholder="${escapeHtml(field.placeholder)}"` : '';
@@ -282,7 +288,7 @@
 
         let valid = true;
         (step.fields || []).forEach(function (field) {
-            if (!field.required) return;
+            if (field.type === 'section' || !field.required) return;
 
             if (field.type === 'checkbox') {
                 if (!$('#field_' + field.key).is(':checked')) {

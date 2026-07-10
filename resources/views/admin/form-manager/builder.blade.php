@@ -144,6 +144,10 @@
                                         <span>Field types</span>
                                         <iconify-icon icon="solar:alt-arrow-down-linear" class="fc-pro-chevron"></iconify-icon>
                                     </button>
+                                    <button type="button" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 text-sm fc-btn" id="addSectionBtn">
+                                        <iconify-icon icon="solar:widget-5-linear"></iconify-icon>
+                                        Add Section
+                                    </button>
                                     <button type="button" class="btn btn-primary-600 radius-8 px-16 py-10 text-sm fc-btn" id="addFieldBtn">
                                         <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
                                         Add Field
@@ -350,6 +354,7 @@
         schema: {!! $schemaJson !!},
         formAction: @json($form->exists ? route('admin.form-manager.update', $form) : route('admin.form-manager.store')),
         isEdit: @json($form->exists),
+        optionSources: @json($optionSources),
     });
 </script>
 @endsection

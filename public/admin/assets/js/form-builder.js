@@ -2,12 +2,13 @@
 window.FormBuilder = (function () {
     'use strict';
 
-    const FIELD_TYPES = ['text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'radio', 'checkbox', 'file'];
+    const FIELD_TYPES = ['section', 'text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'radio', 'checkbox', 'file'];
     const FIELD_TYPE_LABELS = {
-        text: 'Short text', email: 'Email', tel: 'Phone', number: 'Number', date: 'Date',
+        section: 'Section divider', text: 'Short text', email: 'Email', tel: 'Phone', number: 'Number', date: 'Date',
         textarea: 'Long text', select: 'Dropdown', radio: 'Radio', checkbox: 'Checkbox', file: 'File',
     };
     const FIELD_TYPE_ICONS = {
+        section: 'solar:widget-5-linear',
         text: 'solar:text-field-linear', email: 'solar:letter-linear', tel: 'solar:phone-linear',
         number: 'solar:hashtag-linear', date: 'solar:calendar-linear', textarea: 'solar:align-left-linear',
         select: 'solar:alt-arrow-down-linear', radio: 'solar:record-circle-linear',
@@ -18,7 +19,15 @@ window.FormBuilder = (function () {
         { value: 'fade', label: 'Fade' },
         { value: 'none', label: 'None' },
     ];
-    const OPTIONS_SOURCES = ['', 'countries', 'nationalities', 'genders', 'education_levels', 'employment_statuses', 'hear_about_us', 'job_titles', 'staff_roles', 'meeting_types', 'meeting_durations', 'meeting_times', 'referral_sources', 'custom'];
+    let OPTIONS_SOURCES = Object.keys({
+        '': 'Static',
+        nationalities: 'Nationalities',
+        genders: 'Genders',
+        student_years: 'Year Groups',
+        countries: 'Countries',
+        yes_no: 'Yes / No',
+    });
+    let OPTION_SOURCE_LABELS = {};
 
     let state = { steps: [] };
     let activeFieldStep = 0;
@@ -126,6 +135,13 @@ window.FormBuilder = (function () {
         f.key = el.querySelector('[data-f="key"]')?.value || f.key;
         f.label = el.querySelector('[data-f="label"]')?.value || f.label;
         f.type = el.querySelector('[data-f="type"]')?.value || f.type;
+        if (f.type === 'section') {
+            f.required = false;
+            f.options = [];
+            f.options_source = '';
+            f.width = 'full';
+            return;
+        }
         f.placeholder = el.querySelector('[data-f="placeholder"]')?.value || '';
         f.help_text = el.querySelector('[data-f="help_text"]')?.value || '';
         f.required = el.querySelector('[data-f="required"]')?.checked ?? false;
@@ -167,7 +183,7 @@ window.FormBuilder = (function () {
 
     function updateStatsBar() {
         const totalSteps = state.steps.length;
-        const totalFields = state.steps.reduce((n, s) => n + (s.fields?.length || 0), 0);
+        const totalFields = state.steps.reduce((n, s) => n + (s.fields || []).filter(f => f.type !== 'section').length, 0);
         const stepsEl = document.getElementById('statSteps');
         const fieldsEl = document.getElementById('statFields');
         const activeEl = document.getElementById('statActiveStep');
@@ -356,10 +372,31 @@ window.FormBuilder = (function () {
     }
 
     function fieldRowHtml(si, fi, field) {
+        if (field.type === 'section') {
+            return `
+            <div class="fc-field-card fc-field-card--section" data-step-index="${si}" data-field-index="${fi}">
+                <div class="fc-field-card-header">
+                    <span class="fc-drag-handle" title="Drag to reorder"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
+                    <span class="fc-pro-field-icon"><iconify-icon icon="solar:widget-5-linear"></iconify-icon></span>
+                    <div class="fc-field-body flex-grow-1">
+                        <input class="fc-field-label-input form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="Section heading (e.g. Student Details)">
+                        <input type="hidden" data-f="key" value="${esc(field.key)}">
+                        <input type="hidden" data-f="type" value="section">
+                    </div>
+                    <button type="button" class="fc-meta-btn fc-meta-btn--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete section">
+                        <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                    </button>
+                </div>
+            </div>`;
+        }
+
         const optLines = (field.options || []).join('\n');
         const isOpen = expandedFields.has(fieldExpandedKey(si, fi));
-        const typeOpts = FIELD_TYPES.map(t => `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`).join('');
-        const srcOpts = OPTIONS_SOURCES.map(s => `<option value="${s}" ${field.options_source === s ? 'selected' : ''}>${s || '— Static —'}</option>`).join('');
+        const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t => `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`).join('');
+        const srcOpts = OPTIONS_SOURCES.map(s => {
+            const label = OPTION_SOURCE_LABELS[s] || s || '— Static —';
+            return `<option value="${s}" ${field.options_source === s ? 'selected' : ''}>${esc(label)}</option>`;
+        }).join('');
         const needsOptions = ['select', 'radio'].includes(field.type);
 
         return `
@@ -594,15 +631,27 @@ window.FormBuilder = (function () {
         }
         const step = state.steps[activeFieldStep];
         const fi = step.fields.length;
-        step.fields.push({
-            key: 'field_' + activeFieldStep + '_' + fi,
-            label: FIELD_TYPE_LABELS[type] || 'New field',
-            type: type || 'text',
-            required: false,
-            options: type === 'select' || type === 'radio' ? ['Option 1', 'Option 2'] : [],
-            options_source: '',
-            width: 'full',
-        });
+        if (type === 'section') {
+            step.fields.push({
+                key: '_section_' + Date.now(),
+                label: 'New Section',
+                type: 'section',
+                required: false,
+                options: [],
+                options_source: '',
+                width: 'full',
+            });
+        } else {
+            step.fields.push({
+                key: 'field_' + activeFieldStep + '_' + fi,
+                label: FIELD_TYPE_LABELS[type] || 'New field',
+                type: type || 'text',
+                required: false,
+                options: type === 'select' || type === 'radio' ? ['Option 1', 'Option 2'] : [],
+                options_source: '',
+                width: 'full',
+            });
+        }
         renderFields();
         renderSteps();
         schedulePreview();
@@ -610,6 +659,10 @@ window.FormBuilder = (function () {
             const cards = document.querySelectorAll('#fieldsContainer .fc-field-card');
             cards[cards.length - 1]?.querySelector('[data-f="label"]')?.focus();
         }, 50);
+    }
+
+    function addSection() {
+        addField('section');
     }
 
     function showToast(message, icon) {
@@ -724,6 +777,10 @@ window.FormBuilder = (function () {
     function init(config) {
         state = normalizeSchema(config.schema || {});
         isEdit = config.isEdit || false;
+        if (config.optionSources && typeof config.optionSources === 'object') {
+            OPTION_SOURCE_LABELS = config.optionSources;
+            OPTIONS_SOURCES = Object.keys(config.optionSources);
+        }
 
         if (config.formAction) {
             document.getElementById('formBuilderForm').action = config.formAction;
@@ -772,6 +829,7 @@ window.FormBuilder = (function () {
         document.getElementById('paletteToggle')?.classList.add('is-open');
 
         document.getElementById('addFieldBtn')?.addEventListener('click', () => addField('text'));
+        document.getElementById('addSectionBtn')?.addEventListener('click', addSection);
 
         document.getElementById('saveBtn')?.addEventListener('click', saveForm);
         document.getElementById('formBuilderForm')?.addEventListener('submit', e => e.preventDefault());

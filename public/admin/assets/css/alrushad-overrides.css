@@ -2207,6 +2207,25 @@ form.bg-primary .form-select {
     .fc-preview-field--half { width: 100%; }
 }
 
+.fc-field-card--section {
+    background: linear-gradient(135deg, rgba(69, 105, 230, 0.06), rgba(184, 153, 95, 0.08));
+    border: 1px dashed var(--crm-brand);
+    border-radius: var(--crm-radius-sm);
+}
+.fc-field-card--section .fc-field-card-header { padding: 12px 14px; }
+.fc-preview-section,
+.fc-preview-field.fc-preview-section {
+    width: 100%;
+    margin: 16px 0 8px;
+    padding: 12px 0 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: inherit;
+}
+
 /* ═══════════════════════════════════════════════════════════
    Al Rushd CRM — Global typography & branding polish
    ═══════════════════════════════════════════════════════════ */

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\FormEntry;
 use App\Services\FormBuilderService;
+use App\Services\FormOptionsResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -411,20 +412,6 @@ class FormManagerController extends Controller
 
     private function optionSources(): array
     {
-        return [
-            '' => 'Static options only',
-            'countries' => 'Countries',
-            'debit_groups' => 'Debit groups',
-            'genders' => 'Genders',
-            'ethnicity' => 'Ethnicity',
-            'job_marital' => 'Job marital status',
-            'staff_marital' => 'Staff marital status',
-            'job_departments' => 'Job departments',
-            'employment_types' => 'Employment types',
-            'working_hours' => 'Working hours',
-            'hear_about_job' => 'How did you hear about job',
-            'job_positions' => 'Job positions',
-            'yes_no' => 'Yes / No',
-        ];
+        return FormOptionsResolver::sourceLabels();
     }
 }

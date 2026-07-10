@@ -45,46 +45,36 @@ class FormDefinitionsSeeder extends Seeder
     private function enquireForm(): array
     {
         return [
-            'name' => 'Enquire Now',
+            'name' => 'Enquire/Apply Now',
             'slug' => 'enquire-now',
             'legacy_route' => '/enquire-now',
             'legacy_table' => 'enquires',
             'success_route' => '/enquire-success',
             'submit_method' => 'urlencoded',
-            'show_on_landing' => false,
+            'show_on_landing' => true,
             'hero_label' => 'Enquire Now',
             'hero_variant' => 'outline',
             'sort_order' => 10,
-            'settings' => ['heading' => 'Enquire Now'],
+            'settings' => ['heading' => 'Enquire/Apply Now'],
             'steps' => [
                 [
-                    'title' => 'Parent Details',
+                    'title' => 'Enquire / Apply Now',
+                    'description' => 'Parent and student details',
                     'fields' => [
-                        $this->field('fname', 'First Name', 'text', ['required' => true]),
-                        $this->field('lname', 'Last Name', 'text', ['required' => true]),
+                        $this->field('_section_parent', 'Parent/Guardian Contact Information', 'section', ['col_span' => 2]),
+                        $this->field('fname', 'Name', 'text', ['required' => true, 'settings' => ['help_text' => 'First']]),
+                        $this->field('phone', 'Phone', 'tel', ['required' => true, 'col_span' => 2]),
                         $this->field('email', 'Email', 'email', ['required' => true]),
-                        $this->field('mobile_number', 'Mobile', 'tel'),
-                        $this->field('address', 'Country', 'text', ['col_span' => 2]),
-                    ],
-                ],
-                [
-                    'title' => 'Student Details',
-                    'fields' => [
-                        $this->field('student_fname', 'Student First Name', 'text'),
-                        $this->field('student_lname', 'Student Last Name', 'text'),
-                        $this->field('student_dob', 'Date of Birth', 'date'),
-                        $this->field('student_start_date', 'Start Date', 'date'),
-                        $this->field('student_country', 'Student Country', 'text', ['col_span' => 2]),
-                    ],
-                ],
-                [
-                    'title' => 'Additional Details',
-                    'fields' => [
-                        $this->field('details1', 'How did you hear about us?', 'select', [
-                            'options' => ['Google', 'Social Media', 'Referral', 'Other'],
+                        $this->field('confirm_email', 'Confirm Email', 'email', ['required' => true]),
+                        $this->field('_section_student', 'STUDENT DETAILS', 'section', ['col_span' => 2]),
+                        $this->field('student_name', 'Full Name', 'text', ['required' => true]),
+                        $this->field('year_group', 'Year Group', 'select', ['required' => true, 'options_source' => 'student_years']),
+                        $this->field('gender', 'Gender', 'radio', ['required' => true, 'options_source' => 'genders', 'col_span' => 2]),
+                        $this->field('nationality', 'Nationality', 'select', ['required' => true, 'options_source' => 'nationalities']),
+                        $this->field('add_another_student', 'Do you want to add another Student?', 'radio', [
+                            'options_source' => 'yes_no',
                             'col_span' => 2,
                         ]),
-                        $this->field('details3', 'Additional Information', 'textarea', ['col_span' => 2]),
                     ],
                 ],
             ],

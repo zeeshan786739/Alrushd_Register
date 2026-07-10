@@ -385,6 +385,28 @@ html.ar-form-html {
     grid-column: 1 / -1;
 }
 
+.ar-form-section {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(15, 35, 75, 0.12);
+}
+
+.ar-form-section:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.ar-form-section__title {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ar-navy);
+}
+
 .ar-field-label {
     display: block;
     font-size: 13px;
