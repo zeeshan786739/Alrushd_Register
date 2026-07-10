@@ -74,6 +74,118 @@ window.FormBuilder = (function () {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
 
+    function getSectionSettings(field) {
+        const s = field?.settings || {};
+        return {
+            section_style: s.section_style || 'divider',
+            section_spacing: s.section_spacing || 'normal',
+            break_before: s.break_before !== false,
+            break_after: s.break_after !== false,
+            collapsed: !!s.collapsed,
+        };
+    }
+
+    function countFieldsInSection(fields, sectionIndex) {
+        let count = 0;
+        for (let i = sectionIndex + 1; i < fields.length; i++) {
+            if (fields[i].type === 'section') break;
+            count++;
+        }
+        return count;
+    }
+
+    function collectSectionFromRow(f, el) {
+        f.label = el.querySelector('[data-f="label"]')?.value || f.label;
+        f.help_text = el.querySelector('[data-f="help_text"]')?.value || '';
+        f.settings = f.settings || {};
+        const styleBtn = el.querySelector('[data-section-quick="section_style"].is-active');
+        const spacingBtn = el.querySelector('[data-section-quick="section_spacing"].is-active');
+        if (styleBtn) f.settings.section_style = styleBtn.dataset.value || 'divider';
+        if (spacingBtn) f.settings.section_spacing = spacingBtn.dataset.value || 'normal';
+    }
+
+    function syncInspectorFromField(field) {
+        const root = document.getElementById('inspectorContent');
+        if (!root || root.classList.contains('d-none') || !selectedField) return;
+
+        const setVal = (sel, val) => {
+            const el = root.querySelector(sel);
+            if (el && document.activeElement !== el) el.value = val ?? '';
+        };
+
+        setVal('[data-f="label"]', field.label);
+        setVal('[data-f="help_text"]', field.help_text || '');
+        setVal('[data-f="placeholder"]', field.placeholder || '');
+
+        const headTitle = root.querySelector('.fc-v2-inspector-head h4');
+        if (headTitle) headTitle.textContent = field.label || (field.type === 'section' ? 'Section' : 'Field');
+
+        if (field.type === 'section') {
+            const ss = getSectionSettings(field);
+            root.querySelectorAll('[data-f="section_style"]').forEach(radio => {
+                radio.checked = radio.value === ss.section_style;
+            });
+            root.querySelectorAll('.fc-v2-style-opt').forEach(opt => {
+                opt.classList.toggle('is-active', opt.querySelector('input')?.value === ss.section_style);
+            });
+            setVal('[data-f="section_spacing"]', ss.section_spacing);
+            const breakBefore = root.querySelector('[data-f="break_before"]');
+            const breakAfter = root.querySelector('[data-f="break_after"]');
+            if (breakBefore && document.activeElement !== breakBefore) breakBefore.checked = ss.break_before;
+            if (breakAfter && document.activeElement !== breakAfter) breakAfter.checked = ss.break_after;
+        }
+    }
+
+    function syncListRowFromField(si, fi, field) {
+        const row = document.querySelector(`#fieldsContainer .fc-v2-field-row[data-step-index="${si}"][data-field-index="${fi}"]`);
+        if (!row) return;
+
+        const label = row.querySelector('[data-f="label"]');
+        if (label && document.activeElement !== label) label.value = field.label || '';
+
+        if (field.type === 'section') {
+            const desc = row.querySelector('[data-f="help_text"]');
+            if (desc && document.activeElement !== desc) desc.value = field.help_text || '';
+            const ss = getSectionSettings(field);
+            row.querySelectorAll('[data-section-quick="section_style"]').forEach(btn => {
+                btn.classList.toggle('is-active', btn.dataset.value === ss.section_style);
+            });
+            row.querySelectorAll('[data-section-quick="section_spacing"]').forEach(btn => {
+                btn.classList.toggle('is-active', btn.dataset.value === ss.section_spacing);
+            });
+            row.classList.toggle('is-collapsed', ss.collapsed);
+            const countEl = row.querySelector('[data-section-count]');
+            if (countEl) {
+                const n = countFieldsInSection(state.steps[si]?.fields || [], fi);
+                countEl.textContent = n + ' field' + (n === 1 ? '' : 's');
+            }
+        }
+    }
+
+    function onFieldEdited(si, fi, opts) {
+        opts = opts || {};
+        const field = state.steps[si]?.fields[fi];
+        if (!field) return;
+        if (!opts.skipInspectorSync) syncInspectorFromField(field);
+        if (!opts.skipListSync) syncListRowFromField(si, fi, field);
+        updateInspectorBadge();
+        schedulePreview();
+    }
+
+    function collectSectionFromInspector(f, root) {
+        f.label = root.querySelector('[data-f="label"]')?.value || f.label;
+        f.help_text = root.querySelector('[data-f="help_text"]')?.value || '';
+        f.settings = f.settings || {};
+        f.settings.section_style = root.querySelector('[data-f="section_style"]:checked')?.value || 'divider';
+        f.settings.section_spacing = root.querySelector('[data-f="section_spacing"]')?.value || 'normal';
+        f.settings.break_before = root.querySelector('[data-f="break_before"]')?.checked !== false;
+        f.settings.break_after = root.querySelector('[data-f="break_after"]')?.checked !== false;
+        f.settings.collapsed = root.querySelector('[data-f="collapsed"]')?.checked === true;
+        f.required = false;
+        f.width = 'full';
+        f.col_span = 2;
+    }
+
     function normalizeSchema(s) {
         s = s || { steps: [] };
         if (!Array.isArray(s.steps)) s.steps = [];
@@ -90,7 +202,19 @@ window.FormBuilder = (function () {
                 f.required = !!f.required;
                 f.options = f.options || [];
                 f.options_source = f.options_source || '';
-                f.width = f.col_span === 1 ? 'half' : (f.width || 'full');
+                if (f.type === 'section') {
+                    f.help_text = f.help_text || f.settings?.help_text || f.settings?.description || '';
+                    f.settings = f.settings || {};
+                    f.settings.section_style = f.settings.section_style || 'divider';
+                    f.settings.section_spacing = f.settings.section_spacing || 'normal';
+                    if (f.settings.break_before === undefined) f.settings.break_before = true;
+                    if (f.settings.break_after === undefined) f.settings.break_after = true;
+                    if (f.settings.collapsed === undefined) f.settings.collapsed = false;
+                    f.width = 'full';
+                } else {
+                    f.help_text = f.help_text || f.settings?.help_text || '';
+                    f.width = f.col_span === 1 ? 'half' : (f.width || 'full');
+                }
             });
         });
         return s;
@@ -130,10 +254,7 @@ window.FormBuilder = (function () {
         f.label = el.querySelector('[data-f="label"]')?.value || f.label;
         f.type = el.querySelector('[data-f="type"]')?.value || f.type;
         if (f.type === 'section') {
-            f.required = false;
-            f.options = [];
-            f.options_source = '';
-            f.width = 'full';
+            collectSectionFromRow(f, el);
             return;
         }
         f.required = el.querySelector('[data-f="required"]')?.checked ?? false;
@@ -145,7 +266,10 @@ window.FormBuilder = (function () {
         f.key = root.querySelector('[data-f="key"]')?.value || f.key;
         f.label = root.querySelector('[data-f="label"]')?.value || f.label;
         f.type = root.querySelector('[data-f="type"]')?.value || f.type;
-        if (f.type === 'section') return;
+        if (f.type === 'section') {
+            collectSectionFromInspector(f, root);
+            return;
+        }
         f.placeholder = root.querySelector('[data-f="placeholder"]')?.value || '';
         f.help_text = root.querySelector('[data-f="help_text"]')?.value || '';
         f.required = root.querySelector('[data-f="required"]')?.checked ?? false;
@@ -562,20 +686,44 @@ window.FormBuilder = (function () {
         initDragSort(c, '.fc-v2-step-item', reorderStepsFromDom);
     }
 
-    function fieldRowHtml(si, fi, field) {
+    function fieldRowHtml(si, fi, field, rowOpts) {
+        rowOpts = rowOpts || {};
         const isSelected = selectedField?.si === si && selectedField?.fi === fi;
         const isSection = field.type === 'section';
 
         if (isSection) {
+            const ss = getSectionSettings(field);
+            const fieldCount = countFieldsInSection(state.steps[si]?.fields || [], fi);
+            const layoutHint = ss.break_before ? 'New row' : 'Inline';
             return `
-            <div class="fc-v2-field-row fc-v2-field-row--section ${isSelected ? 'is-selected' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}">
+            <div class="fc-v2-field-row fc-v2-field-row--section ${isSelected ? 'is-selected' : ''} ${ss.collapsed ? 'is-collapsed' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}">
                 <span class="fc-drag-handle"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
                 <iconify-icon icon="solar:widget-5-linear" class="fc-v2-row-icon"></iconify-icon>
-                <input class="fc-v2-row-label" data-f="label" value="${esc(field.label)}" placeholder="Section heading">
+                <div class="fc-v2-section-body">
+                    <input class="fc-v2-row-label" data-f="label" value="${esc(field.label)}" placeholder="Section title">
+                    <input class="fc-v2-section-desc" data-f="help_text" value="${esc(field.help_text || '')}" placeholder="Description (optional)">
+                    <div class="fc-v2-section-quick" role="group" aria-label="Section style">
+                        <button type="button" class="fc-v2-section-chip ${ss.section_style !== 'heading' ? 'is-active' : ''}" data-section-quick="section_style" data-value="divider" title="Divider style">Divider</button>
+                        <button type="button" class="fc-v2-section-chip ${ss.section_style === 'heading' ? 'is-active' : ''}" data-section-quick="section_style" data-value="heading" title="Heading style">Heading</button>
+                        <span class="fc-v2-section-quick-sep"></span>
+                        <button type="button" class="fc-v2-section-chip ${ss.section_spacing === 'compact' ? 'is-active' : ''}" data-section-quick="section_spacing" data-value="compact" title="Compact spacing">S</button>
+                        <button type="button" class="fc-v2-section-chip ${ss.section_spacing === 'normal' ? 'is-active' : ''}" data-section-quick="section_spacing" data-value="normal" title="Normal spacing">M</button>
+                        <button type="button" class="fc-v2-section-chip ${ss.section_spacing === 'large' ? 'is-active' : ''}" data-section-quick="section_spacing" data-value="large" title="Large spacing">L</button>
+                    </div>
+                </div>
                 <input type="hidden" data-f="key" value="${esc(field.key)}">
                 <input type="hidden" data-f="type" value="section">
-                <span class="fc-v2-row-badge">Section</span>
+                <button type="button" class="fc-v2-section-count" data-toggle-section-collapse="${si},${fi}" title="${ss.collapsed ? 'Expand fields' : 'Collapse fields'}">
+                    <span data-section-count>${fieldCount} field${fieldCount === 1 ? '' : 's'}</span>
+                    <iconify-icon icon="${ss.collapsed ? 'solar:alt-arrow-down-linear' : 'solar:alt-arrow-up-linear'}"></iconify-icon>
+                </button>
                 <div class="fc-v2-row-actions">
+                    <button type="button" class="fc-v2-row-action" data-edit-field="${si},${fi}" title="Section settings">
+                        <iconify-icon icon="solar:settings-linear"></iconify-icon>
+                    </button>
+                    <button type="button" class="fc-v2-row-action" data-duplicate-field data-step-index="${si}" data-field-index="${fi}" title="Duplicate">
+                        <iconify-icon icon="solar:copy-linear"></iconify-icon>
+                    </button>
                     <button type="button" class="fc-v2-row-action fc-v2-row-action--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete">
                         <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
                     </button>
@@ -587,8 +735,11 @@ window.FormBuilder = (function () {
             `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`
         ).join('');
 
+        const groupedClass = rowOpts.grouped ? ' fc-v2-field-row--grouped' : '';
+        const hiddenClass = rowOpts.hidden ? ' fc-v2-field-row--hidden' : '';
+
         return `
-        <div class="fc-v2-field-row ${isSelected ? 'is-selected' : ''} ${field.required ? 'is-required' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}">
+        <div class="fc-v2-field-row${groupedClass}${hiddenClass} ${isSelected ? 'is-selected' : ''} ${field.required ? 'is-required' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}" ${rowOpts.groupSection != null ? `data-group-section="${rowOpts.groupSection}"` : ''}>
             <span class="fc-drag-handle" title="Drag"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
             <iconify-icon icon="${FIELD_TYPE_ICONS[field.type] || 'solar:text-field-linear'}" class="fc-v2-row-icon"></iconify-icon>
             <input class="fc-v2-row-label" data-f="label" value="${esc(field.label)}" placeholder="Field label">
@@ -613,19 +764,85 @@ window.FormBuilder = (function () {
 
     function inspectorHtml(si, fi, field) {
         if (field.type === 'section') {
+            const ss = getSectionSettings(field);
             return `
             <div class="fc-v2-inspector-head">
                 <iconify-icon icon="solar:widget-5-linear"></iconify-icon>
                 <div>
-                    <h4>Section divider</h4>
-                    <p>Groups related fields visually</p>
+                    <h4>Section</h4>
+                    <p>Group related questions with a heading</p>
                 </div>
+                <button type="button" class="fc-v2-inspector-close" id="closeInspectorBtn" title="Close">
+                    <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+                </button>
             </div>
+
             <div class="fc-v2-inspector-section">
-                <label class="fc-v2-inspector-label">Heading</label>
-                <input class="form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="Section title">
+                <h5 class="fc-v2-inspector-section-title">Details</h5>
+                <label class="fc-v2-inspector-label">Section title</label>
+                <input class="form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="e.g. Student Details">
+                <label class="fc-v2-inspector-label">Description <span class="text-muted">(optional)</span></label>
+                <textarea class="form-control radius-8" rows="2" data-f="help_text" placeholder="Short note shown below the heading">${esc(field.help_text || '')}</textarea>
                 <input type="hidden" data-f="type" value="section">
                 <input type="hidden" data-f="key" value="${esc(field.key)}">
+            </div>
+
+            <div class="fc-v2-inspector-section">
+                <h5 class="fc-v2-inspector-section-title">Appearance</h5>
+                <label class="fc-v2-inspector-label">Style</label>
+                <div class="fc-v2-section-style-toggle">
+                    <label class="fc-v2-style-opt ${ss.section_style !== 'heading' ? 'is-active' : ''}">
+                        <input type="radio" name="section_style" data-f="section_style" value="divider" ${ss.section_style !== 'heading' ? 'checked' : ''}>
+                        <iconify-icon icon="solar:minus-square-linear"></iconify-icon>
+                        <span>Divider</span>
+                        <small>Line above, full width</small>
+                    </label>
+                    <label class="fc-v2-style-opt ${ss.section_style === 'heading' ? 'is-active' : ''}">
+                        <input type="radio" name="section_style" data-f="section_style" value="heading" ${ss.section_style === 'heading' ? 'checked' : ''}>
+                        <iconify-icon icon="solar:text-bold-linear"></iconify-icon>
+                        <span>Heading</span>
+                        <small>Title only, lighter</small>
+                    </label>
+                </div>
+                <label class="fc-v2-inspector-label">Spacing</label>
+                <select class="form-select radius-8" data-f="section_spacing">
+                    <option value="compact" ${ss.section_spacing === 'compact' ? 'selected' : ''}>Compact</option>
+                    <option value="normal" ${ss.section_spacing === 'normal' ? 'selected' : ''}>Normal</option>
+                    <option value="large" ${ss.section_spacing === 'large' ? 'selected' : ''}>Large</option>
+                </select>
+            </div>
+
+            <div class="fc-v2-inspector-section">
+                <h5 class="fc-v2-inspector-section-title">Layout</h5>
+                <label class="fc-v2-toggle-row">
+                    <span>
+                        <strong>Start on new row</strong>
+                        <small>Section always appears below previous fields, never beside them</small>
+                    </span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="break_before" ${ss.break_before ? 'checked' : ''}>
+                </label>
+                <label class="fc-v2-toggle-row">
+                    <span>
+                        <strong>Next fields on new row</strong>
+                        <small>Fields after this section begin on a fresh line</small>
+                    </span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="break_after" ${ss.break_after ? 'checked' : ''}>
+                </label>
+                <label class="fc-v2-toggle-row">
+                    <span>
+                        <strong>Collapse fields in builder</strong>
+                        <small>Hide grouped fields under this section while editing</small>
+                    </span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="collapsed" ${ss.collapsed ? 'checked' : ''}>
+                </label>
+            </div>
+
+            <div class="fc-v2-inspector-section fc-v2-section-live-preview">
+                <h5 class="fc-v2-inspector-section-title">Live preview</h5>
+                <div class="fc-v2-section-preview-card ${ss.section_style === 'heading' ? 'fc-v2-section-preview-card--heading' : 'fc-v2-section-preview-card--divider'} fc-v2-section-preview-card--${ss.section_spacing}" data-section-preview>
+                    <h6 data-section-preview-title>${esc(field.label || 'Section title')}</h6>
+                    <p data-section-preview-desc class="${field.help_text ? '' : 'is-empty'}">${field.help_text ? esc(field.help_text) : 'Description will appear here'}</p>
+                </div>
             </div>`;
         }
 
@@ -762,10 +979,13 @@ window.FormBuilder = (function () {
         root.querySelectorAll('input, select, textarea').forEach(el => {
             el.addEventListener('input', () => {
                 collectFieldFromInspector(field);
-                if (el.dataset.f === 'label') {
-                    updateInspectorBadge();
-                    renderFieldList();
+                if (field.type === 'section') {
+                    updateSectionLivePreview(root, field);
+                    syncListRowFromField(selectedField.si, selectedField.fi, field);
+                } else if (el.dataset.f === 'label') {
+                    syncListRowFromField(selectedField.si, selectedField.fi, field);
                 }
+                if (el.dataset.f === 'label') updateInspectorBadge();
                 schedulePreview();
             });
             el.addEventListener('change', function () {
@@ -780,6 +1000,26 @@ window.FormBuilder = (function () {
                     root.querySelectorAll('.fc-v2-width-opt').forEach(opt => {
                         opt.classList.toggle('is-active', opt.querySelector('input')?.checked);
                     });
+                }
+                if (el.dataset.f === 'section_style') {
+                    collectFieldFromInspector(field);
+                    root.querySelectorAll('.fc-v2-style-opt').forEach(opt => {
+                        opt.classList.toggle('is-active', opt.querySelector('input')?.checked);
+                    });
+                    updateSectionLivePreview(root, field);
+                    syncListRowFromField(selectedField.si, selectedField.fi, field);
+                }
+                if (field.type === 'section') {
+                    collectFieldFromInspector(field);
+                    updateSectionLivePreview(root, field);
+                    if (['break_before', 'break_after', 'section_spacing', 'collapsed'].includes(el.dataset.f)) {
+                        renderFieldList();
+                        renderInspector();
+                    } else {
+                        syncListRowFromField(selectedField.si, selectedField.fi, field);
+                    }
+                } else {
+                    syncListRowFromField(selectedField.si, selectedField.fi, field);
                 }
                 schedulePreview();
             });
@@ -816,16 +1056,45 @@ window.FormBuilder = (function () {
             return;
         }
 
-        c.innerHTML = step.fields.map((field, fi) => fieldRowHtml(activeFieldStep, fi, field)).join('');
+        c.innerHTML = (() => {
+            let activeSection = null;
+            return step.fields.map((field, fi) => {
+                if (field.type === 'section') {
+                    activeSection = fi;
+                    return fieldRowHtml(activeFieldStep, fi, field);
+                }
+                const grouped = activeSection !== null;
+                const collapsed = grouped && getSectionSettings(step.fields[activeSection]).collapsed;
+                return fieldRowHtml(activeFieldStep, fi, field, {
+                    grouped,
+                    hidden: collapsed,
+                    groupSection: activeSection,
+                });
+            }).join('');
+        })();
         bindFieldListEvents(c);
         initDragSort(c, '.fc-v2-field-row', reorderFieldsFromDom);
         updateStatsBar();
     }
 
+    function updateSectionLivePreview(root, field) {
+        const card = root.querySelector('[data-section-preview]');
+        if (!card) return;
+        const ss = getSectionSettings(field);
+        card.className = `fc-v2-section-preview-card ${ss.section_style === 'heading' ? 'fc-v2-section-preview-card--heading' : 'fc-v2-section-preview-card--divider'} fc-v2-section-preview-card--${ss.section_spacing}`;
+        const title = card.querySelector('[data-section-preview-title]');
+        const desc = card.querySelector('[data-section-preview-desc]');
+        if (title) title.textContent = field.label || 'Section title';
+        if (desc) {
+            desc.textContent = field.help_text || 'Description will appear here';
+            desc.classList.toggle('is-empty', !field.help_text);
+        }
+    }
+
     function bindFieldListEvents(c) {
         c.querySelectorAll('[data-select-field]').forEach(row => {
             row.addEventListener('click', e => {
-                if (e.target.closest('.fc-drag-handle, .fc-v2-row-action, .fc-v2-row-type, .fc-v2-row-label, .fc-v2-required-toggle')) return;
+                if (e.target.closest('.fc-drag-handle, .fc-v2-row-action, .fc-v2-row-type, .fc-v2-row-label, .fc-v2-section-desc, .fc-v2-section-quick, .fc-v2-section-count, .fc-v2-required-toggle')) return;
                 const [si, fi] = row.dataset.selectField.split(',').map(Number);
                 selectField(si, fi);
             });
@@ -863,7 +1132,12 @@ window.FormBuilder = (function () {
                 const fi = parseInt(btn.dataset.fieldIndex, 10);
                 const original = state.steps[si]?.fields[fi];
                 if (!original) return;
-                const copy = { ...original, key: original.key + '_copy', label: original.label + ' (copy)' };
+                const copy = {
+                    ...original,
+                    settings: { ...(original.settings || {}) },
+                    key: original.type === 'section' ? '_section_' + Date.now() : original.key + '_copy',
+                    label: original.label + ' (copy)',
+                };
                 state.steps[si].fields.splice(fi + 1, 0, copy);
                 renderFieldList();
                 renderSteps();
@@ -880,15 +1154,74 @@ window.FormBuilder = (function () {
             });
         });
 
-        c.querySelectorAll('.fc-v2-row-label, .fc-v2-row-type').forEach(el => {
-            el.addEventListener('input', schedulePreview);
+        c.querySelectorAll('.fc-v2-row-label, .fc-v2-row-type, .fc-v2-section-desc').forEach(el => {
+            el.addEventListener('input', function () {
+                const row = el.closest('.fc-v2-field-row');
+                if (!row) return;
+                const si = parseInt(row.dataset.stepIndex, 10);
+                const fi = parseInt(row.dataset.fieldIndex, 10);
+                const field = state.steps[si]?.fields[fi];
+                if (!field) return;
+                collectFieldFromListRow(field, row);
+                onFieldEdited(si, fi);
+            });
             el.addEventListener('change', function () {
-                if (el.dataset.f === 'type') {
-                    const row = el.closest('.fc-v2-field-row');
-                    const icon = row?.querySelector('.fc-v2-row-icon');
+                const row = el.closest('.fc-v2-field-row');
+                if (el.dataset.f === 'type' && row) {
+                    const icon = row.querySelector('.fc-v2-row-icon');
                     if (icon) icon.setAttribute('icon', FIELD_TYPE_ICONS[el.value] || 'solar:text-field-linear');
                 }
-                schedulePreview();
+                if (!row) return;
+                const si = parseInt(row.dataset.stepIndex, 10);
+                const fi = parseInt(row.dataset.fieldIndex, 10);
+                const field = state.steps[si]?.fields[fi];
+                if (!field) return;
+                collectFieldFromListRow(field, row);
+                if (el.dataset.f === 'type' && selectedField?.si === si && selectedField?.fi === fi) {
+                    renderInspector();
+                }
+                onFieldEdited(si, fi);
+            });
+        });
+
+        c.querySelectorAll('[data-section-quick]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const row = btn.closest('.fc-v2-field-row');
+                if (!row) return;
+                const si = parseInt(row.dataset.stepIndex, 10);
+                const fi = parseInt(row.dataset.fieldIndex, 10);
+                const field = state.steps[si]?.fields[fi];
+                if (!field || field.type !== 'section') return;
+                field.settings = field.settings || {};
+                const group = btn.dataset.sectionQuick;
+                row.querySelectorAll(`[data-section-quick="${group}"]`).forEach(chip => chip.classList.remove('is-active'));
+                btn.classList.add('is-active');
+                field.settings[group] = btn.dataset.value;
+                if (!selectedField || selectedField.si !== si || selectedField.fi !== fi) {
+                    selectField(si, fi, { skipListRender: true, skipSideTab: true });
+                }
+                onFieldEdited(si, fi, { skipListSync: true });
+                const root = document.getElementById('inspectorContent');
+                if (root && !root.classList.contains('d-none')) {
+                    updateSectionLivePreview(root, field);
+                }
+            });
+        });
+
+        c.querySelectorAll('[data-toggle-section-collapse]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                collectStateFromDom();
+                const [si, fi] = btn.dataset.toggleSectionCollapse.split(',').map(Number);
+                const field = state.steps[si]?.fields[fi];
+                if (!field || field.type !== 'section') return;
+                field.settings = field.settings || {};
+                field.settings.collapsed = !field.settings.collapsed;
+                renderFieldList();
+                if (selectedField?.si === si && selectedField?.fi === fi) {
+                    renderInspector();
+                }
             });
         });
 
@@ -910,7 +1243,16 @@ window.FormBuilder = (function () {
         const help = field.help_text ? `<small class="fc-preview-help">${esc(field.help_text)}</small>` : '';
 
         if (field.type === 'section') {
-            return `<div class="fc-preview-section">${esc(field.label)}</div>`;
+            const ss = getSectionSettings(field);
+            const classes = [
+                'fc-preview-section',
+                ss.section_style === 'heading' ? 'fc-preview-section--heading' : 'fc-preview-section--divider',
+                'fc-preview-section--' + ss.section_spacing,
+                ss.break_before ? 'fc-preview-section--break-before' : '',
+                ss.break_after ? 'fc-preview-section--break-after' : '',
+            ].filter(Boolean).join(' ');
+            const desc = field.help_text ? `<p class="fc-preview-section__desc">${esc(field.help_text)}</p>` : '';
+            return `<div class="${classes}"><h4 class="fc-preview-section__title">${esc(field.label)}</h4>${desc}</div>`;
         }
 
         let input = '';
@@ -988,7 +1330,24 @@ window.FormBuilder = (function () {
         const step = state.steps[activeFieldStep];
         const fi = step.fields.length;
         if (type === 'section') {
-            step.fields.push({ key: '_section_' + Date.now(), label: 'New Section', type: 'section', required: false, options: [], options_source: '', width: 'full' });
+            step.fields.push({
+                key: '_section_' + Date.now(),
+                label: 'New Section',
+                type: 'section',
+                required: false,
+                help_text: '',
+                options: [],
+                options_source: '',
+                width: 'full',
+                col_span: 2,
+                settings: {
+                    section_style: 'divider',
+                    section_spacing: 'normal',
+                    break_before: true,
+                    break_after: true,
+                    collapsed: false,
+                },
+            });
         } else {
             step.fields.push({
                 key: 'field_' + activeFieldStep + '_' + fi,
@@ -1034,7 +1393,18 @@ window.FormBuilder = (function () {
         }
         state.steps.forEach(step => {
             (step.fields || []).forEach(field => {
-                field.col_span = field.width === 'half' ? 1 : 2;
+                if (field.type === 'section') {
+                    field.col_span = 2;
+                    field.settings = field.settings || {};
+                } else {
+                    field.col_span = field.width === 'half' ? 1 : 2;
+                }
+                if (field.help_text) {
+                    field.settings = field.settings || {};
+                    field.settings.help_text = field.help_text;
+                } else if (field.settings?.help_text) {
+                    delete field.settings.help_text;
+                }
             });
         });
         let input = document.getElementById('schemaPayload');

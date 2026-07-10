@@ -392,6 +392,30 @@ html.ar-form-html {
     border-top: 1px solid rgba(15, 35, 75, 0.12);
 }
 
+.ar-form-section--heading {
+    border-top: none;
+    padding-top: 10px;
+}
+
+.ar-form-section--compact {
+    margin-top: 4px;
+    padding-top: 12px;
+}
+
+.ar-form-section--normal {
+    margin-top: 8px;
+    padding-top: 20px;
+}
+
+.ar-form-section--large {
+    margin-top: 14px;
+    padding-top: 28px;
+}
+
+.ar-form-section--break-before {
+    grid-column: 1 / -1;
+}
+
 .ar-form-section:first-child {
     margin-top: 0;
     padding-top: 0;
@@ -405,6 +429,16 @@ html.ar-form-html {
     letter-spacing: 0.03em;
     text-transform: uppercase;
     color: var(--ar-navy);
+}
+
+.ar-form-section__desc {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 400;
+    color: rgba(15, 35, 75, 0.65);
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .ar-field-label {

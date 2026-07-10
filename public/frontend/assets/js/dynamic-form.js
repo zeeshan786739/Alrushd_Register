@@ -125,10 +125,35 @@
             </div>`;
     }
 
+    function sectionSettings(field) {
+        const s = field.settings || {};
+        return {
+            section_style: s.section_style || 'divider',
+            section_spacing: s.section_spacing || 'normal',
+            break_before: s.break_before !== false,
+            break_after: s.break_after !== false,
+        };
+    }
+
+    function sectionClassList(field) {
+        const ss = sectionSettings(field);
+        const classes = ['ar-form-section', 'ar-field--full'];
+        if (ss.section_style === 'heading') classes.push('ar-form-section--heading');
+        if (ss.section_spacing) classes.push('ar-form-section--' + ss.section_spacing);
+        if (ss.break_before) classes.push('ar-form-section--break-before');
+        if (ss.break_after) classes.push('ar-form-section--break-after');
+        return classes.join(' ');
+    }
+
     function renderField(field) {
         if (field.type === 'section') {
-            return `<div class="ar-form-section ar-field--full">
+            const desc = field.settings?.help_text || field.help_text;
+            const descHtml = desc
+                ? `<p class="ar-form-section__desc">${escapeHtml(desc)}</p>`
+                : '';
+            return `<div class="${sectionClassList(field)}">
                 <h3 class="ar-form-section__title">${escapeHtml(field.label)}</h3>
+                ${descHtml}
             </div>`;
         }
 
