@@ -5,8 +5,8 @@
 @section('content')
 @include('admin.form-manager.partials.styles')
 
-<div class="dashboard-main-body fc-pro-page">
-    <div class="fc-pro-page-header-compact">
+<div class="dashboard-main-body fc-v2-page">
+    <div class="fc-v2-page-header">
     @include('admin.form-manager.partials.header', [
         'title' => $form->exists ? 'Customize Form' : 'Create Form',
         'subtitle' => $form->exists ? $form->name : 'Define a new dynamic form',
@@ -21,7 +21,6 @@
             ['label' => 'Back', 'url' => route('admin.form-manager.index'), 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11'],
         ],
     ])
-
     </div>
 
     @if ($errors->any())
@@ -40,7 +39,7 @@
         </div>
     @endif
 
-    <div class="fc-pro-builder" id="formBuilderApp">
+    <div class="fc-v2-builder" id="formBuilderApp">
         <form method="POST"
               action="{{ $form->exists ? route('admin.form-manager.update', $form) : route('admin.form-manager.store') }}"
               id="formBuilderForm">
@@ -48,124 +47,115 @@
             @if($form->exists) @method('PUT') @endif
             <input type="hidden" name="wizard_step" id="wizard_step" value="0">
 
-            {{-- Sticky toolbar --}}
-            <div class="fc-pro-toolbar">
-                <div class="fc-pro-toolbar-left">
-                    <div class="fc-pro-form-badge">
+            {{-- Top toolbar --}}
+            <header class="fc-v2-toolbar">
+                <div class="fc-v2-toolbar-start">
+                    <div class="fc-v2-form-icon">
                         <iconify-icon icon="solar:document-text-bold"></iconify-icon>
                     </div>
-                    <div class="fc-pro-form-meta">
-                        <input type="text" name="name" id="name" class="fc-pro-form-name"
+                    <div class="fc-v2-form-title-wrap">
+                        <input type="text" name="name" id="name" class="fc-v2-form-name"
                                value="{{ old('name', $form->name) }}" required placeholder="Untitled form">
-                        <span class="fc-pro-form-slug">/<span id="slugDisplay">{{ old('slug', $form->slug) ?: 'your-slug' }}</span></span>
+                        <span class="fc-v2-form-slug">/<span id="slugDisplay">{{ old('slug', $form->slug) ?: 'your-slug' }}</span></span>
                     </div>
                 </div>
-                <div class="fc-pro-toolbar-center">
-                    <div class="fc-pro-mode-tabs" role="tablist">
-                        <button type="button" class="fc-pro-mode-tab active" data-mode="build" role="tab">
-                            <iconify-icon icon="solar:layers-minimalistic-linear"></iconify-icon>
-                            Build
-                        </button>
-                        <button type="button" class="fc-pro-mode-tab" data-mode="settings" role="tab">
-                            <iconify-icon icon="solar:settings-linear"></iconify-icon>
-                            Settings
-                        </button>
-                    </div>
-                </div>
-                <div class="fc-pro-toolbar-right">
-                    <span class="fc-pro-save-status" id="saveStatus" aria-live="polite">
+
+                <nav class="fc-v2-mode-nav" role="tablist">
+                    <button type="button" class="fc-v2-mode-btn active" data-mode="build" role="tab">
+                        <iconify-icon icon="solar:pen-new-square-linear"></iconify-icon>
+                        Build
+                    </button>
+                    <button type="button" class="fc-v2-mode-btn" data-mode="settings" role="tab">
+                        <iconify-icon icon="solar:settings-linear"></iconify-icon>
+                        Settings
+                    </button>
+                </nav>
+
+                <div class="fc-v2-toolbar-end">
+                    <span class="fc-v2-save-badge" id="saveStatus" aria-live="polite">
                         <iconify-icon icon="solar:check-circle-linear"></iconify-icon>
-                        All changes saved
+                        Saved
                     </span>
-                    <button type="button" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 fc-btn fc-pro-preview-toggle d-xl-none" id="togglePreviewBtn">
-                        <iconify-icon icon="solar:eye-linear"></iconify-icon>
-                        Preview
+                    @if($form->exists && ($form->handler ?? 'dynamic') === 'dynamic')
+                    <a href="{{ url($form->routePath()) }}" target="_blank" rel="noopener" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 fc-btn fc-v2-open-live">
+                        <iconify-icon icon="solar:arrow-square-up-linear"></iconify-icon>
+                        Open live
+                    </a>
+                    @endif
+                    <button type="button" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 fc-btn d-xl-none" id="toggleSidePanelBtn">
+                        <iconify-icon icon="solar:sidebar-minimalistic-linear"></iconify-icon>
+                        Panel
                     </button>
                     <button type="button" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn" id="saveBtn">
                         <iconify-icon icon="solar:diskette-linear"></iconify-icon>
-                        <span>Save Form</span>
+                        <span>Save</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            <div class="fc-pro-workspace">
-                {{-- LEFT: Editor --}}
-                <div class="fc-pro-editor">
+            <div class="fc-v2-body">
+                {{-- Main editor --}}
+                <div class="fc-v2-main">
                     {{-- BUILD mode --}}
-                    <div class="fc-pro-panel active" data-panel="build">
-                        <div class="fc-pro-build-grid">
-                            {{-- Steps rail --}}
-                            <aside class="fc-pro-steps-rail">
-                                <div class="fc-pro-rail-header">
-                                    <span class="fw-semibold text-sm">Steps</span>
-                                    <button type="button" class="fc-pro-icon-btn" id="addStepBtn" title="Add step">
+                    <div class="fc-v2-panel active" data-panel="build">
+                        <div class="fc-v2-build-layout">
+                            {{-- Steps sidebar --}}
+                            <aside class="fc-v2-steps" aria-label="Form steps">
+                                <div class="fc-v2-steps-head">
+                                    <div>
+                                        <h3 class="fc-v2-steps-title">Steps</h3>
+                                        <p class="fc-v2-steps-sub">Drag to reorder</p>
+                                    </div>
+                                    <button type="button" class="fc-v2-icon-btn" id="addStepBtn" title="Add step">
                                         <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
                                     </button>
                                 </div>
-                                <div class="fc-pro-rail-hint">
-                                    <iconify-icon icon="solar:hand-stars-linear"></iconify-icon>
-                                    Drag to reorder
+                                <div id="stepsContainer" class="fc-v2-steps-list"></div>
+                                <div class="fc-v2-steps-foot">
+                                    <div class="fc-v2-mini-stats">
+                                        <span><strong id="statSteps">0</strong> steps</span>
+                                        <span class="fc-v2-dot"></span>
+                                        <span><strong id="statFields">0</strong> fields</span>
+                                    </div>
                                 </div>
-                                <div id="stepsContainer" class="fc-pro-steps-list"></div>
                             </aside>
 
-                            {{-- Fields area --}}
-                            <div class="fc-pro-fields-zone">
-                                <div class="fc-pro-stats-bar" id="builderStatsBar">
-                                    <span class="fc-pro-stat"><iconify-icon icon="solar:layers-linear"></iconify-icon> <strong id="statSteps">0</strong> steps</span>
-                                    <span class="fc-pro-stat-divider"></span>
-                                    <span class="fc-pro-stat"><iconify-icon icon="solar:text-field-linear"></iconify-icon> <strong id="statFields">0</strong> fields</span>
-                                    <span class="fc-pro-stat-divider"></span>
-                                    <span class="fc-pro-stat fc-pro-stat--muted" id="statActiveStep">Step 1 of 1</span>
-                                </div>
-
-                                <div class="fc-pro-step-settings" id="stepSettingsPanel">
-                                    <div class="fc-pro-step-settings-top">
-                                        <span class="fc-pro-step-chip" id="activeStepChip">Step 1</span>
-                                        <input type="text" class="fc-pro-step-title-input" data-f="title" placeholder="Step title (e.g. Personal Details)">
+                            {{-- Canvas --}}
+                            <section class="fc-v2-canvas" aria-label="Step editor">
+                                <div class="fc-v2-canvas-head" id="stepSettingsPanel">
+                                    <div class="fc-v2-canvas-head-top">
+                                        <span class="fc-v2-step-badge" id="activeStepChip">Step 1</span>
+                                        <input type="text" class="fc-v2-step-title" data-f="title" placeholder="Step title (e.g. Personal Details)">
                                         <input type="hidden" data-f="key" value="">
+                                        <span class="fc-v2-step-position" id="statActiveStep">1 of 1</span>
                                     </div>
-                                    <div class="fc-pro-step-settings-bottom">
-                                        <input type="text" class="form-control form-control-sm radius-8" data-f="description" placeholder="Optional description shown under the step title">
-                                        <div class="fc-pro-transition-wrap">
-                                            <iconify-icon icon="solar:transfer-horizontal-linear"></iconify-icon>
-                                            <select class="form-select form-select-sm radius-8" data-f="transition" title="Step transition animation">
-                                                <option value="slide">Slide transition</option>
-                                                <option value="fade">Fade transition</option>
-                                                <option value="none">No transition</option>
-                                            </select>
-                                        </div>
+                                    <div class="fc-v2-canvas-head-bottom">
+                                        <input type="text" class="fc-v2-step-desc" data-f="description" placeholder="Optional description for this step">
+                                        <select class="fc-v2-step-transition" data-f="transition" title="Transition animation">
+                                            <option value="slide">Slide</option>
+                                            <option value="fade">Fade</option>
+                                            <option value="none">No animation</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                <div class="fc-pro-fields-toolbar">
-                                    <button type="button" class="fc-pro-palette-toggle" id="paletteToggle" aria-expanded="true">
-                                        <iconify-icon icon="solar:widget-add-linear"></iconify-icon>
-                                        <span>Field types</span>
-                                        <iconify-icon icon="solar:alt-arrow-down-linear" class="fc-pro-chevron"></iconify-icon>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 text-sm fc-btn" id="addSectionBtn">
+                                <div class="fc-v2-add-bar">
+                                    <span class="fc-v2-add-label">Add field</span>
+                                    <div class="fc-v2-add-types" id="fieldPalette"></div>
+                                    <button type="button" class="fc-v2-add-section" id="addSectionBtn" title="Add section divider">
                                         <iconify-icon icon="solar:widget-5-linear"></iconify-icon>
-                                        Add Section
-                                    </button>
-                                    <button type="button" class="btn btn-primary-600 radius-8 px-16 py-10 text-sm fc-btn" id="addFieldBtn">
-                                        <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
-                                        Add Field
+                                        Section
                                     </button>
                                 </div>
 
-                                <div class="fc-pro-palette is-open" id="paletteWrap">
-                                    <div class="fc-pro-palette-grid" id="fieldPalette"></div>
-                                </div>
-
-                                <div id="fieldsContainer" class="fc-pro-fields-list"></div>
-                            </div>
+                                <div id="fieldsContainer" class="fc-v2-field-list"></div>
+                            </section>
                         </div>
                     </div>
 
                     {{-- SETTINGS mode --}}
-                    <div class="fc-pro-panel" data-panel="settings">
-                        <div class="fc-pro-settings-scroll">
+                    <div class="fc-v2-panel" data-panel="settings">
+                        <div class="fc-v2-settings-scroll">
                             <input type="hidden" name="slug" id="slug" value="{{ old('slug', $form->slug) }}">
 
                             <div class="fc-form-section">
@@ -279,35 +269,42 @@
                     </div>
                 </div>
 
-                {{-- RIGHT: Live Preview --}}
-                <aside class="fc-pro-preview" id="builderPreview">
-                    <div class="fc-pro-preview-chrome">
-                        <div class="fc-pro-preview-header">
-                            <span class="fc-pro-preview-label">
-                                <span class="fc-pro-live-dot"></span>
-                                Live Preview
+                {{-- Right side panel: Preview + Inspector --}}
+                <aside class="fc-v2-side" id="builderSidePanel">
+                    <div class="fc-v2-side-tabs" role="tablist">
+                        <button type="button" class="fc-v2-side-tab active" data-side-tab="preview" role="tab">
+                            <iconify-icon icon="solar:eye-linear"></iconify-icon>
+                            Preview
+                        </button>
+                        <button type="button" class="fc-v2-side-tab" data-side-tab="inspector" role="tab">
+                            <iconify-icon icon="solar:tuning-2-linear"></iconify-icon>
+                            Field settings
+                            <span class="fc-v2-side-tab-badge d-none" id="inspectorBadge"></span>
+                        </button>
+                    </div>
+
+                    <div class="fc-v2-side-panel active" data-side-panel="preview" id="builderPreview">
+                        <div class="fc-v2-preview-head">
+                            <span class="fc-v2-live-label">
+                                <span class="fc-v2-live-dot"></span>
+                                Live preview
                             </span>
-                            <div class="fc-pro-preview-tools">
-                                <button type="button" class="fc-pro-device-btn active" data-device="desktop" title="Desktop">
+                            <div class="fc-v2-device-toggle">
+                                <button type="button" class="fc-v2-device-btn active" data-device="desktop" title="Desktop">
                                     <iconify-icon icon="solar:monitor-linear"></iconify-icon>
                                 </button>
-                                <button type="button" class="fc-pro-device-btn" data-device="mobile" title="Mobile">
+                                <button type="button" class="fc-v2-device-btn" data-device="mobile" title="Mobile">
                                     <iconify-icon icon="solar:smartphone-linear"></iconify-icon>
                                 </button>
                             </div>
                         </div>
-                        <div class="fc-pro-preview-frame-wrap" id="previewFrameWrap">
-                            <div class="fc-pro-preview-device fc-pro-preview-device--desktop" id="previewDevice">
-                                <div class="fc-pro-preview-mockup" id="livePreview">
+                        <div class="fc-v2-preview-body">
+                            <div class="fc-v2-preview-device fc-v2-preview-device--desktop" id="previewDevice">
+                                <div class="fc-v2-preview-card" id="livePreview">
                                     <div class="fc-preview-app">
-                                        <div class="fc-preview-logo">
-                                            <div class="fc-preview-logo-icon"></div>
-                                        </div>
+                                        <div class="fc-preview-logo"><div class="fc-preview-logo-icon"></div></div>
                                         <div class="fc-preview-progress">
                                             <h6 class="fc-preview-title" id="previewFormTitle">Form Preview</h6>
-                                            <div class="fc-preview-bar-track">
-                                                <div class="fc-preview-bar-fill" id="previewProgressBar"></div>
-                                            </div>
                                             <small class="fc-preview-pct" id="previewProgressText">0%</small>
                                         </div>
                                         <div class="fc-preview-step-wrap" id="previewStepWrap">
@@ -321,10 +318,21 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="fc-pro-preview-footer">
+                        <p class="fc-v2-preview-hint">
                             <iconify-icon icon="solar:info-circle-linear"></iconify-icon>
-                            <span>Updates instantly as you edit</span>
+                            Updates as you edit
+                        </p>
+                    </div>
+
+                    <div class="fc-v2-side-panel" data-side-panel="inspector" id="fieldInspector">
+                        <div class="fc-v2-inspector-empty" id="inspectorEmpty">
+                            <div class="fc-v2-inspector-empty-icon">
+                                <iconify-icon icon="solar:cursor-square-linear"></iconify-icon>
+                            </div>
+                            <h4>Select a field</h4>
+                            <p>Click any field in the list to edit its label, type, validation, and options here.</p>
                         </div>
+                        <div class="fc-v2-inspector-content d-none" id="inspectorContent"></div>
                     </div>
                 </aside>
             </div>

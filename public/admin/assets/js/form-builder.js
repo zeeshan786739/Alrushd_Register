@@ -4,7 +4,7 @@ window.FormBuilder = (function () {
 
     const FIELD_TYPES = ['section', 'text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'radio', 'checkbox', 'file'];
     const FIELD_TYPE_LABELS = {
-        section: 'Section divider', text: 'Short text', email: 'Email', tel: 'Phone', number: 'Number', date: 'Date',
+        section: 'Section', text: 'Short text', email: 'Email', tel: 'Phone', number: 'Number', date: 'Date',
         textarea: 'Long text', select: 'Dropdown', radio: 'Radio', checkbox: 'Checkbox', file: 'File',
     };
     const FIELD_TYPE_ICONS = {
@@ -14,11 +14,6 @@ window.FormBuilder = (function () {
         select: 'solar:alt-arrow-down-linear', radio: 'solar:record-circle-linear',
         checkbox: 'solar:check-square-linear', file: 'solar:upload-linear',
     };
-    const TRANSITIONS = [
-        { value: 'slide', label: 'Slide' },
-        { value: 'fade', label: 'Fade' },
-        { value: 'none', label: 'None' },
-    ];
     let OPTIONS_SOURCES = Object.keys({
         '': 'Static',
         nationalities: 'Nationalities',
@@ -35,27 +30,24 @@ window.FormBuilder = (function () {
     let state = { steps: [] };
     let activeFieldStep = 0;
     let previewStep = 0;
-    let previewTransition = 'slide';
-    let expandedFields = new Set();
+    let selectedField = null;
+    let activeSideTab = 'preview';
     let previewDebounce = null;
     let isEdit = false;
-    let isDirty = false;
 
     function markDirty() {
-        isDirty = true;
         const el = document.getElementById('saveStatus');
         if (el) {
-            el.className = 'fc-pro-save-status is-dirty';
-            el.innerHTML = '<iconify-icon icon="solar:pen-2-linear"></iconify-icon> Unsaved changes';
+            el.className = 'fc-v2-save-badge is-dirty';
+            el.innerHTML = '<iconify-icon icon="solar:pen-2-linear"></iconify-icon> Unsaved';
         }
     }
 
     function markSaved() {
-        isDirty = false;
         const el = document.getElementById('saveStatus');
         if (el) {
-            el.className = 'fc-pro-save-status';
-            el.innerHTML = '<iconify-icon icon="solar:check-circle-linear"></iconify-icon> All changes saved';
+            el.className = 'fc-v2-save-badge';
+            el.innerHTML = '<iconify-icon icon="solar:check-circle-linear"></iconify-icon> Saved';
         }
     }
 
@@ -74,7 +66,7 @@ window.FormBuilder = (function () {
         return key || fallback;
     }
 
-    function fieldExpandedKey(si, fi) {
+    function fieldKey(si, fi) {
         return si + '-' + fi;
     }
 
@@ -119,23 +111,22 @@ window.FormBuilder = (function () {
         state.placements = Array.from(document.querySelectorAll('[data-placement]:checked')).map(i => i.value);
         state.show_on_landing = state.placements.includes('landing');
 
-        document.querySelectorAll('#stepsContainer .fc-step-card').forEach((el, i) => {
-            if (i === activeFieldStep) return;
-            if (!state.steps[i]) return;
-        });
-
         collectActiveStepFromPanel();
 
-        document.querySelectorAll('#fieldsContainer .fc-field-card').forEach(el => {
+        document.querySelectorAll('#fieldsContainer .fc-v2-field-row').forEach(el => {
             const si = parseInt(el.dataset.stepIndex, 10);
             const fi = parseInt(el.dataset.fieldIndex, 10);
             if (!state.steps[si]?.fields[fi]) return;
-            collectFieldFromEl(state.steps[si].fields[fi], el);
+            collectFieldFromListRow(state.steps[si].fields[fi], el);
         });
+
+        if (selectedField && document.getElementById('inspectorContent') && !document.getElementById('inspectorContent').classList.contains('d-none')) {
+            const field = state.steps[selectedField.si]?.fields[selectedField.fi];
+            if (field) collectFieldFromInspector(field);
+        }
     }
 
-    function collectFieldFromEl(f, el) {
-        f.key = el.querySelector('[data-f="key"]')?.value || f.key;
+    function collectFieldFromListRow(f, el) {
         f.label = el.querySelector('[data-f="label"]')?.value || f.label;
         f.type = el.querySelector('[data-f="type"]')?.value || f.type;
         if (f.type === 'section') {
@@ -145,23 +136,33 @@ window.FormBuilder = (function () {
             f.width = 'full';
             return;
         }
-        f.placeholder = el.querySelector('[data-f="placeholder"]')?.value || '';
-        f.help_text = el.querySelector('[data-f="help_text"]')?.value || '';
         f.required = el.querySelector('[data-f="required"]')?.checked ?? false;
-        f.width = el.querySelector('[data-f="width"]')?.value || 'full';
-        f.options_source = el.querySelector('[data-f="options_source"]')?.value || '';
-        const optRaw = el.querySelector('[data-f="options"]')?.value || '';
+    }
+
+    function collectFieldFromInspector(f) {
+        const root = document.getElementById('inspectorContent');
+        if (!root) return;
+        f.key = root.querySelector('[data-f="key"]')?.value || f.key;
+        f.label = root.querySelector('[data-f="label"]')?.value || f.label;
+        f.type = root.querySelector('[data-f="type"]')?.value || f.type;
+        if (f.type === 'section') return;
+        f.placeholder = root.querySelector('[data-f="placeholder"]')?.value || '';
+        f.help_text = root.querySelector('[data-f="help_text"]')?.value || '';
+        f.required = root.querySelector('[data-f="required"]')?.checked ?? false;
+        f.width = root.querySelector('[data-f="width"]')?.value || 'full';
+        f.options_source = root.querySelector('[data-f="options_source"]')?.value || '';
+        const optRaw = root.querySelector('[data-f="options"]')?.value || '';
         if (['select', 'radio'].includes(f.type) && f.options_source) {
-            f.options = getSelectedOptionsFromCard(el);
+            f.options = getSelectedOptionsFromPicker(root);
         } else {
             f.options = optRaw.split('\n').map(l => l.trim()).filter(Boolean);
         }
-        f.validation = el.querySelector('[data-f="validation"]')?.value || '';
+        f.validation = root.querySelector('[data-f="validation"]')?.value || '';
     }
 
-    function getSelectedOptionsFromCard(card) {
+    function getSelectedOptionsFromPicker(container) {
         const selected = [];
-        card.querySelectorAll('[data-option-chip].is-selected').forEach(chip => {
+        container.querySelectorAll('[data-option-chip].is-selected').forEach(chip => {
             if (chip.dataset.value) selected.push(chip.dataset.value);
         });
         return selected;
@@ -170,23 +171,19 @@ window.FormBuilder = (function () {
     function buildGroupedSourceOptions(field) {
         const current = field.options_source || '';
         let html = `<option value="">— Manual list —</option>`;
-
         if (OPTION_SOURCE_GROUPS.length) {
             OPTION_SOURCE_GROUPS.forEach(group => {
                 html += `<optgroup label="${esc(group.label)}">`;
                 (group.sources || []).forEach(key => {
-                    const label = OPTION_SOURCE_LABELS[key] || key;
-                    html += `<option value="${esc(key)}" ${current === key ? 'selected' : ''}>${esc(label)}</option>`;
+                    html += `<option value="${esc(key)}" ${current === key ? 'selected' : ''}>${esc(OPTION_SOURCE_LABELS[key] || key)}</option>`;
                 });
                 html += '</optgroup>';
             });
         } else {
             OPTIONS_SOURCES.filter(s => s).forEach(key => {
-                const label = OPTION_SOURCE_LABELS[key] || key;
-                html += `<option value="${esc(key)}" ${current === key ? 'selected' : ''}>${esc(label)}</option>`;
+                html += `<option value="${esc(key)}" ${current === key ? 'selected' : ''}>${esc(OPTION_SOURCE_LABELS[key] || key)}</option>`;
             });
         }
-
         return html;
     }
 
@@ -194,7 +191,6 @@ window.FormBuilder = (function () {
         if (!source) return [];
         if (optionCache[source]) return optionCache[source];
         if (!OPTION_SOURCE_URL) return [];
-
         const response = await fetch(`${OPTION_SOURCE_URL}/${encodeURIComponent(source)}`, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
@@ -208,7 +204,6 @@ window.FormBuilder = (function () {
         const search = (container.dataset.search || '').toLowerCase();
         const selected = new Set(selectedValues || []);
         const selectAllByDefault = selected.size === 0 && selectedValues !== null;
-
         const chips = (options || []).filter(opt => {
             const label = (opt.label || opt.value || '').toLowerCase();
             return !search || label.includes(search);
@@ -216,16 +211,13 @@ window.FormBuilder = (function () {
             const value = opt.value ?? opt.label;
             const isOn = selectAllByDefault || selected.has(value);
             return `<button type="button" class="fc-option-chip${isOn ? ' is-selected' : ''}" data-option-chip data-value="${esc(value)}" title="${esc(opt.label || value)}">
-                <i class="ri-check-line" aria-hidden="true"></i>
-                <span>${esc(opt.label || value)}</span>
+                <i class="ri-check-line" aria-hidden="true"></i><span>${esc(opt.label || value)}</span>
             </button>`;
         }).join('');
-
         const grid = container.querySelector('[data-option-grid]');
         const empty = container.querySelector('[data-option-empty]');
         if (grid) grid.innerHTML = chips || '';
         if (empty) empty.classList.toggle('d-none', !!(options || []).length);
-
         updateOptionPickerCount(container);
     }
 
@@ -233,76 +225,61 @@ window.FormBuilder = (function () {
         const countEl = container.querySelector('[data-option-count]');
         const total = container.querySelectorAll('[data-option-chip]').length;
         const selected = container.querySelectorAll('[data-option-chip].is-selected').length;
-        if (countEl) {
-            countEl.textContent = total ? `${selected} of ${total} selected` : 'No values found';
-        }
+        if (countEl) countEl.textContent = total ? `${selected} of ${total} selected` : 'No values found';
     }
 
-    async function mountOptionPicker(card, field) {
-        const panel = card.querySelector('[data-option-picker]');
-        const manual = card.querySelector('[data-option-manual]');
-        const source = field.options_source || card.querySelector('[data-f="options_source"]')?.value || '';
-
+    async function mountOptionPicker(container, field) {
+        const panel = container.querySelector('[data-option-picker]');
+        const manual = container.querySelector('[data-option-manual]');
+        const source = field.options_source || container.querySelector('[data-f="options_source"]')?.value || '';
         if (!panel) return;
-
         if (!source) {
             panel.classList.add('d-none');
             manual?.classList.remove('d-none');
             return;
         }
-
         panel.classList.remove('d-none');
         manual?.classList.add('d-none');
-
         const grid = panel.querySelector('[data-option-grid]');
         if (grid) grid.innerHTML = '<div class="fc-option-loading">Loading values…</div>';
-
         try {
             const options = await fetchSourceOptions(source);
-            const selected = Array.isArray(field.options) && field.options.length ? field.options : null;
-            renderOptionChips(panel, options, selected);
+            renderOptionChips(panel, options, Array.isArray(field.options) && field.options.length ? field.options : null);
         } catch (err) {
             if (grid) grid.innerHTML = `<div class="fc-option-error">${esc(err.message || 'Failed to load')}</div>`;
         }
     }
 
-    function bindOptionPickerEvents(card) {
-        const picker = card.querySelector('[data-option-picker]');
-        const sourceSelect = card.querySelector('[data-f="options_source"]');
-
+    function bindOptionPickerEvents(container) {
+        const picker = container.querySelector('[data-option-picker]');
+        const sourceSelect = container.querySelector('[data-f="options_source"]');
         sourceSelect?.addEventListener('change', async function () {
-            const si = parseInt(card.dataset.stepIndex, 10);
-            const fi = parseInt(card.dataset.fieldIndex, 10);
-            const field = state.steps[si]?.fields[fi];
+            if (!selectedField) return;
+            const field = state.steps[selectedField.si]?.fields[selectedField.fi];
             if (!field) return;
             field.options_source = this.value;
             field.options = [];
-            await mountOptionPicker(card, field);
+            await mountOptionPicker(container, field);
             schedulePreview();
+            renderFieldList();
         });
-
         if (!picker) return;
-
         picker.querySelector('[data-option-search]')?.addEventListener('input', function () {
             picker.dataset.search = this.value;
             const source = sourceSelect?.value;
             if (!source || !optionCache[source]) return;
-            const selected = getSelectedOptionsFromCard(card);
-            renderOptionChips(picker, optionCache[source], selected);
+            renderOptionChips(picker, optionCache[source], getSelectedOptionsFromPicker(container));
         });
-
         picker.querySelector('[data-select-all]')?.addEventListener('click', () => {
             picker.querySelectorAll('[data-option-chip]').forEach(chip => chip.classList.add('is-selected'));
             updateOptionPickerCount(picker);
             schedulePreview();
         });
-
         picker.querySelector('[data-clear-all]')?.addEventListener('click', () => {
             picker.querySelectorAll('[data-option-chip]').forEach(chip => chip.classList.remove('is-selected'));
             updateOptionPickerCount(picker);
             schedulePreview();
         });
-
         picker.addEventListener('click', e => {
             const chip = e.target.closest('[data-option-chip]');
             if (!chip) return;
@@ -330,21 +307,77 @@ window.FormBuilder = (function () {
     }
 
     function setMode(mode) {
-        document.querySelectorAll('.fc-pro-mode-tab').forEach(tab => {
+        document.querySelectorAll('.fc-v2-mode-btn').forEach(tab => {
             tab.classList.toggle('active', tab.dataset.mode === mode);
         });
-        document.querySelectorAll('.fc-pro-panel').forEach(panel => {
+        document.querySelectorAll('.fc-v2-panel').forEach(panel => {
             panel.classList.toggle('active', panel.dataset.panel === mode);
         });
+    }
+
+    function setSideTab(tab) {
+        activeSideTab = tab;
+        document.querySelectorAll('.fc-v2-side-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sideTab === tab);
+        });
+        document.querySelectorAll('.fc-v2-side-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.sidePanel === tab);
+        });
+    }
+
+    function selectField(si, fi, opts) {
+        opts = opts || {};
+        collectStateFromDom();
+        const changed = !selectedField || selectedField.si !== si || selectedField.fi !== fi;
+        selectedField = { si, fi };
+        if (opts.skipListRender) {
+            updateFieldSelectionClasses();
+        } else if (changed) {
+            renderFieldList();
+        } else {
+            updateFieldSelectionClasses();
+        }
+        renderInspector();
+        if (changed && !opts.skipSideTab) setSideTab('inspector');
+        updateInspectorBadge();
+    }
+
+    function updateFieldSelectionClasses() {
+        document.querySelectorAll('.fc-v2-field-row').forEach(row => {
+            const si = parseInt(row.dataset.stepIndex, 10);
+            const fi = parseInt(row.dataset.fieldIndex, 10);
+            row.classList.toggle('is-selected', selectedField?.si === si && selectedField?.fi === fi);
+        });
+    }
+
+    function clearFieldSelection() {
+        selectedField = null;
+        renderFieldList();
+        renderInspector();
+        updateInspectorBadge();
+    }
+
+    function updateInspectorBadge() {
+        const badge = document.getElementById('inspectorBadge');
+        if (!badge) return;
+        if (selectedField) {
+            const field = state.steps[selectedField.si]?.fields[selectedField.fi];
+            badge.textContent = field?.label?.substring(0, 12) || '1';
+            badge.classList.remove('d-none');
+        } else {
+            badge.classList.add('d-none');
+        }
     }
 
     function setActiveStep(index) {
         collectStateFromDom();
         activeFieldStep = index;
         previewStep = index;
+        selectedField = null;
         renderSteps();
         renderStepSettings();
-        renderFields();
+        renderFieldList();
+        renderInspector();
         renderPreview(false);
         updateStatsBar();
     }
@@ -357,26 +390,18 @@ window.FormBuilder = (function () {
         const activeEl = document.getElementById('statActiveStep');
         if (stepsEl) stepsEl.textContent = totalSteps;
         if (fieldsEl) fieldsEl.textContent = totalFields;
-        if (activeEl) activeEl.textContent = totalSteps ? `Step ${activeFieldStep + 1} of ${totalSteps}` : 'No steps';
+        if (activeEl) activeEl.textContent = totalSteps ? `${activeFieldStep + 1} of ${totalSteps}` : '—';
     }
 
     function renderStepSettings() {
         const panel = document.getElementById('stepSettingsPanel');
         const step = state.steps[activeFieldStep];
         const chip = document.getElementById('activeStepChip');
-        if (!panel) return;
-
-        if (!step) {
-            panel.classList.add('is-hidden');
-            return;
-        }
-        panel.classList.remove('is-hidden');
-
+        if (!panel || !step) return;
         panel.querySelector('[data-f="title"]').value = step.title || '';
         panel.querySelector('[data-f="description"]').value = step.description || '';
         panel.querySelector('[data-f="transition"]').value = step.transition || 'slide';
         panel.querySelector('[data-f="key"]').value = step.key || '';
-
         if (chip) chip.textContent = 'Step ' + (activeFieldStep + 1);
     }
 
@@ -384,7 +409,6 @@ window.FormBuilder = (function () {
         const panel = document.getElementById('stepSettingsPanel');
         if (!panel || panel.dataset.bound === '1') return;
         panel.dataset.bound = '1';
-
         panel.querySelectorAll('[data-f="title"], [data-f="description"], [data-f="transition"]').forEach(el => {
             el.addEventListener('input', () => {
                 collectActiveStepFromPanel();
@@ -392,7 +416,6 @@ window.FormBuilder = (function () {
                 schedulePreview();
             });
         });
-
         panel.querySelector('[data-f="title"]')?.addEventListener('blur', function () {
             const keyInput = panel.querySelector('[data-f="key"]');
             if (keyInput && keyInput.dataset.manual !== '1') {
@@ -403,17 +426,18 @@ window.FormBuilder = (function () {
 
     function reorderStepsFromDom() {
         const newSteps = [];
-        document.querySelectorAll('#stepsContainer .fc-step-card').forEach(el => {
+        document.querySelectorAll('#stepsContainer .fc-v2-step-item').forEach(el => {
             const idx = parseInt(el.dataset.stepIndex, 10);
             if (!state.steps[idx]) return;
             newSteps.push({ ...state.steps[idx], fields: [...(state.steps[idx].fields || [])] });
         });
         state.steps = newSteps;
         if (activeFieldStep >= state.steps.length) activeFieldStep = Math.max(0, state.steps.length - 1);
-        expandedFields.clear();
+        selectedField = null;
         renderSteps();
         renderStepSettings();
-        renderFields();
+        renderFieldList();
+        renderInspector();
         schedulePreview();
     }
 
@@ -421,40 +445,40 @@ window.FormBuilder = (function () {
         const step = state.steps[activeFieldStep];
         if (!step) return;
         const newFields = [];
-        document.querySelectorAll('#fieldsContainer .fc-field-card').forEach(el => {
+        document.querySelectorAll('#fieldsContainer .fc-v2-field-row').forEach(el => {
             const fi = parseInt(el.dataset.fieldIndex, 10);
             if (!step.fields[fi]) return;
             const field = { ...step.fields[fi] };
-            collectFieldFromEl(field, el);
+            collectFieldFromListRow(field, el);
+            if (selectedField?.si === activeFieldStep && selectedField.fi === fi) {
+                collectFieldFromInspector(field);
+            }
             newFields.push(field);
         });
         step.fields = newFields;
-        expandedFields.clear();
-        renderFields();
+        selectedField = null;
+        renderFieldList();
+        renderInspector();
         schedulePreview();
     }
 
     function initDragSort(containerEl, itemSelector, onUpdate) {
         if (!containerEl) return;
         let dragged = null;
-
         containerEl.querySelectorAll(itemSelector).forEach(item => {
             const handle = item.querySelector('.fc-drag-handle');
             if (!handle) return;
             handle.setAttribute('draggable', 'true');
-
             handle.addEventListener('dragstart', e => {
                 dragged = item;
                 e.dataTransfer.effectAllowed = 'move';
                 requestAnimationFrame(() => item.classList.add('fc-is-dragging'));
             });
-
             handle.addEventListener('dragend', () => {
                 item.classList.remove('fc-is-dragging');
                 containerEl.querySelectorAll(itemSelector).forEach(el => el.classList.remove('fc-drag-over'));
                 dragged = null;
             });
-
             item.addEventListener('dragover', e => {
                 e.preventDefault();
                 if (!dragged || dragged === item) return;
@@ -462,7 +486,6 @@ window.FormBuilder = (function () {
                 if (e.clientY - rect.top > rect.height / 2) item.after(dragged);
                 else item.before(dragged);
             });
-
             item.addEventListener('dragenter', e => {
                 e.preventDefault();
                 if (dragged && dragged !== item) item.classList.add('fc-drag-over');
@@ -479,13 +502,12 @@ window.FormBuilder = (function () {
     function renderPalette() {
         const palette = document.getElementById('fieldPalette');
         if (!palette) return;
-        palette.innerHTML = FIELD_TYPES.map(type => `
-            <button type="button" class="fc-pro-palette-item" data-add-type="${type}" title="Add ${FIELD_TYPE_LABELS[type]}" draggable="true">
+        palette.innerHTML = FIELD_TYPES.filter(t => t !== 'section').map(type => `
+            <button type="button" class="fc-v2-type-chip" data-add-type="${type}" title="Add ${FIELD_TYPE_LABELS[type]}">
                 <iconify-icon icon="${FIELD_TYPE_ICONS[type]}"></iconify-icon>
                 <span>${FIELD_TYPE_LABELS[type]}</span>
             </button>
         `).join('');
-
         palette.querySelectorAll('[data-add-type]').forEach(btn => {
             btn.addEventListener('click', () => addField(btn.dataset.addType));
         });
@@ -494,30 +516,30 @@ window.FormBuilder = (function () {
     function renderSteps() {
         const c = document.getElementById('stepsContainer');
         if (!state.steps.length) {
-            c.innerHTML = '<div class="fc-empty-state fc-empty-state--compact"><p>No steps yet</p></div>';
+            c.innerHTML = '<div class="fc-v2-empty-steps"><p>No steps yet</p></div>';
             return;
         }
-
-        c.innerHTML = state.steps.map((step, i) => `
-            <div class="fc-step-card fc-step-pill ${i === activeFieldStep ? 'is-active' : ''}" data-step-index="${i}">
+        c.innerHTML = state.steps.map((step, i) => {
+            const fieldCount = (step.fields || []).filter(f => f.type !== 'section').length;
+            return `
+            <div class="fc-v2-step-item ${i === activeFieldStep ? 'is-active' : ''}" data-step-index="${i}">
                 <span class="fc-drag-handle" title="Drag to reorder"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
-                <button type="button" class="fc-pro-step-select" data-select-step="${i}">
-                    <span class="fc-step-badge">${i + 1}</span>
-                    <span class="fc-pro-step-info">
-                        <span class="fc-pro-step-name">${esc(step.title)}</span>
-                        <span class="fc-pro-step-count">${(step.fields || []).length} field${(step.fields || []).length === 1 ? '' : 's'}</span>
+                <button type="button" class="fc-v2-step-btn" data-select-step="${i}">
+                    <span class="fc-v2-step-num">${i + 1}</span>
+                    <span class="fc-v2-step-text">
+                        <span class="fc-v2-step-name">${esc(step.title)}</span>
+                        <span class="fc-v2-step-meta">${fieldCount} field${fieldCount === 1 ? '' : 's'}</span>
                     </span>
                 </button>
-                <button type="button" class="fc-pro-icon-btn fc-pro-icon-btn--danger fc-pro-icon-btn--sm" data-remove-step="${i}" title="Remove step">
+                <button type="button" class="fc-v2-icon-btn fc-v2-icon-btn--ghost fc-v2-step-delete" data-remove-step="${i}" title="Remove step">
                     <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
                 </button>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
         c.querySelectorAll('[data-select-step]').forEach(btn => {
             btn.addEventListener('click', () => setActiveStep(parseInt(btn.dataset.selectStep, 10)));
         });
-
         c.querySelectorAll('[data-remove-step]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
@@ -529,169 +551,313 @@ window.FormBuilder = (function () {
                 }
                 state.steps.splice(idx, 1);
                 if (activeFieldStep >= state.steps.length) activeFieldStep = Math.max(0, state.steps.length - 1);
+                selectedField = null;
                 renderSteps();
                 renderStepSettings();
-                renderFields();
+                renderFieldList();
+                renderInspector();
                 schedulePreview();
             });
         });
-
-        initDragSort(c, '.fc-step-card', reorderStepsFromDom);
+        initDragSort(c, '.fc-v2-step-item', reorderStepsFromDom);
     }
 
     function fieldRowHtml(si, fi, field) {
-        if (field.type === 'section') {
+        const isSelected = selectedField?.si === si && selectedField?.fi === fi;
+        const isSection = field.type === 'section';
+
+        if (isSection) {
             return `
-            <div class="fc-field-card fc-field-card--section" data-step-index="${si}" data-field-index="${fi}">
-                <div class="fc-field-card-header">
-                    <span class="fc-drag-handle" title="Drag to reorder"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
-                    <span class="fc-pro-field-icon"><iconify-icon icon="solar:widget-5-linear"></iconify-icon></span>
-                    <div class="fc-field-body flex-grow-1">
-                        <input class="fc-field-label-input form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="Section heading (e.g. Student Details)">
-                        <input type="hidden" data-f="key" value="${esc(field.key)}">
-                        <input type="hidden" data-f="type" value="section">
-                    </div>
-                    <button type="button" class="fc-meta-btn fc-meta-btn--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete section">
+            <div class="fc-v2-field-row fc-v2-field-row--section ${isSelected ? 'is-selected' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}">
+                <span class="fc-drag-handle"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
+                <iconify-icon icon="solar:widget-5-linear" class="fc-v2-row-icon"></iconify-icon>
+                <input class="fc-v2-row-label" data-f="label" value="${esc(field.label)}" placeholder="Section heading">
+                <input type="hidden" data-f="key" value="${esc(field.key)}">
+                <input type="hidden" data-f="type" value="section">
+                <span class="fc-v2-row-badge">Section</span>
+                <div class="fc-v2-row-actions">
+                    <button type="button" class="fc-v2-row-action fc-v2-row-action--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete">
                         <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
                     </button>
                 </div>
             </div>`;
         }
 
+        const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t =>
+            `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`
+        ).join('');
+
+        return `
+        <div class="fc-v2-field-row ${isSelected ? 'is-selected' : ''} ${field.required ? 'is-required' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}">
+            <span class="fc-drag-handle" title="Drag"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
+            <iconify-icon icon="${FIELD_TYPE_ICONS[field.type] || 'solar:text-field-linear'}" class="fc-v2-row-icon"></iconify-icon>
+            <input class="fc-v2-row-label" data-f="label" value="${esc(field.label)}" placeholder="Field label">
+            <select class="fc-v2-row-type" data-f="type">${typeOpts}</select>
+            <label class="fc-v2-required-toggle ${field.required ? 'is-on' : ''}" title="Required">
+                <input type="checkbox" class="d-none" data-f="required" ${field.required ? 'checked' : ''}>
+                <iconify-icon icon="solar:star-bold"></iconify-icon>
+            </label>
+            <div class="fc-v2-row-actions">
+                <button type="button" class="fc-v2-row-action" data-edit-field="${si},${fi}" title="Edit settings">
+                    <iconify-icon icon="solar:settings-linear"></iconify-icon>
+                </button>
+                <button type="button" class="fc-v2-row-action" data-duplicate-field data-step-index="${si}" data-field-index="${fi}" title="Duplicate">
+                    <iconify-icon icon="solar:copy-linear"></iconify-icon>
+                </button>
+                <button type="button" class="fc-v2-row-action fc-v2-row-action--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete">
+                    <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    function inspectorHtml(si, fi, field) {
+        if (field.type === 'section') {
+            return `
+            <div class="fc-v2-inspector-head">
+                <iconify-icon icon="solar:widget-5-linear"></iconify-icon>
+                <div>
+                    <h4>Section divider</h4>
+                    <p>Groups related fields visually</p>
+                </div>
+            </div>
+            <div class="fc-v2-inspector-section">
+                <label class="fc-v2-inspector-label">Heading</label>
+                <input class="form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="Section title">
+                <input type="hidden" data-f="type" value="section">
+                <input type="hidden" data-f="key" value="${esc(field.key)}">
+            </div>`;
+        }
+
         const optLines = (field.options || []).join('\n');
-        const isOpen = expandedFields.has(fieldExpandedKey(si, fi));
-        const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t => `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`).join('');
+        const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t =>
+            `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`
+        ).join('');
         const srcOpts = buildGroupedSourceOptions(field);
         const needsOptions = ['select', 'radio'].includes(field.type);
         const usesModule = !!(field.options_source);
 
         return `
-        <div class="fc-field-card fc-field-card--pro ${isOpen ? 'is-open' : ''} ${field.required ? 'is-required' : ''}" data-step-index="${si}" data-field-index="${fi}">
-            <div class="fc-field-card-header">
-                <span class="fc-drag-handle" title="Drag to reorder"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
-                <span class="fc-field-index">${String(fi + 1).padStart(2, '0')}</span>
-                <span class="fc-pro-field-icon"><iconify-icon icon="${FIELD_TYPE_ICONS[field.type] || 'solar:text-field-linear'}"></iconify-icon></span>
-                <div class="fc-field-body">
-                    <input class="fc-field-label-input form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="Enter field label…">
-                    <div class="fc-field-meta">
-                        <select class="form-select form-select-sm radius-8 fc-field-type-select" data-f="type">${typeOpts}</select>
-                        <label class="fc-required-pill ${field.required ? 'is-on' : ''}" title="Required field">
-                            <input type="checkbox" class="d-none" data-f="required" ${field.required ? 'checked' : ''}>
-                            <iconify-icon icon="solar:star-linear"></iconify-icon>
-                            Required
-                        </label>
-                        <button type="button" class="fc-meta-btn" data-toggle-advanced title="Advanced settings">
-                            <iconify-icon icon="solar:settings-linear"></iconify-icon>
-                            ${isOpen ? 'Hide' : 'Settings'}
-                        </button>
-                        <button type="button" class="fc-meta-btn" data-duplicate-field data-step-index="${si}" data-field-index="${fi}" title="Duplicate">
-                            <iconify-icon icon="solar:copy-linear"></iconify-icon>
-                        </button>
-                        <button type="button" class="fc-meta-btn fc-meta-btn--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete">
-                            <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
-                        </button>
-                    </div>
-                </div>
+        <div class="fc-v2-inspector-head">
+            <iconify-icon icon="${FIELD_TYPE_ICONS[field.type] || 'solar:text-field-linear'}"></iconify-icon>
+            <div>
+                <h4>${esc(field.label || 'Field')}</h4>
+                <p>${FIELD_TYPE_LABELS[field.type] || field.type}</p>
             </div>
-            <div class="fc-field-advanced">
-                <div class="fc-field-advanced-grid">
-                    <div><label class="form-label text-sm text-secondary-light">Field key</label>
-                        <input class="form-control form-control-sm radius-8" data-f="key" value="${esc(field.key)}"></div>
-                    <div><label class="form-label text-sm text-secondary-light">Width</label>
-                        <select class="form-select form-select-sm radius-8" data-f="width">
-                            <option value="full" ${field.width === 'full' || !field.width ? 'selected' : ''}>Full</option>
-                            <option value="half" ${field.width === 'half' ? 'selected' : ''}>Half</option>
-                        </select></div>
-                    <div><label class="form-label text-sm text-secondary-light">Placeholder</label>
-                        <input class="form-control form-control-sm radius-8" data-f="placeholder" value="${esc(field.placeholder || '')}"></div>
-                    <div><label class="form-label text-sm text-secondary-light">Help text</label>
-                        <input class="form-control form-control-sm radius-8" data-f="help_text" value="${esc(field.help_text || '')}"></div>
-                    <div class="${needsOptions ? 'full-width' : 'd-none'}">
-                        <label class="form-label text-sm text-secondary-light fw-semibold">Dropdown values</label>
-                        <div class="fc-option-builder">
-                            <label class="form-label text-xs text-secondary-light mb-4">Data source</label>
-                            <select class="form-select form-select-sm radius-8" data-f="options_source">${srcOpts}</select>
+            <button type="button" class="fc-v2-inspector-close" id="closeInspectorBtn" title="Close">
+                <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+            </button>
+        </div>
 
-                            <div class="fc-option-picker ${usesModule ? '' : 'd-none'}" data-option-picker>
-                                <div class="fc-option-picker-toolbar">
-                                    <span class="fc-option-picker-count" data-option-count>Loading…</span>
-                                    <div class="fc-option-picker-actions">
-                                        <button type="button" class="fc-option-toolbar-btn" data-select-all>Select all</button>
-                                        <button type="button" class="fc-option-toolbar-btn" data-clear-all>Clear</button>
-                                    </div>
-                                </div>
-                                <div class="fc-option-search-wrap">
-                                    <i class="ri-search-line" aria-hidden="true"></i>
-                                    <input type="search" class="form-control form-control-sm radius-8" data-option-search placeholder="Search values…">
-                                </div>
-                                <div class="fc-option-grid" data-option-grid></div>
-                                <p class="fc-option-empty text-secondary-light text-sm mb-0 d-none" data-option-empty>No values in this module yet. Add them under Admission Form in the sidebar.</p>
-                            </div>
+        <div class="fc-v2-inspector-section">
+            <h5 class="fc-v2-inspector-section-title">Question</h5>
+            <label class="fc-v2-inspector-label">Label</label>
+            <input class="form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="What should users see?">
+            <label class="fc-v2-inspector-label">Field type</label>
+            <select class="form-select radius-8" data-f="type">${typeOpts}</select>
+            <label class="fc-v2-inspector-label">Help text <span class="text-muted">(optional)</span></label>
+            <input class="form-control radius-8" data-f="help_text" value="${esc(field.help_text || '')}" placeholder="Shown below the field">
+            <label class="fc-v2-inspector-label">Placeholder <span class="text-muted">(optional)</span></label>
+            <input class="form-control radius-8" data-f="placeholder" value="${esc(field.placeholder || '')}" placeholder="Hint inside the input">
+        </div>
 
-                            <div class="fc-option-manual ${usesModule ? 'd-none' : ''}" data-option-manual>
-                                <label class="form-label text-xs text-secondary-light mt-8 mb-4">Manual options (one per line)</label>
-                                <textarea class="form-control form-control-sm radius-8" rows="3" data-f="options" placeholder="Option 1&#10;Option 2">${esc(optLines)}</textarea>
-                            </div>
+        <div class="fc-v2-inspector-section">
+            <h5 class="fc-v2-inspector-section-title">Rules</h5>
+            <label class="fc-v2-toggle-row">
+                <span>
+                    <strong>Required field</strong>
+                    <small>Users must fill this in</small>
+                </span>
+                <input type="checkbox" class="fc-v2-switch" data-f="required" ${field.required ? 'checked' : ''}>
+            </label>
+            <label class="fc-v2-inspector-label">Validation rules</label>
+            <input class="form-control radius-8" data-f="validation" value="${esc(field.validation || '')}" placeholder="e.g. max:255">
+        </div>
+
+        <div class="fc-v2-inspector-section">
+            <h5 class="fc-v2-inspector-section-title">Layout</h5>
+            <label class="fc-v2-inspector-label">Width on form</label>
+            <div class="fc-v2-width-toggle">
+                <label class="fc-v2-width-opt ${field.width !== 'half' ? 'is-active' : ''}">
+                    <input type="radio" name="field_width" data-f="width" value="full" ${field.width !== 'half' ? 'checked' : ''}>
+                    <iconify-icon icon="solar:full-screen-linear"></iconify-icon> Full
+                </label>
+                <label class="fc-v2-width-opt ${field.width === 'half' ? 'is-active' : ''}">
+                    <input type="radio" name="field_width" data-f="width" value="half" ${field.width === 'half' ? 'checked' : ''}>
+                    <iconify-icon icon="solar:sidebar-minimalistic-linear"></iconify-icon> Half
+                </label>
+            </div>
+        </div>
+
+        ${needsOptions ? `
+        <div class="fc-v2-inspector-section">
+            <h5 class="fc-v2-inspector-section-title">Answer choices</h5>
+            <label class="fc-v2-inspector-label">Data source</label>
+            <select class="form-select radius-8" data-f="options_source">${srcOpts}</select>
+            <div class="fc-option-builder">
+                <div class="fc-option-picker ${usesModule ? '' : 'd-none'}" data-option-picker>
+                    <div class="fc-option-picker-toolbar">
+                        <span class="fc-option-picker-count" data-option-count>Loading…</span>
+                        <div class="fc-option-picker-actions">
+                            <button type="button" class="fc-option-toolbar-btn" data-select-all>Select all</button>
+                            <button type="button" class="fc-option-toolbar-btn" data-clear-all>Clear</button>
                         </div>
                     </div>
-                    <div class="full-width"><label class="form-label text-sm text-secondary-light">Validation</label>
-                        <input class="form-control form-control-sm radius-8" data-f="validation" value="${esc(field.validation || '')}" placeholder="e.g. max:255"></div>
+                    <div class="fc-option-search-wrap">
+                        <i class="ri-search-line" aria-hidden="true"></i>
+                        <input type="search" class="form-control form-control-sm radius-8" data-option-search placeholder="Search values…">
+                    </div>
+                    <div class="fc-option-grid" data-option-grid></div>
+                    <p class="fc-option-empty text-secondary-light text-sm mb-0 d-none" data-option-empty>No values in this module yet.</p>
+                </div>
+                <div class="fc-option-manual ${usesModule ? 'd-none' : ''}" data-option-manual>
+                    <label class="fc-v2-inspector-label">Manual options (one per line)</label>
+                    <textarea class="form-control radius-8" rows="4" data-f="options" placeholder="Option 1&#10;Option 2">${esc(optLines)}</textarea>
                 </div>
             </div>
-        </div>`;
+        </div>` : ''}
+
+        <details class="fc-v2-inspector-advanced">
+            <summary>Advanced</summary>
+            <label class="fc-v2-inspector-label">Field key</label>
+            <input class="form-control radius-8 font-monospace text-sm" data-f="key" value="${esc(field.key)}" placeholder="database_key">
+            <small class="text-secondary-light">Used when storing submissions. Auto-generated from label.</small>
+        </details>`;
     }
 
-    function renderFields() {
+    function renderInspector() {
+        const empty = document.getElementById('inspectorEmpty');
+        const content = document.getElementById('inspectorContent');
+        if (!empty || !content) return;
+
+        if (!selectedField) {
+            empty.classList.remove('d-none');
+            content.classList.add('d-none');
+            content.innerHTML = '';
+            return;
+        }
+
+        const field = state.steps[selectedField.si]?.fields[selectedField.fi];
+        if (!field) {
+            clearFieldSelection();
+            return;
+        }
+
+        empty.classList.add('d-none');
+        content.classList.remove('d-none');
+        content.innerHTML = inspectorHtml(selectedField.si, selectedField.fi, field);
+        bindInspectorEvents(content, field);
+        if (['select', 'radio'].includes(field.type)) {
+            bindOptionPickerEvents(content);
+            if (field.options_source) mountOptionPicker(content, field);
+        }
+    }
+
+    function bindInspectorEvents(root, field) {
+        root.querySelector('#closeInspectorBtn')?.addEventListener('click', () => {
+            clearFieldSelection();
+            setSideTab('preview');
+        });
+
+        root.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('input', () => {
+                collectFieldFromInspector(field);
+                if (el.dataset.f === 'label') {
+                    updateInspectorBadge();
+                    renderFieldList();
+                }
+                schedulePreview();
+            });
+            el.addEventListener('change', function () {
+                if (el.dataset.f === 'type') {
+                    collectFieldFromInspector(field);
+                    renderFieldList();
+                    renderInspector();
+                    schedulePreview();
+                    return;
+                }
+                if (el.dataset.f === 'width') {
+                    root.querySelectorAll('.fc-v2-width-opt').forEach(opt => {
+                        opt.classList.toggle('is-active', opt.querySelector('input')?.checked);
+                    });
+                }
+                schedulePreview();
+            });
+        });
+
+        root.querySelector('[data-f="label"]')?.addEventListener('blur', function () {
+            const keyInput = root.querySelector('[data-f="key"]');
+            if (keyInput && keyInput.dataset.manual !== '1') {
+                keyInput.value = slugifyKey(this.value, 'field_' + selectedField.si + '_' + selectedField.fi);
+            }
+        });
+
+        root.querySelector('[data-f="key"]')?.addEventListener('input', function () {
+            this.dataset.manual = '1';
+        });
+    }
+
+    function renderFieldList() {
         const c = document.getElementById('fieldsContainer');
         const step = state.steps[activeFieldStep];
 
         if (!step) {
-            c.innerHTML = '<div class="fc-empty-state fc-empty-state--pro"><div class="fc-empty-icon"><iconify-icon icon="solar:layers-linear"></iconify-icon></div><h6>No steps yet</h6><p>Add your first step from the left panel</p></div>';
+            c.innerHTML = '<div class="fc-v2-empty-fields"><iconify-icon icon="solar:layers-linear"></iconify-icon><h6>No steps</h6><p>Add a step to begin</p></div>';
             return;
         }
 
-        c.innerHTML = (step.fields || []).map((field, fi) => fieldRowHtml(activeFieldStep, fi, field)).join('') ||
-            '<div class="fc-empty-state fc-empty-state--pro"><div class="fc-empty-icon"><iconify-icon icon="solar:text-field-linear"></iconify-icon></div><h6>No fields in this step</h6><p>Click a field type above or use <strong>Add Field</strong></p></div>';
+        if (!(step.fields || []).length) {
+            c.innerHTML = `
+            <div class="fc-v2-empty-fields">
+                <iconify-icon icon="solar:text-field-linear"></iconify-icon>
+                <h6>This step is empty</h6>
+                <p>Pick a field type above to add your first question</p>
+            </div>`;
+            return;
+        }
 
-        bindFieldEvents(c);
-        if ((step.fields || []).length) initDragSort(c, '.fc-field-card', reorderFieldsFromDom);
+        c.innerHTML = step.fields.map((field, fi) => fieldRowHtml(activeFieldStep, fi, field)).join('');
+        bindFieldListEvents(c);
+        initDragSort(c, '.fc-v2-field-row', reorderFieldsFromDom);
         updateStatsBar();
-
-        c.querySelectorAll('.fc-field-card').forEach(card => {
-            const si = parseInt(card.dataset.stepIndex, 10);
-            const fi = parseInt(card.dataset.fieldIndex, 10);
-            const field = state.steps[si]?.fields[fi];
-            if (field && ['select', 'radio'].includes(field.type)) {
-                bindOptionPickerEvents(card);
-                if (field.options_source) mountOptionPicker(card, field);
-            }
-        });
     }
 
-    function bindFieldEvents(c) {
+    function bindFieldListEvents(c) {
+        c.querySelectorAll('[data-select-field]').forEach(row => {
+            row.addEventListener('click', e => {
+                if (e.target.closest('.fc-drag-handle, .fc-v2-row-action, .fc-v2-row-type, .fc-v2-row-label, .fc-v2-required-toggle')) return;
+                const [si, fi] = row.dataset.selectField.split(',').map(Number);
+                selectField(si, fi);
+            });
+        });
+
+        c.querySelectorAll('[data-edit-field]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const [si, fi] = btn.dataset.editField.split(',').map(Number);
+                selectField(si, fi);
+            });
+        });
+
         c.querySelectorAll('[data-remove-field]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
                 collectStateFromDom();
-                state.steps[parseInt(btn.dataset.stepIndex, 10)].fields.splice(parseInt(btn.dataset.fieldIndex, 10), 1);
-                renderFields();
+                const si = parseInt(btn.dataset.stepIndex, 10);
+                const fi = parseInt(btn.dataset.fieldIndex, 10);
+                state.steps[si].fields.splice(fi, 1);
+                if (selectedField?.si === si && selectedField?.fi === fi) selectedField = null;
+                else if (selectedField?.si === si && selectedField.fi > fi) selectedField.fi--;
+                renderFieldList();
+                renderInspector();
                 renderSteps();
                 schedulePreview();
             });
         });
 
-        c.querySelectorAll('[data-toggle-advanced]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const card = btn.closest('.fc-field-card');
-                card.classList.toggle('is-open');
-                const key = fieldExpandedKey(parseInt(card.dataset.stepIndex, 10), parseInt(card.dataset.fieldIndex, 10));
-                if (card.classList.contains('is-open')) expandedFields.add(key);
-                else expandedFields.delete(key);
-                btn.innerHTML = `<iconify-icon icon="solar:settings-linear"></iconify-icon> ${card.classList.contains('is-open') ? 'Hide' : 'Settings'}`;
-            });
-        });
-
         c.querySelectorAll('[data-duplicate-field]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
                 collectStateFromDom();
                 const si = parseInt(btn.dataset.stepIndex, 10);
                 const fi = parseInt(btn.dataset.fieldIndex, 10);
@@ -699,52 +865,41 @@ window.FormBuilder = (function () {
                 if (!original) return;
                 const copy = { ...original, key: original.key + '_copy', label: original.label + ' (copy)' };
                 state.steps[si].fields.splice(fi + 1, 0, copy);
-                renderFields();
+                renderFieldList();
                 renderSteps();
                 schedulePreview();
             });
         });
 
-        c.querySelectorAll('.fc-required-pill').forEach(pill => {
-            const cb = pill.querySelector('[data-f="required"]');
+        c.querySelectorAll('.fc-v2-required-toggle').forEach(toggle => {
+            const cb = toggle.querySelector('[data-f="required"]');
             cb?.addEventListener('change', () => {
-                pill.classList.toggle('is-on', cb.checked);
-                pill.closest('.fc-field-card')?.classList.toggle('is-required', cb.checked);
+                toggle.classList.toggle('is-on', cb.checked);
+                toggle.closest('.fc-v2-field-row')?.classList.toggle('is-required', cb.checked);
                 schedulePreview();
             });
         });
 
-        c.querySelectorAll('input, select, textarea').forEach(el => {
+        c.querySelectorAll('.fc-v2-row-label, .fc-v2-row-type').forEach(el => {
             el.addEventListener('input', schedulePreview);
             el.addEventListener('change', function () {
                 if (el.dataset.f === 'type') {
-                    const card = el.closest('.fc-field-card');
-                    const icon = card?.querySelector('.fc-pro-field-icon iconify-icon');
+                    const row = el.closest('.fc-v2-field-row');
+                    const icon = row?.querySelector('.fc-v2-row-icon');
                     if (icon) icon.setAttribute('icon', FIELD_TYPE_ICONS[el.value] || 'solar:text-field-linear');
-                    if (['select', 'radio'].includes(el.value)) {
-                        collectStateFromDom();
-                        renderFields();
-                        return;
-                    }
                 }
                 schedulePreview();
             });
         });
 
-        c.querySelectorAll('[data-f="label"]').forEach(input => {
-            input.addEventListener('blur', function () {
-                const card = this.closest('.fc-field-card');
-                const keyInput = card?.querySelector('[data-f="key"]');
-                if (keyInput && keyInput.dataset.manual !== '1') {
-                    const si = parseInt(card.dataset.stepIndex, 10);
-                    const fi = parseInt(card.dataset.fieldIndex, 10);
-                    keyInput.value = slugifyKey(this.value, 'field_' + si + '_' + fi);
+        c.querySelectorAll('.fc-v2-field-row').forEach(row => {
+            row.querySelector('[data-f="label"]')?.addEventListener('focus', () => {
+                const si = parseInt(row.dataset.stepIndex, 10);
+                const fi = parseInt(row.dataset.fieldIndex, 10);
+                if (!selectedField || selectedField.si !== si || selectedField.fi !== fi) {
+                    selectField(si, fi, { skipListRender: true, skipSideTab: true });
                 }
             });
-        });
-
-        c.querySelectorAll('[data-f="key"]').forEach(input => {
-            input.addEventListener('input', () => { input.dataset.manual = '1'; });
         });
     }
 
@@ -767,8 +922,9 @@ window.FormBuilder = (function () {
                 input = `<select class="fc-preview-input" disabled><option>${ph || 'Select...'}</option>${getFieldOptionsForPreview(field).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
                 break;
             case 'radio':
-                input = (getFieldOptionsForPreview(field).length ? getFieldOptionsForPreview(field) : ['Option 1', 'Option 2']).map((o, i) => `
-                    <label class="fc-preview-radio"><input type="radio" disabled ${i === 0 ? 'checked' : ''}> ${esc(o)}</label>`).join('');
+                input = (getFieldOptionsForPreview(field).length ? getFieldOptionsForPreview(field) : ['Option 1', 'Option 2']).map((o, i) =>
+                    `<label class="fc-preview-radio"><input type="radio" disabled ${i === 0 ? 'checked' : ''}> ${esc(o)}</label>`
+                ).join('');
                 break;
             case 'checkbox':
                 input = `<label class="fc-preview-check"><input type="checkbox" disabled> ${esc(field.label)}</label>`;
@@ -788,37 +944,32 @@ window.FormBuilder = (function () {
 
     function renderPreview(animate) {
         collectStateFromDom();
-        const name = state.name || 'Untitled Form';
         const step = state.steps[previewStep];
         const total = state.steps.length || 1;
         const pct = Math.round(((previewStep + 1) / total) * 100);
 
         document.getElementById('previewFormTitle').textContent = 'STEP ' + (previewStep + 1) + ' OF ' + total;
-        document.getElementById('previewProgressBar').style.width = pct + '%';
         document.getElementById('previewProgressText').textContent = pct + '%';
 
-        const wrap = document.getElementById('previewStepWrap');
         const content = document.getElementById('previewStepContent');
         const transition = step?.transition || 'slide';
+
+        const html = step
+            ? `<h4 class="fc-preview-step-title">${esc(step.title)}</h4>
+               ${step.description ? `<p class="fc-preview-step-desc">${esc(step.description)}</p>` : ''}
+               <div class="fc-preview-fields">${(step.fields || []).map(previewFieldHtml).join('') || '<p class="fc-preview-empty">No fields in this step</p>'}</div>`
+            : '<p class="fc-preview-empty">Add steps to preview</p>';
 
         if (animate && transition !== 'none') {
             content.classList.add('fc-preview-anim-out', 'fc-preview-anim--' + transition);
             setTimeout(() => {
                 content.classList.remove('fc-preview-anim-out', 'fc-preview-anim--' + transition);
-                content.innerHTML = step
-                    ? `<h4 class="fc-preview-step-title">${esc(step.title)}</h4>
-                       ${step.description ? `<p class="fc-preview-step-desc">${esc(step.description)}</p>` : ''}
-                       <div class="fc-preview-fields">${(step.fields || []).map(previewFieldHtml).join('') || '<p class="fc-preview-empty">No fields in this step</p>'}</div>`
-                    : '<p class="fc-preview-empty">Add steps to preview</p>';
+                content.innerHTML = html;
                 content.classList.add('fc-preview-anim-in', 'fc-preview-anim--' + transition);
                 setTimeout(() => content.classList.remove('fc-preview-anim-in', 'fc-preview-anim--' + transition), 320);
             }, 180);
         } else {
-            content.innerHTML = step
-                ? `<h4 class="fc-preview-step-title">${esc(step.title)}</h4>
-                   ${step.description ? `<p class="fc-preview-step-desc">${esc(step.description)}</p>` : ''}
-                   <div class="fc-preview-fields">${(step.fields || []).map(previewFieldHtml).join('') || '<p class="fc-preview-empty">No fields in this step</p>'}</div>`
-                : '<p class="fc-preview-empty">Add steps to preview</p>';
+            content.innerHTML = html;
         }
 
         document.getElementById('previewPrevBtn').disabled = previewStep <= 0;
@@ -837,15 +988,7 @@ window.FormBuilder = (function () {
         const step = state.steps[activeFieldStep];
         const fi = step.fields.length;
         if (type === 'section') {
-            step.fields.push({
-                key: '_section_' + Date.now(),
-                label: 'New Section',
-                type: 'section',
-                required: false,
-                options: [],
-                options_source: '',
-                width: 'full',
-            });
+            step.fields.push({ key: '_section_' + Date.now(), label: 'New Section', type: 'section', required: false, options: [], options_source: '', width: 'full' });
         } else {
             step.fields.push({
                 key: 'field_' + activeFieldStep + '_' + fi,
@@ -857,12 +1000,12 @@ window.FormBuilder = (function () {
                 width: 'full',
             });
         }
-        renderFields();
+        renderFieldList();
         renderSteps();
         schedulePreview();
+        selectField(activeFieldStep, fi);
         setTimeout(() => {
-            const cards = document.querySelectorAll('#fieldsContainer .fc-field-card');
-            cards[cards.length - 1]?.querySelector('[data-f="label"]')?.focus();
+            document.querySelector('#fieldsContainer .fc-v2-field-row:last-child [data-f="label"]')?.focus();
         }, 50);
     }
 
@@ -918,7 +1061,6 @@ window.FormBuilder = (function () {
     async function saveForm() {
         collectStateFromDom();
         injectPayload();
-
         const slugVal = document.getElementById('slug')?.value.trim();
         const nameVal = document.getElementById('name')?.value.trim();
         if (!nameVal || !slugVal) {
@@ -926,12 +1068,10 @@ window.FormBuilder = (function () {
             showToast('Please enter a form name and slug.', 'error');
             return false;
         }
-
         const formEl = document.getElementById('formBuilderForm');
         const btn = document.getElementById('saveBtn');
         btn?.classList.add('is-loading');
         btn?.setAttribute('disabled', 'disabled');
-
         try {
             const res = await fetch(formEl.action, {
                 method: 'POST',
@@ -986,27 +1126,26 @@ window.FormBuilder = (function () {
             OPTION_SOURCE_LABELS = config.optionSources;
             OPTIONS_SOURCES = Object.keys(config.optionSources);
         }
-        if (Array.isArray(config.optionSourceGroups)) {
-            OPTION_SOURCE_GROUPS = config.optionSourceGroups;
-        }
-        if (config.optionSourceUrl) {
-            OPTION_SOURCE_URL = config.optionSourceUrl;
-        }
+        if (Array.isArray(config.optionSourceGroups)) OPTION_SOURCE_GROUPS = config.optionSourceGroups;
+        if (config.optionSourceUrl) OPTION_SOURCE_URL = config.optionSourceUrl;
 
-        if (config.formAction) {
-            document.getElementById('formBuilderForm').action = config.formAction;
-        }
+        if (config.formAction) document.getElementById('formBuilderForm').action = config.formAction;
         if (isEdit) ensurePutMethod();
 
         renderPalette();
         renderSteps();
         renderStepSettings();
-        renderFields();
+        renderFieldList();
+        renderInspector();
         renderPreview(false);
         updateStatsBar();
 
-        document.querySelectorAll('.fc-pro-mode-tab').forEach(tab => {
+        document.querySelectorAll('.fc-v2-mode-btn').forEach(tab => {
             tab.addEventListener('click', () => setMode(tab.dataset.mode));
+        });
+
+        document.querySelectorAll('.fc-v2-side-tab').forEach(tab => {
+            tab.addEventListener('click', () => setSideTab(tab.dataset.sideTab));
         });
 
         document.getElementById('addStepBtn')?.addEventListener('click', () => {
@@ -1014,19 +1153,12 @@ window.FormBuilder = (function () {
             const n = state.steps.length + 1;
             state.steps.push({ key: 'step_' + n, title: 'Step ' + n, description: '', transition: 'slide', fields: [] });
             activeFieldStep = state.steps.length - 1;
+            selectedField = null;
             renderSteps();
             renderStepSettings();
-            renderFields();
+            renderFieldList();
+            renderInspector();
             schedulePreview();
-        });
-
-        document.getElementById('paletteToggle')?.addEventListener('click', () => {
-            const wrap = document.getElementById('paletteWrap');
-            const btn = document.getElementById('paletteToggle');
-            wrap?.classList.toggle('is-open');
-            const open = wrap?.classList.contains('is-open');
-            btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn?.classList.toggle('is-open', open);
         });
 
         document.addEventListener('keydown', e => {
@@ -1034,14 +1166,14 @@ window.FormBuilder = (function () {
                 e.preventDefault();
                 saveForm();
             }
+            if (e.key === 'Escape' && selectedField) {
+                clearFieldSelection();
+                setSideTab('preview');
+            }
         });
 
         bindStepSettingsEvents();
-        document.getElementById('paletteToggle')?.classList.add('is-open');
-
-        document.getElementById('addFieldBtn')?.addEventListener('click', () => addField('text'));
         document.getElementById('addSectionBtn')?.addEventListener('click', addSection);
-
         document.getElementById('saveBtn')?.addEventListener('click', saveForm);
         document.getElementById('formBuilderForm')?.addEventListener('submit', e => e.preventDefault());
 
@@ -1066,24 +1198,23 @@ window.FormBuilder = (function () {
         });
 
         document.getElementById('slugInput')?.addEventListener('input', syncSlugDisplay);
-
         document.querySelectorAll('[data-placement]').forEach(i => i.addEventListener('change', syncVisibilityUi));
         document.getElementById('is_active')?.addEventListener('change', syncVisibilityUi);
         syncVisibilityUi();
         syncSlugDisplay();
 
-        document.querySelectorAll('.fc-pro-device-btn').forEach(btn => {
+        document.querySelectorAll('.fc-v2-device-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.fc-pro-device-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.fc-v2-device-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 const device = document.getElementById('previewDevice');
-                device?.classList.toggle('fc-pro-preview-device--mobile', btn.dataset.device === 'mobile');
-                device?.classList.toggle('fc-pro-preview-device--desktop', btn.dataset.device === 'desktop');
+                device?.classList.toggle('fc-v2-preview-device--mobile', btn.dataset.device === 'mobile');
+                device?.classList.toggle('fc-v2-preview-device--desktop', btn.dataset.device === 'desktop');
             });
         });
 
-        document.getElementById('togglePreviewBtn')?.addEventListener('click', () => {
-            document.getElementById('builderPreview')?.classList.toggle('is-visible');
+        document.getElementById('toggleSidePanelBtn')?.addEventListener('click', () => {
+            document.getElementById('builderSidePanel')?.classList.toggle('is-open');
         });
     }
 
