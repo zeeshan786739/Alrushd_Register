@@ -31,7 +31,6 @@ class DynamicFormController extends Controller
                 'id' => $form->id,
                 'name' => $form->name,
                 'slug' => $form->slug,
-                'legacy_route' => $form->legacy_route,
                 'href' => $form->routePath(),
                 'hero_label' => $form->hero_label ?: $form->name,
                 'hero_variant' => $form->hero_variant,
@@ -61,18 +60,10 @@ class DynamicFormController extends Controller
 
     public function show(string $slug): JsonResponse
     {
-        $form = Form::query()
-            ->where('is_active', true)
-            ->where(function ($query) use ($slug) {
-                $query->where('slug', $slug)
-                    ->orWhere('legacy_route', $slug)
-                    ->orWhere('legacy_route', ltrim($slug, '/'));
-            })
-            ->firstOrFail();
+        $form = Form::where('slug', $slug)->where('is_active', true)->firstOrFail();
         $form->load(['steps.fields']);
 
         $schema = $this->builder->toSchema($form);
-        $schema['success_route'] = $form->successPath();
         $fieldModels = $form->fields->keyBy('key');
         $schema['steps'] = collect($schema['steps'])->map(function ($step) use ($fieldModels) {
             $step['fields'] = collect($step['fields'])->map(function ($field) use ($fieldModels) {
@@ -118,7 +109,7 @@ class DynamicFormController extends Controller
         return response()->json([
             'message' => 'Form submitted successfully.',
             'entry_id' => $entry->entry_id,
-            'success_route' => $form->successPath(),
+            'success_route' => $form->success_route ?: '/',
         ]);
     }
 

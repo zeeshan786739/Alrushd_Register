@@ -1,12 +1,12 @@
 <div class="fc-table-actions">
     @if(!empty($viewUrl) && ($canView ?? true))
         <a href="{{ $viewUrl }}" class="fc-action-icon view" title="{{ $viewTitle ?? 'View' }}" aria-label="{{ $viewTitle ?? 'View' }}">
-            <iconify-icon icon="solar:eye-linear"></iconify-icon>
+            <i class="ri-eye-line" aria-hidden="true"></i>
         </a>
     @endif
     @if(!empty($editUrl) && ($canEdit ?? true))
         <a href="{{ $editUrl }}" class="fc-action-icon edit" title="{{ $editTitle ?? 'Edit' }}" aria-label="{{ $editTitle ?? 'Edit' }}">
-            <iconify-icon icon="solar:pen-linear"></iconify-icon>
+            <i class="ri-pencil-line" aria-hidden="true"></i>
         </a>
     @endif
     @if(!empty($deleteId) && !empty($deleteRoute) && ($canDelete ?? true))
@@ -18,7 +18,7 @@
                 data-id="{{ $deleteId }}"
                 title="{{ $deleteTitle ?? 'Delete' }}"
                 aria-label="{{ $deleteTitle ?? 'Delete' }}">
-            <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+            <i class="ri-delete-bin-line" aria-hidden="true"></i>
         </button>
     @endif
 </div>

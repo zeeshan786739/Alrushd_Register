@@ -44,7 +44,14 @@
         if (typeof DataTable !== 'undefined') {
             var tableEl = document.getElementById('dataTable');
             if (tableEl && !tableEl.classList.contains('dataTable')) {
-                try { new DataTable('#dataTable'); } catch (e) { /* ignore */ }
+                try {
+                    var dt = new DataTable('#dataTable');
+                    dt.on('draw', function () {
+                        if (typeof Iconify !== 'undefined' && typeof Iconify.scan === 'function') {
+                            Iconify.scan(tableEl);
+                        }
+                    });
+                } catch (e) { /* ignore */ }
             }
         }
 

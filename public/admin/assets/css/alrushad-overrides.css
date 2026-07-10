@@ -223,6 +223,7 @@ iconify-icon {
 /* Legacy circular action buttons → unified style */
 a.w-32-px.h-32-px.rounded-circle,
 button.w-32-px.h-32-px.rounded-circle,
+button.fc-action-icon,
 a.delete-btn,
 .fc-action-icon {
     width: 34px !important;
@@ -240,6 +241,11 @@ a.delete-btn,
                 box-shadow var(--crm-duration) var(--crm-ease);
     vertical-align: middle;
 }
+.fc-action-icon i {
+    font-size: 18px;
+    line-height: 1;
+    pointer-events: none;
+}
 a.w-32-px.h-32-px.rounded-circle:hover,
 a.delete-btn:hover,
 .fc-action-icon:hover {
@@ -255,8 +261,14 @@ a.delete-btn, .fc-action-icon.delete { background: rgba(239, 68, 68, 0.1) !impor
 .fc-action-icon.link { background: rgba(8, 145, 178, 0.1) !important; color: #0891b2 !important; }
 .fc-action-icon.duplicate { background: rgba(100, 116, 139, 0.12) !important; color: #64748b !important; }
 
+.fc-table-actions { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+td:has(.fc-table-actions),
 td:has(.delete-btn), td:has(.w-32-px) {
+    text-align: right;
+    width: 1%;
     white-space: nowrap;
+    vertical-align: middle;
 }
 
 /* ── Cards ── */
@@ -393,6 +405,19 @@ td:has(.delete-btn), td:has(.w-32-px) {
 
 .card.basic-data-table {
     width: 100%;
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-radius);
+    overflow: hidden;
+}
+.card.basic-data-table .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--crm-border);
+    background: #fff;
+}
+.card.basic-data-table .card-header .card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--crm-brand) !important;
 }
 .card.basic-data-table .card-body { padding: 0 !important; }
 .card.basic-data-table .card-body > .table-responsive,
@@ -649,7 +674,6 @@ form.bg-primary .form-select {
     align-items: center;
 }
 
-.fc-table-actions { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
 .fc-form-row { transition: background var(--crm-duration); }
 .fc-form-row:hover { background: rgba(69, 105, 230, 0.04) !important; }
 

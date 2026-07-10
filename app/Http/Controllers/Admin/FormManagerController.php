@@ -6,11 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\FormEntry;
 use App\Services\FormBuilderService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class FormManagerController extends Controller
@@ -28,41 +26,26 @@ class FormManagerController extends Controller
         $stats = [
             'total_forms' => $forms->count(),
             'active_forms' => $forms->where('is_active', true)->count(),
-            'landing_forms' => $forms->filter(fn (Form $form) => $form->hasPlacement('landing'))->count(),
+            'landing_forms' => $forms->where('show_on_landing', true)->count(),
             'total_submissions' => $forms->sum('entries_count'),
         ];
 
-        return view('admin.form-manager.index', [
-            'forms' => $forms,
-            'stats' => $stats,
-            'placementOptions' => config('form_options.placements', []),
-        ]);
+        return view('admin.form-manager.index', compact('forms', 'stats'));
     }
 
-    public function create(Request $request): View
+    public function create(): View
     {
         $form = new Form();
 
         return view('admin.form-manager.builder', [
             'form' => $form,
-            'schema' => [
-                'steps' => [
-                    [
-                        'key' => 'step_1',
-                        'title' => 'Step 1',
-                        'description' => '',
-                        'fields' => [],
-                    ],
-                ],
-            ],
+            'schema' => ['steps' => []],
             'fieldTypes' => config('form_options.field_types'),
             'optionSources' => $this->optionSources(),
-            'placementOptions' => config('form_options.placements', []),
-            'wizardStep' => $this->resolveWizardStep($request),
         ]);
     }
 
-    public function edit(Form $form, Request $request): View
+    public function edit(Form $form): View
     {
         $form->load(['steps.fields']);
 
@@ -71,39 +54,27 @@ class FormManagerController extends Controller
             'schema' => $this->builder->toSchema($form),
             'fieldTypes' => config('form_options.field_types'),
             'optionSources' => $this->optionSources(),
-            'placementOptions' => config('form_options.placements', []),
-            'wizardStep' => $this->resolveWizardStep($request),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(Request $request): RedirectResponse
     {
-        $payload = $this->validated($request, null);
+        $payload = $this->validated($request);
         $payload['is_active'] = $request->boolean('is_active');
-        $payload['placements'] = $request->input('placements', []);
-        $payload['show_on_landing'] = in_array('landing', $payload['placements'], true);
+        $payload['show_on_landing'] = $request->boolean('show_on_landing');
         $form = $this->builder->syncForm($payload);
 
-        if ($request->expectsJson()) {
-            return $this->jsonAfterSave($form, $request, 'Form created successfully.');
-        }
-
-        return $this->redirectAfterSave($form, $request, 'Form created successfully.');
+        return redirect()->route('admin.form-manager.edit', $form)->with('success', 'Form created successfully.');
     }
 
-    public function update(Request $request, Form $form): RedirectResponse|JsonResponse
+    public function update(Request $request, Form $form): RedirectResponse
     {
-        $payload = $this->validated($request, $form);
+        $payload = $this->validated($request);
         $payload['is_active'] = $request->boolean('is_active');
-        $payload['placements'] = $request->input('placements', []);
-        $payload['show_on_landing'] = in_array('landing', $payload['placements'], true);
+        $payload['show_on_landing'] = $request->boolean('show_on_landing');
         $this->builder->syncForm($payload, $form);
 
-        if ($request->expectsJson()) {
-            return $this->jsonAfterSave($form, $request, 'Form updated successfully.');
-        }
-
-        return $this->redirectAfterSave($form, $request, 'Form updated successfully.');
+        return redirect()->route('admin.form-manager.edit', $form)->with('success', 'Form updated successfully.');
     }
 
     public function destroy(Form $form, Request $request): RedirectResponse|JsonResponse
@@ -202,114 +173,32 @@ class FormManagerController extends Controller
         return redirect()->route('admin.form-manager.entries', $form)->with('success', 'Submission deleted.');
     }
 
-    public function toggleActive(Request $request, Form $form): RedirectResponse|JsonResponse
+    public function toggleActive(Form $form): RedirectResponse
     {
         $form->update(['is_active' => ! $form->is_active]);
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Form status updated.',
-                'is_active' => $form->is_active,
-            ]);
-        }
 
         return back()->with('success', 'Form status updated.');
     }
 
-    public function togglePlacement(Request $request, Form $form): RedirectResponse|JsonResponse
-    {
-        $allowed = Form::placementKeys();
-
-        $validated = $request->validate([
-            'placement' => 'required|string|in:'.implode(',', $allowed),
-        ]);
-
-        $placement = $validated['placement'];
-        $placements = $form->placements();
-
-        if (in_array($placement, $placements, true)) {
-            $placements = array_values(array_filter($placements, fn ($p) => $p !== $placement));
-        } else {
-            $placements[] = $placement;
-        }
-
-        $form->setPlacements($placements);
-        $form->save();
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Display settings updated.',
-                'placements' => $form->placements(),
-            ]);
-        }
-
-        return back()->with('success', 'Display settings updated.');
-    }
-
     public function toggleLanding(Form $form): RedirectResponse
     {
-        $placements = $form->placements();
-        if ($form->hasPlacement('landing')) {
-            $placements = array_values(array_filter($placements, fn ($p) => $p !== 'landing'));
-        } else {
-            $placements[] = 'landing';
-        }
-        $form->setPlacements($placements);
-        $form->save();
+        $form->update(['show_on_landing' => ! $form->show_on_landing]);
 
         return back()->with('success', 'Landing page visibility updated.');
     }
 
-    public function updateSettings(Request $request, Form $form): RedirectResponse|JsonResponse
+    private function validated(Request $request): array
     {
-        $allowed = Form::placementKeys();
-
-        $validated = $request->validate([
-            'placements' => 'nullable|array',
-            'placements.*' => 'string|in:'.implode(',', $allowed),
-        ]);
-
-        $form->setPlacements($validated['placements'] ?? []);
-        $form->save();
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Display settings saved for '.$form->name.'.',
-                'placements' => $form->placements(),
-            ]);
+        if ($request->filled('schema') && ! $request->has('steps')) {
+            $schema = json_decode($request->input('schema'), true);
+            if (is_array($schema)) {
+                $request->merge(['steps' => $schema['steps'] ?? []]);
+            }
         }
 
-        return back()->with('success', 'Display settings saved for '.$form->name.'.');
-    }
-
-    private function validated(Request $request, ?Form $form = null): array
-    {
-        $steps = $this->resolveStepsFromRequest($request);
-
-        if ($steps === []) {
-            $steps = [
-                [
-                    'key' => 'step_1',
-                    'title' => 'Step 1',
-                    'description' => '',
-                    'fields' => [],
-                ],
-            ];
-        }
-
-        $request->merge(['steps' => $steps]);
-
-        $data = $request->validate([
+        return $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('forms', 'slug')->ignore($form?->id),
-            ],
+            'slug' => 'required|string|max:255',
             'description' => 'nullable|string',
             'legacy_route' => 'nullable|string|max:255',
             'legacy_table' => 'nullable|string|max:255',
@@ -317,8 +206,6 @@ class FormManagerController extends Controller
             'submit_method' => 'required|in:urlencoded,multipart',
             'is_active' => 'nullable|boolean',
             'show_on_landing' => 'nullable|boolean',
-            'placements' => 'nullable|array',
-            'placements.*' => 'string|in:'.implode(',', Form::placementKeys()),
             'hero_label' => 'nullable|string|max:255',
             'hero_variant' => 'nullable|string|max:50',
             'handler' => 'nullable|in:dynamic,custom',
@@ -330,83 +217,7 @@ class FormManagerController extends Controller
             'steps.*.fields.*.key' => 'required|string|max:255',
             'steps.*.fields.*.label' => 'required|string|max:255',
             'steps.*.fields.*.type' => 'required|string|max:50',
-            'steps.*.fields.*.placeholder' => 'nullable|string|max:255',
-            'steps.*.fields.*.required' => 'nullable|boolean',
-            'steps.*.fields.*.options' => 'nullable|array',
-            'steps.*.fields.*.options.*' => 'nullable|string|max:255',
-            'steps.*.fields.*.options_source' => 'nullable|string|max:255',
-            'steps.*.fields.*.validation' => 'nullable',
-            'steps.*.fields.*.col_span' => 'nullable|integer|min:1|max:2',
-            'steps.*.fields.*.settings' => 'nullable|array',
         ]);
-
-        if ($data['steps'] === []) {
-            $data['steps'] = [
-                [
-                    'key' => 'step_1',
-                    'title' => 'Step 1',
-                    'description' => '',
-                    'fields' => [],
-                ],
-            ];
-        }
-
-        return $data;
-    }
-
-    private function resolveStepsFromRequest(Request $request): array
-    {
-        if ($request->has('steps') && is_array($request->input('steps'))) {
-            return $request->input('steps');
-        }
-
-        if ($request->filled('schema')) {
-            $schema = json_decode($request->input('schema'), true);
-
-            if (is_array($schema['steps'] ?? null)) {
-                return $schema['steps'];
-            }
-        }
-
-        return [];
-    }
-
-    private function redirectAfterSave(Form $form, Request $request, string $message): RedirectResponse
-    {
-        $currentStep = max(0, min(3, (int) $request->input('wizard_step', 0)));
-        $nextStep = min($currentStep + 1, 3);
-
-        return redirect()
-            ->route('admin.form-manager.edit', $form)
-            ->with('success', $message)
-            ->with('wizard_step', $nextStep);
-    }
-
-    private function jsonAfterSave(Form $form, Request $request, string $message): JsonResponse
-    {
-        $currentStep = max(0, min(3, (int) $request->input('wizard_step', 0)));
-        $nextStep = min($currentStep + 1, 3);
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'wizard_step' => $nextStep,
-            'update_url' => route('admin.form-manager.update', $form),
-            'edit_url' => route('admin.form-manager.edit', $form),
-        ]);
-    }
-
-    private function resolveWizardStep(Request $request): int
-    {
-        if ($request->old('wizard_step') !== null) {
-            return max(0, min(3, (int) $request->old('wizard_step')));
-        }
-
-        if ($request->session()->has('wizard_step')) {
-            return max(0, min(3, (int) $request->session()->get('wizard_step')));
-        }
-
-        return max(0, min(3, (int) $request->query('step', 0)));
     }
 
     private function optionSources(): array

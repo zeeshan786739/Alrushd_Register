@@ -1,65 +1,60 @@
-    @include('admin.partials.page-header', [
-        'title' => $title,
-        'subtitle' => $subtitle ?? null,
-        'breadcrumbs' => $breadcrumbs ?? [],
-        'actions' => $actions ?? [],
-    ])
+@include('admin.partials.page-header', [
+    'title' => $title,
+    'subtitle' => $subtitle ?? null,
+    'breadcrumbs' => $breadcrumbs ?? [],
+])
 
-    <div class="card shadow-2 radius-12 border-0">
-        <div class="card-body p-0">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
-                <h6 class="mb-0 fw-semibold fc-panel-title">
-                    @if(!empty($icon))
-                        <iconify-icon icon="{{ $icon }}"></iconify-icon>
-                    @endif
-                    {{ $listTitle ?? $title }}
-                    @if(isset($data) && method_exists($data, 'count'))
-                        <span class="fc-badge fc-badge-neutral ms-8">{{ $data->count() }}</span>
-                    @elseif(isset($data))
-                        <span class="fc-badge fc-badge-neutral ms-8">{{ count($data) }}</span>
-                    @endif
-                </h6>
-                @include('admin.partials.search-bar', ['placeholder' => $searchPlaceholder ?? 'Search…'])
-            </div>
+@php
+    $addAction = ($actions ?? [])[0] ?? null;
+    $addUrl = $addUrl ?? ($addAction['url'] ?? null);
+@endphp
 
-            @if(empty($data) || (is_countable($data) && count($data) === 0))
-                <div class="um-empty-state">
-                    <iconify-icon icon="{{ $emptyIcon ?? 'solar:document-linear' }}" class="d-block mx-auto"></iconify-icon>
-                    <h6 class="fw-semibold mb-8">{{ $emptyTitle ?? 'No records yet' }}</h6>
-                    <p class="text-secondary-light text-sm mb-0">{{ $emptyText ?? 'Add your first entry to get started.' }}</p>
-                </div>
-            @else
-                <div class="table-responsive">
-                    <table class="table bordered-table mb-0 align-middle" id="dataTable" data-page-length="10">
-                        <thead>
-                            <tr>
-                                <th class="ps-24" style="width:60px">#</th>
-                                <th>Name</th>
-                                <th style="width:120px">Status</th>
-                                <th class="text-end pe-24" style="width:120px">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($data as $item)
-                            <tr class="fc-form-row">
-                                <td class="ps-24 fw-semibold text-secondary-light">{{ $loop->iteration }}</td>
-                                <td><span class="fw-medium">{{ $item->name }}</span></td>
-                                <td>
-                                    @include('admin.partials.status-badge', ['status' => $item->status])
-                                </td>
-                                <td class="text-end pe-24">
-                                    @include('admin.partials.table-actions', [
-                                        'editUrl' => route($routePrefix . '.edit', $item->id),
-                                        'deleteId' => $item->id,
-                                        'deleteRoute' => route($routePrefix . '.destroy', $item->id),
-                                        'canView' => false,
-                                    ])
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+<div class="col-12">
+    <div class="card basic-data-table">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title text-primary mb-0">{{ $listTitle ?? $title }} List</h6>
+            @if($addUrl)
+                <a href="{{ $addUrl }}" class="btn btn-primary btn-sm">+ Add</a>
             @endif
         </div>
+        <div class="card-body">
+            <table class="table bordered-table mb-0" id="dataTable" data-page-length="10">
+                <thead>
+                    <tr>
+                        <th scope="col">
+                            <div class="form-check style-check d-flex align-items-center">
+                                <label class="form-check-label">S.L</label>
+                            </div>
+                        </th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($data as $item)
+                    <tr>
+                        <td>
+                            <div class="form-check style-check d-flex align-items-center">
+                                <label class="form-check-label">{{ $loop->iteration }}</label>
+                            </div>
+                        </td>
+                        <td>{{ $item->name }}</td>
+                        <td>
+                            @include('admin.partials.status-badge', ['status' => $item->status])
+                        </td>
+                        <td>
+                            @include('admin.partials.table-actions', [
+                                'viewUrl' => route($routePrefix . '.edit', $item->id),
+                                'editUrl' => route($routePrefix . '.edit', $item->id),
+                                'deleteId' => $item->id,
+                                'deleteRoute' => route($routePrefix . '.destroy', $item->id),
+                            ])
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     </div>
+</div>

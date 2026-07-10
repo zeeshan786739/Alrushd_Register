@@ -5,18 +5,22 @@
 
 @section('content')
 
+@php
+    $backUrl = (string) ($data->form_id ?? '') === '15647'
+        ? route('admin.online-madrasah')
+        : route('admin.apply-now');
+@endphp
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
-    <h6 class="fw-semibold mb-0">Apply Details (Entry #{{ $data->entry_id }})</h6>
-    <ul class="d-flex align-items-center gap-2">
-        <li class="fw-medium"><a href="{{ route('admin.apply-now') }}" class="btn btn-dark btn-sm">Back</a></li>
-    </ul>
+<div class="col-12">
+    <div class="card basic-data-table mb-24">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title text-primary mb-0">Application Details (Entry #{{ $data->entry_id }})</h6>
+            <a href="{{ $backUrl }}" class="btn btn-primary btn-sm">← Back</a>
+        </div>
+    </div>
 </div>
 
-
-<div class="container">
-
-
+<div class="col-12">
     <div class="card mb-5 shadow-sm">
         <div class="card-header bg-primary text-white">
             Student One
@@ -545,6 +549,5 @@
 
         </div>
     </div>
-
-
+</div>
 @endsection
