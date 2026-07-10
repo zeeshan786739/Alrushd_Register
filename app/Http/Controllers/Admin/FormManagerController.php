@@ -58,6 +58,7 @@ class FormManagerController extends Controller
             ],
             'fieldTypes' => config('form_options.field_types'),
             'optionSources' => $this->optionSources(),
+            'optionSourceGroups' => $this->optionSourceGroups(),
             'placementOptions' => config('form_options.placements', []),
             'wizardStep' => $this->resolveWizardStep($request),
         ]);
@@ -72,6 +73,7 @@ class FormManagerController extends Controller
             'schema' => $this->builder->toSchema($form),
             'fieldTypes' => config('form_options.field_types'),
             'optionSources' => $this->optionSources(),
+            'optionSourceGroups' => $this->optionSourceGroups(),
             'placementOptions' => config('form_options.placements', []),
             'wizardStep' => $this->resolveWizardStep($request),
         ]);
@@ -413,5 +415,25 @@ class FormManagerController extends Controller
     private function optionSources(): array
     {
         return FormOptionsResolver::sourceLabels();
+    }
+
+    private function optionSourceGroups(): array
+    {
+        return FormOptionsResolver::sourceGroups();
+    }
+
+    public function optionSourceValues(string $source): JsonResponse
+    {
+        $labels = FormOptionsResolver::sourceLabels();
+        abort_unless(array_key_exists($source, $labels) && $source !== '', 404);
+
+        $options = app(FormOptionsResolver::class)->resolve($source);
+
+        return response()->json([
+            'source' => $source,
+            'label' => $labels[$source],
+            'options' => $options,
+            'count' => count($options),
+        ]);
     }
 }

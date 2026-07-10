@@ -52,7 +52,18 @@ class FormOptionsResolver
         }
 
         if ($field->options_source) {
-            $data['options'] = $this->resolve($field->options_source);
+            $all = $this->resolve($field->options_source);
+            $selected = array_values(array_filter((array) ($field->options ?? [])));
+
+            if ($selected !== []) {
+                $lookup = collect($all)->keyBy('value');
+                $data['options'] = collect($selected)
+                    ->map(fn ($value) => $lookup->get($value, ['value' => (string) $value, 'label' => (string) $value]))
+                    ->values()
+                    ->all();
+            } else {
+                $data['options'] = $all;
+            }
         } elseif (is_array($field->options) && array_is_list($field->options) === false) {
             $data['options'] = collect($field->options)->map(fn ($label, $value) => ['value' => (string) $value, 'label' => (string) $label])->values()->all();
         } elseif (is_array($field->options)) {
@@ -75,6 +86,11 @@ class FormOptionsResolver
     public static function sourceLabels(): array
     {
         return config('form_options.option_sources', []);
+    }
+
+    public static function sourceGroups(): array
+    {
+        return config('form_options.option_source_groups', []);
     }
 
     private function resolveCrm(string $source): ?array

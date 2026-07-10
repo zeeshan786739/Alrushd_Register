@@ -355,6 +355,8 @@
         formAction: @json($form->exists ? route('admin.form-manager.update', $form) : route('admin.form-manager.store')),
         isEdit: @json($form->exists),
         optionSources: @json($optionSources),
+        optionSourceGroups: @json($optionSourceGroups),
+        optionSourceUrl: @json(url('/admin/form-center/option-sources')),
     });
 </script>
 @endsection

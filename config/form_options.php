@@ -31,6 +31,31 @@ return [
         'yes_no' => 'Yes / No (static)',
     ],
 
+    'option_source_groups' => [
+        [
+            'label' => 'Admission Form',
+            'icon' => 'solar:square-academic-cap-linear',
+            'sources' => [
+                'nationalities', 'genders', 'relationships', 'payment_countries',
+                'admission_dates', 'schools', 'student_groups', 'student_years',
+                'student_packages', 'student_languages', 'student_subjects',
+            ],
+        ],
+        [
+            'label' => 'Other lookups',
+            'icon' => 'solar:global-linear',
+            'sources' => ['countries', 'debit_groups'],
+        ],
+        [
+            'label' => 'Static lists',
+            'icon' => 'solar:list-linear',
+            'sources' => [
+                'ethnicity', 'job_marital', 'staff_marital', 'job_departments',
+                'employment_types', 'working_hours', 'hear_about_job', 'job_positions', 'yes_no',
+            ],
+        ],
+    ],
+
     'genders' => ['Male', 'Female', 'Others'],
     'job_marital' => ['Single', 'Married', 'UnMarried', 'Others'],
     'staff_marital' => ['Single', 'Married', 'Others'],

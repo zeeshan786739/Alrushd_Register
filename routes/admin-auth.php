@@ -99,6 +99,7 @@ Route::prefix('admin')->name('admin.')
 
     // Form Center — dynamic form builder & submissions
     Route::get('form-center', [FormManagerController::class, 'index'])->name('form-manager.index');
+    Route::get('form-center/option-sources/{source}', [FormManagerController::class, 'optionSourceValues'])->name('form-manager.option-source');
     Route::get('form-center/create', [FormManagerController::class, 'create'])->name('form-manager.create');
     Route::post('form-center', [FormManagerController::class, 'store'])->name('form-manager.store');
     Route::get('form-center/{form}/edit', [FormManagerController::class, 'edit'])->name('form-manager.edit');

@@ -28,6 +28,9 @@ window.FormBuilder = (function () {
         yes_no: 'Yes / No',
     });
     let OPTION_SOURCE_LABELS = {};
+    let OPTION_SOURCE_GROUPS = [];
+    let OPTION_SOURCE_URL = '';
+    const optionCache = {};
 
     let state = { steps: [] };
     let activeFieldStep = 0;
@@ -148,8 +151,173 @@ window.FormBuilder = (function () {
         f.width = el.querySelector('[data-f="width"]')?.value || 'full';
         f.options_source = el.querySelector('[data-f="options_source"]')?.value || '';
         const optRaw = el.querySelector('[data-f="options"]')?.value || '';
-        f.options = optRaw.split('\n').map(l => l.trim()).filter(Boolean);
+        if (['select', 'radio'].includes(f.type) && f.options_source) {
+            f.options = getSelectedOptionsFromCard(el);
+        } else {
+            f.options = optRaw.split('\n').map(l => l.trim()).filter(Boolean);
+        }
         f.validation = el.querySelector('[data-f="validation"]')?.value || '';
+    }
+
+    function getSelectedOptionsFromCard(card) {
+        const selected = [];
+        card.querySelectorAll('[data-option-chip].is-selected').forEach(chip => {
+            if (chip.dataset.value) selected.push(chip.dataset.value);
+        });
+        return selected;
+    }
+
+    function buildGroupedSourceOptions(field) {
+        const current = field.options_source || '';
+        let html = `<option value="">— Manual list —</option>`;
+
+        if (OPTION_SOURCE_GROUPS.length) {
+            OPTION_SOURCE_GROUPS.forEach(group => {
+                html += `<optgroup label="${esc(group.label)}">`;
+                (group.sources || []).forEach(key => {
+                    const label = OPTION_SOURCE_LABELS[key] || key;
+                    html += `<option value="${esc(key)}" ${current === key ? 'selected' : ''}>${esc(label)}</option>`;
+                });
+                html += '</optgroup>';
+            });
+        } else {
+            OPTIONS_SOURCES.filter(s => s).forEach(key => {
+                const label = OPTION_SOURCE_LABELS[key] || key;
+                html += `<option value="${esc(key)}" ${current === key ? 'selected' : ''}>${esc(label)}</option>`;
+            });
+        }
+
+        return html;
+    }
+
+    async function fetchSourceOptions(source) {
+        if (!source) return [];
+        if (optionCache[source]) return optionCache[source];
+        if (!OPTION_SOURCE_URL) return [];
+
+        const response = await fetch(`${OPTION_SOURCE_URL}/${encodeURIComponent(source)}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!response.ok) throw new Error('Could not load options');
+        const data = await response.json();
+        optionCache[source] = data.options || [];
+        return optionCache[source];
+    }
+
+    function renderOptionChips(container, options, selectedValues) {
+        const search = (container.dataset.search || '').toLowerCase();
+        const selected = new Set(selectedValues || []);
+        const selectAllByDefault = selected.size === 0 && selectedValues !== null;
+
+        const chips = (options || []).filter(opt => {
+            const label = (opt.label || opt.value || '').toLowerCase();
+            return !search || label.includes(search);
+        }).map(opt => {
+            const value = opt.value ?? opt.label;
+            const isOn = selectAllByDefault || selected.has(value);
+            return `<button type="button" class="fc-option-chip${isOn ? ' is-selected' : ''}" data-option-chip data-value="${esc(value)}" title="${esc(opt.label || value)}">
+                <i class="ri-check-line" aria-hidden="true"></i>
+                <span>${esc(opt.label || value)}</span>
+            </button>`;
+        }).join('');
+
+        const grid = container.querySelector('[data-option-grid]');
+        const empty = container.querySelector('[data-option-empty]');
+        if (grid) grid.innerHTML = chips || '';
+        if (empty) empty.classList.toggle('d-none', !!(options || []).length);
+
+        updateOptionPickerCount(container);
+    }
+
+    function updateOptionPickerCount(container) {
+        const countEl = container.querySelector('[data-option-count]');
+        const total = container.querySelectorAll('[data-option-chip]').length;
+        const selected = container.querySelectorAll('[data-option-chip].is-selected').length;
+        if (countEl) {
+            countEl.textContent = total ? `${selected} of ${total} selected` : 'No values found';
+        }
+    }
+
+    async function mountOptionPicker(card, field) {
+        const panel = card.querySelector('[data-option-picker]');
+        const manual = card.querySelector('[data-option-manual]');
+        const source = field.options_source || card.querySelector('[data-f="options_source"]')?.value || '';
+
+        if (!panel) return;
+
+        if (!source) {
+            panel.classList.add('d-none');
+            manual?.classList.remove('d-none');
+            return;
+        }
+
+        panel.classList.remove('d-none');
+        manual?.classList.add('d-none');
+
+        const grid = panel.querySelector('[data-option-grid]');
+        if (grid) grid.innerHTML = '<div class="fc-option-loading">Loading values…</div>';
+
+        try {
+            const options = await fetchSourceOptions(source);
+            const selected = Array.isArray(field.options) && field.options.length ? field.options : null;
+            renderOptionChips(panel, options, selected);
+        } catch (err) {
+            if (grid) grid.innerHTML = `<div class="fc-option-error">${esc(err.message || 'Failed to load')}</div>`;
+        }
+    }
+
+    function bindOptionPickerEvents(card) {
+        const picker = card.querySelector('[data-option-picker]');
+        const sourceSelect = card.querySelector('[data-f="options_source"]');
+
+        sourceSelect?.addEventListener('change', async function () {
+            const si = parseInt(card.dataset.stepIndex, 10);
+            const fi = parseInt(card.dataset.fieldIndex, 10);
+            const field = state.steps[si]?.fields[fi];
+            if (!field) return;
+            field.options_source = this.value;
+            field.options = [];
+            await mountOptionPicker(card, field);
+            schedulePreview();
+        });
+
+        if (!picker) return;
+
+        picker.querySelector('[data-option-search]')?.addEventListener('input', function () {
+            picker.dataset.search = this.value;
+            const source = sourceSelect?.value;
+            if (!source || !optionCache[source]) return;
+            const selected = getSelectedOptionsFromCard(card);
+            renderOptionChips(picker, optionCache[source], selected);
+        });
+
+        picker.querySelector('[data-select-all]')?.addEventListener('click', () => {
+            picker.querySelectorAll('[data-option-chip]').forEach(chip => chip.classList.add('is-selected'));
+            updateOptionPickerCount(picker);
+            schedulePreview();
+        });
+
+        picker.querySelector('[data-clear-all]')?.addEventListener('click', () => {
+            picker.querySelectorAll('[data-option-chip]').forEach(chip => chip.classList.remove('is-selected'));
+            updateOptionPickerCount(picker);
+            schedulePreview();
+        });
+
+        picker.addEventListener('click', e => {
+            const chip = e.target.closest('[data-option-chip]');
+            if (!chip) return;
+            chip.classList.toggle('is-selected');
+            updateOptionPickerCount(picker);
+            schedulePreview();
+        });
+    }
+
+    function getFieldOptionsForPreview(field) {
+        if (field.options?.length) return field.options;
+        if (field.options_source && optionCache[field.options_source]?.length) {
+            return optionCache[field.options_source].map(o => o.value || o.label);
+        }
+        return field.options || [];
     }
 
     function schedulePreview() {
@@ -393,11 +561,9 @@ window.FormBuilder = (function () {
         const optLines = (field.options || []).join('\n');
         const isOpen = expandedFields.has(fieldExpandedKey(si, fi));
         const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t => `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`).join('');
-        const srcOpts = OPTIONS_SOURCES.map(s => {
-            const label = OPTION_SOURCE_LABELS[s] || s || '— Static —';
-            return `<option value="${s}" ${field.options_source === s ? 'selected' : ''}>${esc(label)}</option>`;
-        }).join('');
+        const srcOpts = buildGroupedSourceOptions(field);
         const needsOptions = ['select', 'radio'].includes(field.type);
+        const usesModule = !!(field.options_source);
 
         return `
         <div class="fc-field-card fc-field-card--pro ${isOpen ? 'is-open' : ''} ${field.required ? 'is-required' : ''}" data-step-index="${si}" data-field-index="${fi}">
@@ -440,10 +606,34 @@ window.FormBuilder = (function () {
                         <input class="form-control form-control-sm radius-8" data-f="placeholder" value="${esc(field.placeholder || '')}"></div>
                     <div><label class="form-label text-sm text-secondary-light">Help text</label>
                         <input class="form-control form-control-sm radius-8" data-f="help_text" value="${esc(field.help_text || '')}"></div>
-                    <div class="${needsOptions ? '' : 'd-none'}"><label class="form-label text-sm text-secondary-light">Options source</label>
-                        <select class="form-select form-select-sm radius-8" data-f="options_source">${srcOpts}</select></div>
-                    <div class="${needsOptions ? 'full-width' : 'd-none'}"><label class="form-label text-sm text-secondary-light">Options (one per line)</label>
-                        <textarea class="form-control form-control-sm radius-8" rows="2" data-f="options">${esc(optLines)}</textarea></div>
+                    <div class="${needsOptions ? 'full-width' : 'd-none'}">
+                        <label class="form-label text-sm text-secondary-light fw-semibold">Dropdown values</label>
+                        <div class="fc-option-builder">
+                            <label class="form-label text-xs text-secondary-light mb-4">Data source</label>
+                            <select class="form-select form-select-sm radius-8" data-f="options_source">${srcOpts}</select>
+
+                            <div class="fc-option-picker ${usesModule ? '' : 'd-none'}" data-option-picker>
+                                <div class="fc-option-picker-toolbar">
+                                    <span class="fc-option-picker-count" data-option-count>Loading…</span>
+                                    <div class="fc-option-picker-actions">
+                                        <button type="button" class="fc-option-toolbar-btn" data-select-all>Select all</button>
+                                        <button type="button" class="fc-option-toolbar-btn" data-clear-all>Clear</button>
+                                    </div>
+                                </div>
+                                <div class="fc-option-search-wrap">
+                                    <i class="ri-search-line" aria-hidden="true"></i>
+                                    <input type="search" class="form-control form-control-sm radius-8" data-option-search placeholder="Search values…">
+                                </div>
+                                <div class="fc-option-grid" data-option-grid></div>
+                                <p class="fc-option-empty text-secondary-light text-sm mb-0 d-none" data-option-empty>No values in this module yet. Add them under Admission Form in the sidebar.</p>
+                            </div>
+
+                            <div class="fc-option-manual ${usesModule ? 'd-none' : ''}" data-option-manual>
+                                <label class="form-label text-xs text-secondary-light mt-8 mb-4">Manual options (one per line)</label>
+                                <textarea class="form-control form-control-sm radius-8" rows="3" data-f="options" placeholder="Option 1&#10;Option 2">${esc(optLines)}</textarea>
+                            </div>
+                        </div>
+                    </div>
                     <div class="full-width"><label class="form-label text-sm text-secondary-light">Validation</label>
                         <input class="form-control form-control-sm radius-8" data-f="validation" value="${esc(field.validation || '')}" placeholder="e.g. max:255"></div>
                 </div>
@@ -466,6 +656,16 @@ window.FormBuilder = (function () {
         bindFieldEvents(c);
         if ((step.fields || []).length) initDragSort(c, '.fc-field-card', reorderFieldsFromDom);
         updateStatsBar();
+
+        c.querySelectorAll('.fc-field-card').forEach(card => {
+            const si = parseInt(card.dataset.stepIndex, 10);
+            const fi = parseInt(card.dataset.fieldIndex, 10);
+            const field = state.steps[si]?.fields[fi];
+            if (field && ['select', 'radio'].includes(field.type)) {
+                bindOptionPickerEvents(card);
+                if (field.options_source) mountOptionPicker(card, field);
+            }
+        });
     }
 
     function bindFieldEvents(c) {
@@ -521,6 +721,11 @@ window.FormBuilder = (function () {
                     const card = el.closest('.fc-field-card');
                     const icon = card?.querySelector('.fc-pro-field-icon iconify-icon');
                     if (icon) icon.setAttribute('icon', FIELD_TYPE_ICONS[el.value] || 'solar:text-field-linear');
+                    if (['select', 'radio'].includes(el.value)) {
+                        collectStateFromDom();
+                        renderFields();
+                        return;
+                    }
                 }
                 schedulePreview();
             });
@@ -559,10 +764,10 @@ window.FormBuilder = (function () {
                 input = `<textarea class="fc-preview-input" rows="3" placeholder="${ph}" disabled></textarea>`;
                 break;
             case 'select':
-                input = `<select class="fc-preview-input" disabled><option>${ph || 'Select...'}</option>${(field.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
+                input = `<select class="fc-preview-input" disabled><option>${ph || 'Select...'}</option>${getFieldOptionsForPreview(field).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
                 break;
             case 'radio':
-                input = (field.options || ['Option 1', 'Option 2']).map((o, i) => `
+                input = (getFieldOptionsForPreview(field).length ? getFieldOptionsForPreview(field) : ['Option 1', 'Option 2']).map((o, i) => `
                     <label class="fc-preview-radio"><input type="radio" disabled ${i === 0 ? 'checked' : ''}> ${esc(o)}</label>`).join('');
                 break;
             case 'checkbox':
@@ -780,6 +985,12 @@ window.FormBuilder = (function () {
         if (config.optionSources && typeof config.optionSources === 'object') {
             OPTION_SOURCE_LABELS = config.optionSources;
             OPTIONS_SOURCES = Object.keys(config.optionSources);
+        }
+        if (Array.isArray(config.optionSourceGroups)) {
+            OPTION_SOURCE_GROUPS = config.optionSourceGroups;
+        }
+        if (config.optionSourceUrl) {
+            OPTION_SOURCE_URL = config.optionSourceUrl;
         }
 
         if (config.formAction) {
