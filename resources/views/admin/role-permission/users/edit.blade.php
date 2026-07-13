@@ -3,113 +3,82 @@
 @section('title') Edit User @endsection
 
 @section('content')
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title text-primary mb-0"><span class="icon">
-                <iconify-icon icon="fa-solid:save"></iconify-icon>
-            </span> Update Users</h5>
+    @include('admin.partials.page-header', [
+        'title' => 'Edit User',
+        'subtitle' => 'Update account details and role assignments.',
+        'breadcrumbs' => [
+            ['label' => 'Users', 'url' => route('admin.users.index')],
+            ['label' => $user->name],
+        ],
+        'actions' => [['label' => 'Back', 'url' => route('admin.users.index'), 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11', 'icon' => 'solar:alt-arrow-left-linear']],
+    ])
 
-        @can('view role')
-        <a href="{{ route('admin.users.index') }}" class="btn btn-primary btn-sm">← Back</a>
-        @endcan
-    </div>
-            <div class="card-body">
-                <form class="row gy-3 needs-validation" novalidate action="{{ route('admin.users.update',$user->id) }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    @method('PUT')
+    @include('admin.role-permission.partials.module-nav', ['activeTab' => 'users'])
 
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-24">
+            <form class="needs-validation" novalidate action="{{ route('admin.users.update', $user->id) }}" method="POST">
+                @csrf @method('PUT')
 
-                    <div class="col-md-12">
-                        <label class="form-label">Name</label>
-                        <div class="icon-field has-validation">
-                            <span class="icon">
-                                <iconify-icon icon="solar:user-circle-outline"></iconify-icon>
-                            </span>
-                            <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $user->name ?? '') }}"
-                                required placeholder="Jhon Due">
-                            @error('name')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
+                <div class="um-form-section">
+                    <div class="um-form-section-title">
+                        <iconify-icon icon="solar:user-linear"></iconify-icon>
+                        Account Details
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-sm">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control radius-8 @error('name') is-invalid @enderror"
+                                   value="{{ old('name', $user->name) }}" required>
+                            @error('name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-sm">Email <span class="text-danger">*</span></label>
+                            <input type="email" name="email" class="form-control radius-8 @error('email') is-invalid @enderror"
+                                   value="{{ old('email', $user->email) }}" required>
+                            @error('email')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-sm">New Password</label>
+                            <input type="password" name="password" class="form-control radius-8 @error('password') is-invalid @enderror"
+                                   placeholder="Leave blank to keep current">
+                            @error('password')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-sm">Confirm Password</label>
+                            <input type="password" name="password_confirmation" class="form-control radius-8" placeholder="Leave blank to keep current">
                         </div>
                     </div>
+                </div>
 
-
-                    <div class="col-md-12">
-                        <label class="form-label">Email</label>
-                        <div class="icon-field has-validation">
-                            <span class="icon">
-                                <iconify-icon icon="solar:letter-outline"></iconify-icon>
-                            </span>
-                            <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $user->email ?? '') }}"
-                                required placeholder="example@gmail.com">
-                            @error('email')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
+                <div class="um-form-section">
+                    <div class="um-form-section-title">
+                        <iconify-icon icon="solar:shield-user-linear"></iconify-icon>
+                        Assign Roles <span class="text-danger">*</span>
+                    </div>
+                    <div class="row g-2">
+                        @foreach($roles as $role)
+                        <div class="col-md-4 col-sm-6">
+                            <label class="um-perm-item w-100" for="role_{{ $role->id }}">
+                                <input type="checkbox" class="form-check-input flex-shrink-0 mt-1"
+                                       name="roles[]" value="{{ $role->name }}" id="role_{{ $role->id }}"
+                                       {{ in_array($role->name, old('roles', $userRoles)) ? 'checked' : '' }}>
+                                <span class="text-sm">{{ ucwords(str_replace(['-','_'], ' ', $role->name)) }}</span>
+                            </label>
                         </div>
+                        @endforeach
                     </div>
+                    @error('roles')<div class="text-danger text-sm mt-8">{{ $message }}</div>@enderror
+                </div>
 
-                    <div class="col-md-12">
-                        <label class="form-label">Password</label>
-                        <div class="icon-field has-validation">
-                            <span class="icon">
-                                <iconify-icon icon="solar:lock-password-outline"></iconify-icon>
-                            </span>
-                            <input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror" placeholder="*******">
-                            @error('password')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
-                        </div>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label">Confirm Password</label>
-                        <div class="icon-field has-validation">
-                            <span class="icon">
-                                <iconify-icon icon="solar:lock-password-outline"></iconify-icon>
-                            </span>
-                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror" placeholder="*******">
-
-                            @error('password_confirmation')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
-                        </div>
-                    </div>
-
-
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label fw-bold mb-2">Assign Roles</label>
-                        <div class="row g-2">
-                            @foreach($roles as $role)
-                                <div class="col-md-12">
-                                    <div class="form-check">
-                                        <input class="form-check-input mt-1" type="checkbox" name="roles[]" value="{{ $role->name }}"
-                                            id="role_{{ $role->id }}"
-                                            {{ isset($userRoles) && in_array($role->name, $userRoles) ? 'checked' : '' }}>
-                                        <label class="form-check-label ms-1" for="role_{{ $role->id }}">
-                                            {{ ucwords(str_replace('_', ' ', $role->name)) }}
-                                        </label>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        @error('roles')
-                        <span class="text-danger">{{$message}}</span>
-                        @enderror
-                    </div>
-
-
-                    <div class="col-md-12 text-end">
-                        @can('view role')
-                        <a href="{{ route('admin.users.index') }}" class="btn btn-primary btn-sm">← Back</a>
-                        @endcan
-                        <button class="btn btn-sm btn-success-600" type="submit"><span class="icon">
-                                <iconify-icon icon="fa-solid:edit"></iconify-icon>
-                            </span> Update</button>
-                    </div>
-                </form>
-            </div>
+                <div class="d-flex justify-content-end gap-12">
+                    <a href="{{ route('admin.users.index') }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11 fc-btn">Cancel</a>
+                    <button type="submit" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn">
+                        <iconify-icon icon="solar:diskette-linear"></iconify-icon>
+                        <span>Update User</span>
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
 @endsection

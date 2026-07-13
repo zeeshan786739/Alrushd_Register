@@ -298,82 +298,18 @@
 
 
 
-@canany([
-'create metting_form','edit metting_form','view metting_form','delete metting_form',
-'create debit_form','edit debit_form','view debit_form','delete debit_form',
-'create enquire_form','edit enquire_form','view enquire_form','delete enquire_form',
-'create referal_form','edit referal_form','view referal_form','delete referal_form'
-])
-<li class="dropdown">
-    <a href="javascript:void(0)">
-        <iconify-icon icon="mdi:form-select" class="menu-icon" title="Form Submissions"></iconify-icon>
-        <span>Form Submissions</span>
+@if(auth('admin')->check())
+<li>
+    <a href="{{ route('admin.form-manager.index') }}">
+        <iconify-icon icon="mdi:form-select" class="menu-icon" title="Form Center"></iconify-icon>
+        <span>Form Center</span>
     </a>
-    <ul class="sidebar-submenu">
-    
-     {{-- Staff Application Form --}}
-        @canany(['create staff_application_form','edit staff_application_form','view staff_application_form','delete staff_application_form'])
-        <li>
-            <a href="{{ route('admin.job-applications-form.index') }}">
-                <iconify-icon icon="ic:baseline-person" class="menu-icon"></iconify-icon>
-                <span>Job Application Form</span>
-            </a>
-        </li>
-        @endcanany
-
-        {{-- Staff Application Form --}}
-       {{--@canany(['create staff_application_form','edit staff_application_form','view staff_application_form','delete staff_application_form'])
-        <li>
-            <a href="{{ route('admin.staff-applications-form.index') }}">
-                <iconify-icon icon="ic:baseline-person" class="menu-icon"></iconify-icon>
-                <span>Staff Application Form</span>
-            </a>
-        </li>
-        @endcanany--}} 
-
-        {{-- Metting Form --}}
-        @canany(['create metting_form','edit metting_form','view metting_form','delete metting_form'])
-        <li>
-            <a href="{{ route('admin.metting-form.index') }}">
-                <iconify-icon icon="ic:baseline-meeting-room" class="menu-icon"></iconify-icon>
-                <span>Metting Form</span>
-            </a>
-        </li>
-        @endcanany
-
-        {{-- Debit Form --}}
-        @canany(['create debit_form','edit debit_form','view debit_form','delete debit_form'])
-        <li>
-            <a href="{{ route('admin.debit-forms.index') }}">
-                <iconify-icon icon="mdi:cash" class="menu-icon" style="font-size:24px;"></iconify-icon>
-                <span>Debit Forms</span>
-            </a>
-        </li>
-        @endcanany
-
-        {{-- Enquire Form --}}
-        @canany(['create enquire_form','edit enquire_form','view enquire_form','delete enquire_form'])
-        <li>
-            <a href="{{ route('admin.enquires.index') }}">
-                <iconify-icon icon="mdi:clipboard-text-outline" class="menu-icon" style="font-size:24px;"></iconify-icon>
-                <span>Enquire Now</span>
-            </a>
-        </li>
-        @endcanany
-
-        {{-- Referral Form --}}
-        @canany(['create referal_form','edit referal_form','view referal_form','delete referal_form'])
-        <li>
-            <a href="{{ route('admin.referrals.index') }}">
-                <iconify-icon icon="mdi:handshake-outline" class="menu-icon" style="font-size:24px;"></iconify-icon>
-                <span>Referral</span>
-            </a>
-        </li>
-        @endcanany
-
-    </ul>
 </li>
-@endcanany
+@endif
+
+
+
+{{-- Legacy Form Submissions section removed — all forms managed in Form Center --}}
 
 
 
@@ -451,8 +387,8 @@
 @can('view setting')
 <li>
     <a href="{{ route('admin.settings.index') }}">
-        <iconify-icon icon="solar:settings-outline" class="menu-icon"></iconify-icon>
-        <span>Settings</span>
+        <iconify-icon icon="solar:monitor-smartphone-linear" class="menu-icon"></iconify-icon>
+        <span>Website CMS</span>
     </a>
 </li>
 @endcan

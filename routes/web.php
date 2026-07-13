@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FrontendController;
+use App\Http\Controllers\Api\FrontendFormDataController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\MultiStepFormController;
 use Illuminate\Support\Facades\Auth;
@@ -49,9 +50,15 @@ Route::get('/student-admission/step/{step}', [MultiStepFormController::class, 's
 Route::post('/student-admission/step/{step}', [MultiStepFormController::class, 'postStep'])->name('form.step.post');
 
 
-Route::get('/payment-success',function(){
+Route::get('/payment-success', function (\Illuminate\Http\Request $request) {
+    if ($request->has('session_id')) {
+        return app(FrontendController::class)->paymentSuccess($request);
+    }
+
     return view('student.payment-confirm');
 })->name('payment.success');
+
+Route::get('/payment-cancel', [FrontendController::class, 'paymentCancel'])->name('payment.cancel');
 
 Route::get('/parents-update/{id}', [MultiStepFormController::class, 'parentUpdate'])->name('parent-update');
 Route::put('/parents-update/{id}', [MultiStepFormController::class, 'parentUpdateData'])->name('parents-update');
@@ -72,6 +79,18 @@ Route::post('/apply-coupon', [FrontendController::class, 'applyCoupon'])->name('
 
 
 Route::get('/',[FrontendController::class,'index'])->name('index');
+
+Route::get('/forms/{slug}', [FrontendController::class, 'dynamicForm'])->name('dynamic-form');
+Route::get('/forms/{slug}/success', [FrontendController::class, 'dynamicFormSuccess'])->name('dynamic-form.success');
+
+Route::get('/Forms/{slug}', fn (string $slug) => redirect('/forms/'.strtolower($slug), 301));
+Route::get('/Forms/{slug}/success', fn (string $slug) => redirect('/forms/'.strtolower($slug).'/success', 301));
+
+Route::get('/api/frontend/csrf', [FrontendFormDataController::class, 'csrf']);
+
+Route::get('/api/frontend/forms', [\App\Http\Controllers\Api\DynamicFormController::class, 'index']);
+Route::get('/api/frontend/forms/{slug}', [\App\Http\Controllers\Api\DynamicFormController::class, 'show']);
+Route::post('/api/frontend/forms/{slug}/submit', [\App\Http\Controllers\Api\DynamicFormController::class, 'submit']);
 
 Route::get('/calendly-events', [FrontendController::class, 'fetchEvents']);
 
@@ -101,13 +120,9 @@ Route::get('debit/success',[FrontendController::class,'debitSubmissionSuccwss'])
 
 Route::get('/staff-application',[FrontendController::class,'staffAdmissionForm'])->name('staff-admission');
 Route::get('/job-applications',[FrontendController::class,'jobAdmissionForm'])->name('job-applications');
-Route::get('/job-applications-success',function(){
-    return view('frontend.job-application-successfull');
-})->name('job-applications.success');
+Route::get('/job-applications-success', [FrontendController::class, 'jobApplicationsSuccess'])->name('job-applications.success');
 
-Route::get('/staff-application-success',function(){
-    return view('frontend.staff-application-successfull');
-})->name('staff-applications.success');
+Route::get('/staff-application-success', [FrontendController::class, 'staffApplicationsSuccess'])->name('staff-applications.success');
 
 
 Route::post('/staff-applications-form',[FrontendController::class,'staffAdmissionFormStore']);

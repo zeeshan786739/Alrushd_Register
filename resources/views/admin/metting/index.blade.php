@@ -110,25 +110,4 @@
 
         </div>
     </div>
-</div>
-@section('script')
-<script>
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you really want to delete this item?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#delete-form-' + id).submit();
-            }
-        });
-    });
-</script>
-@endsection
 @endsection

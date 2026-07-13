@@ -80,7 +80,6 @@ return new class extends Migration
             $table->string('assigned')->nullable();
             $table->string('percentage')->nullable();
             $table->string('placement_detail')->nullable();
-            $table->string('accpet')->nullable();
 
             // Step 5
             $table->json('packages')->nullable();

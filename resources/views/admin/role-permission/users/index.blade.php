@@ -1,114 +1,88 @@
 @extends('admin.layouts.app')
 
-@section('title') User List @endsection
+@section('title') Users @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => 'User Management',
+        'subtitle' => 'Manage admin accounts and assign roles for secure access control.',
+        'breadcrumbs' => [['label' => 'Users']],
+        'actions' => auth()->user()->can('create user') ? [[
+            'label' => 'Add User',
+            'url' => route('admin.users.create'),
+            'class' => 'btn-primary-600 radius-8 px-20 py-11',
+            'icon' => 'solar:user-plus-linear',
+        ]] : [],
+    ])
 
+    @include('admin.role-permission.partials.module-nav', ['activeTab' => 'users'])
 
-<div class="card basic-data-table">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="card-title text-primary mb-0">User Lists</h6>
-        @can('create user')
-        <a href="{{ route('admin.users.create') }}" class="btn btn-primary btn-sm">+ Add</a>
-        @endcan
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
+                <h6 class="mb-0 fw-semibold fc-panel-title">
+                    <iconify-icon icon="solar:users-group-rounded-linear"></iconify-icon>
+                    Admin Users
+                    <span class="fc-badge fc-badge-neutral ms-8">{{ $users->count() }}</span>
+                </h6>
+                @include('admin.partials.search-bar', ['placeholder' => 'Search name or email…'])
+            </div>
+
+            @if($users->isEmpty())
+                <div class="um-empty-state">
+                    <iconify-icon icon="solar:users-group-rounded-linear" class="d-block mx-auto"></iconify-icon>
+                    <h6 class="fw-semibold mb-8">No users yet</h6>
+                    <p class="text-secondary-light text-sm mb-0">Add admin users and assign them appropriate roles.</p>
+                </div>
+            @else
+                <div class="table-responsive">
+                    <table class="table bordered-table mb-0 align-middle" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th class="ps-24" style="width:60px">#</th>
+                                <th>User</th>
+                                <th>Roles</th>
+                                <th class="text-end pe-24" style="width:120px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($users as $user)
+                            @can('view user')
+                            <tr class="fc-form-row">
+                                <td class="ps-24 fw-semibold text-secondary-light">{{ $loop->iteration }}</td>
+                                <td>
+                                    <div class="um-user-cell">
+                                        <span class="um-user-avatar">{{ strtoupper(substr($user->name, 0, 2)) }}</span>
+                                        <div>
+                                            <span class="um-user-name d-block">{{ $user->name }}</span>
+                                            <span class="um-user-email">{{ $user->email }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @forelse($user->roles as $role)
+                                        <span class="um-role-badge">{{ ucwords(str_replace(['-','_'], ' ', $role->name)) }}</span>
+                                    @empty
+                                        <span class="text-secondary-light text-sm">No role</span>
+                                    @endforelse
+                                </td>
+                                <td class="text-end pe-24">
+                                    @include('admin.partials.table-actions', [
+                                        'editUrl' => route('admin.users.edit', $user->id),
+                                        'deleteId' => $user->id,
+                                        'deleteRoute' => route('admin.users.destroy', $user->id),
+                                        'canView' => false,
+                                        'canEdit' => auth()->user()->can('edit user'),
+                                        'canDelete' => auth()->user()->can('delete user'),
+                                    ])
+                                </td>
+                            </tr>
+                            @endcan
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
     </div>
-
-    <div class="card-body">
-        <table class="table bordered-table mb-0" id="dataTable" data-page-length='10'>
-            <thead>
-                <tr>
-                    <th scope="col">
-                        <div class="form-check style-check d-flex align-items-center">
-                           
-                            <label class="form-check-label">
-                                S.L
-                            </label>
-                        </div>
-                    </th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Roles</th>
-                    <th scope="col">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($users as $user)
-                @can('view user')
-                <tr>
-                    <td>
-                        <div class="form-check style-check d-flex align-items-center">
-                           
-                            <label class="form-check-label">
-                                {{ $loop->iteration }}
-                            </label>
-                        </div>
-                    </td>
-                    <td><a href="javascript:void(0)" class="text-primary-600">{{ $user->name }}</a></td>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <img src="{{ asset('admni/') }}/assets/images/user-list/user-list1.png" alt=""
-                                class="flex-shrink-0 me-12 radius-8">
-                            <h6 class="text-md mb-0 fw-medium flex-grow-1">{{ $user->email }}</h6>
-                        </div>
-                    </td>
-                    <td>
-                        @foreach($user->roles as $role)
-                        <span class="badge bg-info me-1">{{ $role->name }}</span>
-                        @endforeach
-                    </td>
-
-                    <td>
-                        @can('view user')
-                        <a href="{{ route('admin.users.edit', $user->id) }}"
-                            class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
-                        </a>
-                        @endcan
-                        @can('edit user')
-                        <a href="{{ route('admin.users.edit', $user->id) }}"
-                            class="w-32-px h-32-px bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="lucide:edit"></iconify-icon>
-                        </a>
-                        @endcan
-                        @can('delete user')
-                        <form id="delete-form-{{ $user->id }}" action="{{ route('admin.users.destroy', $user->id) }}" method="POST" style="display: none;">
-                            @csrf @method('DELETE')
-                        </form>
-                        <a href="javascript:void(0)" data-id="{{ $user->id }}"
-                            class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
-                        </a>
-                        @endcan
-                    </td>
-                </tr>
-                @endcan
-                @endforeach
-
-
-
-            </tbody>
-        </table>
-    </div>
-
-
-@section('script')
-<script>
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you really want to delete this item?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#delete-form-' + id).submit();
-            }
-        });
-    });
-</script>
-@endsection
 @endsection

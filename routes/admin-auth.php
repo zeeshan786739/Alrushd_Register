@@ -14,10 +14,13 @@ use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\QualificationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\WebsiteCmsController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\CuponController;
 use App\Http\Controllers\Admin\DebitController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EnquireController;
+use App\Http\Controllers\Admin\FormManagerController;
 use App\Http\Controllers\Admin\GenderController;
 use App\Http\Controllers\Admin\MeetSpeakerController;
 use App\Http\Controllers\Admin\MettingFormController;
@@ -61,9 +64,7 @@ Route::prefix('admin')->name('admin.')
 ->middleware(['auth:admin', 'admin.only', 'admin.has.role'])
 ->group(function () {
 
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
@@ -74,7 +75,18 @@ Route::prefix('admin')->name('admin.')
     Route::get('/change-password', [AdminProfileController::class, 'changePassword'])->name('change.password');
     Route::put('/change-password', [AdminProfileController::class, 'updatePassword'])->name('change.password.update');
 
-    Route::resource('settings',SettingController::class);
+    Route::get('settings', [WebsiteCmsController::class, 'index'])->name('settings.index');
+    Route::prefix('website-cms')->name('website-cms.')->group(function () {
+        Route::post('draft', [WebsiteCmsController::class, 'saveDraft'])->name('draft');
+        Route::post('publish', [WebsiteCmsController::class, 'publish'])->name('publish');
+        Route::post('discard', [WebsiteCmsController::class, 'discard'])->name('discard');
+        Route::post('reset-section', [WebsiteCmsController::class, 'resetSection'])->name('reset-section');
+        Route::post('preview', [WebsiteCmsController::class, 'preview'])->name('preview');
+        Route::post('upload', [WebsiteCmsController::class, 'upload'])->name('upload');
+        Route::post('restore-version', [WebsiteCmsController::class, 'restoreVersion'])->name('restore-version');
+    });
+
+    Route::resource('settings', SettingController::class)->except(['index']);
 
     // Role Management
     Route::resource('roles',RoleController::class);
@@ -84,6 +96,24 @@ Route::prefix('admin')->name('admin.')
     // Group
     Route::resource('coupons',CuponController::class);
     Route::resource('time-tables',TimeTableController::class);
+
+    // Form Center — dynamic form builder & submissions
+    Route::get('form-center', [FormManagerController::class, 'index'])->name('form-manager.index');
+    Route::get('form-center/option-sources/{source}', [FormManagerController::class, 'optionSourceValues'])->name('form-manager.option-source');
+    Route::get('form-center/create', [FormManagerController::class, 'create'])->name('form-manager.create');
+    Route::post('form-center', [FormManagerController::class, 'store'])->name('form-manager.store');
+    Route::get('form-center/{form}/edit', [FormManagerController::class, 'edit'])->name('form-manager.edit');
+    Route::put('form-center/{form}', [FormManagerController::class, 'update'])->name('form-manager.update');
+    Route::delete('form-center/{form}', [FormManagerController::class, 'destroy'])->name('form-manager.destroy');
+    Route::post('form-center/{form}/toggle', [FormManagerController::class, 'toggleActive'])->name('form-manager.toggle');
+    Route::post('form-center/{form}/toggle-placement', [FormManagerController::class, 'togglePlacement'])->name('form-manager.toggle-placement');
+    Route::post('form-center/{form}/toggle-landing', [FormManagerController::class, 'toggleLanding'])->name('form-manager.toggle-landing');
+    Route::put('form-center/{form}/settings', [FormManagerController::class, 'updateSettings'])->name('form-manager.settings');
+    Route::post('form-center/{form}/duplicate', [FormManagerController::class, 'duplicate'])->name('form-manager.duplicate');
+    Route::get('form-center/{form}/entries', [FormManagerController::class, 'entries'])->name('form-manager.entries');
+    Route::get('form-center/{form}/entries/{entry}', [FormManagerController::class, 'entryShow'])->name('form-manager.entries.show');
+    Route::patch('form-center/{form}/entries/{entry}/status', [FormManagerController::class, 'entryUpdateStatus'])->name('form-manager.entries.status');
+    Route::delete('form-center/{form}/entries/{entry}', [FormManagerController::class, 'entryDestroy'])->name('form-manager.entries.destroy');
 
     // Form Submission
     Route::resource('staff-applications-form',StaffApplicationController::class);

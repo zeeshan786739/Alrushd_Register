@@ -33,20 +33,192 @@ use App\Models\Metting;
 use App\Models\OpenEvent;
 use App\Models\OpenEventItem;
 use App\Models\OpenEventForm;
+use App\Models\Form;
 use App\Models\Referral;
 use App\Models\StaffAdmissionForm;
 use App\Models\TermsAndCondition;
+use App\Services\WebsiteCmsService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class FrontendController extends Controller
 {
-    public function index()
+    public function index(WebsiteCmsService $cmsService)
     {
+        $preview = request('cms_preview') === '1';
+        $cms = $cmsService->getForFrontend($preview);
 
-            return view('frontend.index');
+        return view('frontend.index', [
+            'heroButtons' => $this->resolveHeroButtons(),
+            'formCards' => $this->resolveLandingForms(),
+            'landing' => [
+                'stats' => $cms['statistics']['items'] ?? config('frontend.landing.stats'),
+                'programs' => $cms['programs']['items'] ?? config('frontend.landing.programs'),
+                'testimonials' => $cms['testimonials']['items'] ?? config('frontend.landing.testimonials'),
+                'faq' => $cms['faq']['items'] ?? config('frontend.landing.faq'),
+                'contact' => [
+                    'email' => $cms['contact']['email'] ?? config('frontend.landing.contact.email'),
+                    'phone' => $cms['contact']['phone'] ?? config('frontend.landing.contact.phone'),
+                    'address' => $cms['contact']['address'] ?? config('frontend.landing.contact.address'),
+                    'map_embed' => $cms['contact']['map_embed'] ?? config('frontend.landing.contact.map_embed'),
+                ],
+            ],
+            'cms' => $cms,
+            'themeCss' => $cmsService->cssVariables($cms),
+        ]);
+    }
 
+    public function dynamicForm(string $slug)
+    {
+        $form = Form::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($slug) {
+                $query->where('slug', $slug)
+                    ->orWhere('legacy_route', $slug)
+                    ->orWhere('legacy_route', '/'.$slug);
+            })
+            ->firstOrFail();
+
+        if ($form->handler === 'custom') {
+            $legacy = ltrim((string) $form->legacy_route, '/');
+
+            return redirect('/'.$legacy);
+        }
+
+        return view('frontend.dynamic-form', [
+            'slug' => $form->slug,
+            'formName' => $form->name,
+        ]);
+    }
+
+    public function dynamicFormSuccess(string $slug)
+    {
+        $form = Form::query()
+            ->where('slug', $slug)
+            ->first();
+
+        return view('frontend.dynamic-form-success', [
+            'slug' => $slug,
+            'form' => $form,
+        ]);
+    }
+
+    private function resolveHeroButtons(): array
+    {
+        try {
+            $forms = Form::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->filter(fn (Form $form) => $form->hasPlacement('landing'));
+
+            if ($forms->isNotEmpty()) {
+                $buttons = $forms->map(fn (Form $form) => [
+                    'label' => \Illuminate\Support\Str::title($form->hero_label ?: $form->name),
+                    'href' => $form->routePath(),
+                    'variant' => $form->hero_variant ?: 'outline',
+                ])->values()->all();
+
+                $buttons[] = [
+                    'label' => 'Profile',
+                    'href' => '/admin/login',
+                    'variant' => 'outline',
+                ];
+
+                return $buttons;
+            }
+        } catch (\Throwable) {
+            //
+        }
+
+        return config('frontend.hero_buttons');
+    }
+
+    private function resolveLandingForms(): array
+    {
+        $iconMap = [
+            'student-admission' => 'fa-user-graduate',
+            'staff-application' => 'fa-chalkboard-teacher',
+            'job-applications' => 'fa-briefcase',
+            'debit-form' => 'fa-credit-card',
+            'enquire-now' => 'fa-envelope',
+            'referral' => 'fa-user-friends',
+            'meeting-form' => 'fa-phone',
+        ];
+
+        $descMap = [
+            'student-admission' => 'Begin your child\'s journey with our comprehensive admission process.',
+            'staff-application' => 'Join our team of dedicated educators and staff members.',
+            'job-applications' => 'Apply for teaching and administrative positions at Al Rushd.',
+            'debit-form' => 'Set up direct debit for convenient fee payments.',
+            'enquire-now' => 'Get in touch with our admissions team for more information.',
+            'referral' => 'Refer a family and help grow our learning community.',
+        ];
+
+        try {
+            $forms = Form::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->filter(fn (Form $form) => $form->hasPlacement('landing'));
+
+            if ($forms->isNotEmpty()) {
+        $cards = $forms->map(fn (Form $form) => [
+                    'label' => \Illuminate\Support\Str::title($form->displayLabel()),
+                    'href' => $form->routePath(),
+                    'description' => $form->description ?: ($descMap[$form->slug] ?? 'Complete this form online in just a few minutes.'),
+                    'icon' => $iconMap[$form->slug] ?? 'fa-file-alt',
+                ])->values()->all();
+
+                $cards[] = [
+                    'label' => 'Profile',
+                    'href' => '/admin/login',
+                    'description' => 'Access your account, update details, and manage your profile.',
+                    'icon' => 'fa-user-circle',
+                ];
+
+                return $cards;
+            }
+        } catch (\Throwable) {
+            //
+        }
+
+        return collect(config('frontend.hero_buttons'))->map(function ($button) use ($iconMap, $descMap) {
+            $slug = trim(str_replace(['/forms/', '/'], '', $button['href']), '/');
+
+            return [
+                'label' => $button['label'],
+                'href' => $button['href'],
+                'description' => $descMap[$slug] ?? 'Complete this form online in just a few minutes.',
+                'icon' => $iconMap[$slug] ?? 'fa-file-alt',
+            ];
+        })->all();
+    }
+
+    /**
+     * Send legacy URLs to the unified Form Center renderer when applicable.
+     */
+    protected function dynamicFormRedirect(string $path): ?\Illuminate\Http\RedirectResponse
+    {
+        $form = Form::resolveForLegacyRedirect($path);
+
+        if ($form?->usesDynamicRenderer()) {
+            return redirect()->route('dynamic-form', ['slug' => $form->slug]);
+        }
+
+        return null;
+    }
+
+    protected function legacySuccessRedirect(string $path, string $fallbackView): \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+    {
+        $form = Form::resolveForLegacyRedirect($path);
+
+        if ($form?->usesDynamicRenderer()) {
+            return redirect()->route('dynamic-form.success', ['slug' => $form->slug]);
+        }
+
+        return view($fallbackView);
     }
 
     // Book a call
@@ -108,10 +280,19 @@ class FrontendController extends Controller
 
     public function enquireNow()
     {
+        if ($redirect = $this->dynamicFormRedirect('enquire-now')) {
+            return $redirect;
+        }
+
         return view('contact.enquire');
     }
+
     public function referral()
     {
+        if ($redirect = $this->dynamicFormRedirect('referral')) {
+            return $redirect;
+        }
+
         return view('contact.referral');
     }
 
@@ -161,6 +342,10 @@ class FrontendController extends Controller
 
         Enquire::create($data);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
         return back()->with('success', 'Data Submit Successfully');
     }
     // Referral
@@ -176,6 +361,10 @@ class FrontendController extends Controller
         // dd($data);
 
         Referral::create($data);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return back()->with('success', 'Data Submit Successfully');
     }
@@ -219,6 +408,10 @@ class FrontendController extends Controller
 
     public function debitForm()
     {
+        if ($redirect = $this->dynamicFormRedirect('debit-form')) {
+            return $redirect;
+        }
+
         $groups = Group::where('status', 1)->get();
         return view('frontend.debitForm', compact('groups'));
     }
@@ -253,7 +446,7 @@ class FrontendController extends Controller
     }
     public function debitSubmissionSuccwss()
     {
-        return view('frontend.debitFormSuccess');
+        return $this->legacySuccessRedirect('debit-form', 'frontend.debitFormSuccess');
     }
 
 
@@ -263,6 +456,10 @@ class FrontendController extends Controller
 
     public function staffAdmissionForm()
     {
+        if ($redirect = $this->dynamicFormRedirect('staff-application')) {
+            return $redirect;
+        }
+
         $country = Country::all();
         $terms = TermsAndCondition::first();
         return view('frontend.staff-admission-form',compact('country','terms'));
@@ -271,9 +468,23 @@ class FrontendController extends Controller
 
     public function jobAdmissionForm()
     {
+        if ($redirect = $this->dynamicFormRedirect('job-applications')) {
+            return $redirect;
+        }
+
         $country = Country::all();
         return view('frontend.job-admission-form',compact('country'));
 
+    }
+
+    public function jobApplicationsSuccess()
+    {
+        return $this->legacySuccessRedirect('job-applications', 'frontend.job-application-successfull');
+    }
+
+    public function staffApplicationsSuccess()
+    {
+        return $this->legacySuccessRedirect('staff-application', 'frontend.staff-application-successfull');
     }
 
 

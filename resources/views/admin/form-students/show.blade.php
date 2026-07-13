@@ -372,5 +372,4 @@
 @endif
 <div class="pb-5 mt-3 text-end">
     <a href="{{ route('admin.download.payment.pdf', $data->id) }}" class="btn btn-primary btn-lg">Download</a>
-</div>
 @endsection

@@ -1,131 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alrushd - Login</title>
-    <!-- Favicons -->
+    <title>Sign in — {{ config('app.name') }}</title>
     <link href="{{ asset('frontend/') }}/assets/img/logo.png" rel="icon">
-    <link href="{{ asset('frontend/') }}/assets/img/logo.png" rel="apple-touch-icon">
-
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
+    <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/lib/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/remixicon.css">
+    <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/alrushad-overrides.css">
     <style>
-        body {
-            height: 100vh;
-            background: #0e0e0e;
-            overflow: hidden;
-            position: relative;
+        :root {
+            --crm-brand: #4569e6;
+            --crm-brand-hover: #3458d4;
+            --crm-surface-sunken: #f4f6fa;
         }
-
-        /* Rain drops */
-        .rain {
-            position: absolute;
+        body.crm-auth {
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #eef2ff 0%, #f4f6fa 45%, #e8ecf2 100%);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+        .crm-auth-card {
             width: 100%;
-            height: 100%;
-            overflow: hidden;
-            top: 0;
-            left: 0;
-            z-index: -1;
+            max-width: 420px;
+            background: #fff;
+            border: 1px solid #e8ecf2;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10);
+            padding: clamp(28px, 5vw, 40px);
+            animation: crmPageIn 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
         }
-
-        .drop {
+        .crm-auth-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: rgba(69, 105, 230, 0.10);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .crm-auth-logo img { max-width: 36px; max-height: 36px; }
+        .crm-auth-title {
+            font-size: 1.375rem;
+            font-weight: 700;
+            text-align: center;
+            color: #111827;
+            margin: 0;
+        }
+        .crm-auth-subtitle {
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            margin: 8px 0 28px;
+        }
+        .crm-auth-field {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .crm-auth-field iconify-icon {
             position: absolute;
-            width: 2px;
-            background: rgba(255, 255, 255, 0.3);
-            bottom: 100%;
-            animation: fall linear infinite;
-            border-radius: 50%;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 18px;
+            pointer-events: none;
         }
-
-        @keyframes fall {
-            to {
-                transform: translateY(100vh);
-            }
+        .crm-auth-field input {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            border: 1px solid #e8ecf2;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .crm-auth-field input:focus {
+            outline: none;
+            border-color: var(--crm-brand);
+            box-shadow: 0 0 0 3px rgba(69, 105, 230, 0.15);
+        }
+        .crm-auth-field input.is-invalid { border-color: #ef4444; }
+        .crm-auth-error { color: #ef4444; font-size: 13px; margin-top: 6px; }
+        .crm-auth-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .crm-auth-remember {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #64748b;
+            cursor: pointer;
+        }
+        .crm-auth-submit {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            background: var(--crm-brand);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(69, 105, 230, 0.22);
+            transition: background 0.2s, transform 0.2s;
+        }
+        .crm-auth-submit:hover {
+            background: var(--crm-brand-hover);
+            transform: translateY(-1px);
+        }
+        @media (max-width: 575px) {
+            .crm-auth-actions { flex-direction: column; align-items: stretch; }
+            .crm-auth-submit { width: 100%; justify-content: center; }
         }
     </style>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 </head>
+<body class="crm-auth">
 
-<body class="flex items-center justify-center">
-
-    <div class="rain" id="rain"></div>
-
-    <div class="w-full max-w-md bg-gray-900 rounded-lg shadow-lg p-8">
-        <div class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-white">{{ config('app.name') }}</h1>
-            <p class="text-gray-400 mt-1">Sign in to start your session</p>
+    <div class="crm-auth-card">
+        <div class="crm-auth-logo">
+            <img src="{{ asset('frontend/') }}/assets/img/logo.png" alt="{{ config('app.name') }}">
         </div>
+        <h1 class="crm-auth-title">{{ config('app.name') }}</h1>
+        <p class="crm-auth-subtitle">Sign in to your CRM account</p>
 
         <form method="POST" action="{{ route('admin.login') }}">
             @csrf
 
-            <!-- Email -->
-            <div class="mb-4">
-                <div class="flex items-center bg-gray-800 rounded-md overflow-hidden">
-                    <span class="px-3 text-gray-400"><i class="fas fa-envelope"></i></span>
-                    <input type="email" name="email" placeholder="Email"
-                        class="w-full bg-gray-800 text-white px-3 py-2 focus:outline-none @error('email') border border-red-500 @enderror"
-                        value="{{ old('email') }}" autofocus>
-                </div>
-                @error('email')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
+            <div class="crm-auth-field">
+                <iconify-icon icon="solar:letter-linear"></iconify-icon>
+                <input type="email"
+                       name="email"
+                       placeholder="Email address"
+                       value="{{ old('email') }}"
+                       class="@error('email') is-invalid @enderror"
+                       autofocus
+                       required>
             </div>
+            @error('email')
+                <div class="crm-auth-error">{{ $message }}</div>
+            @enderror
 
-            <!-- Password -->
-            <div class="mb-4">
-                <div class="flex items-center bg-gray-800 rounded-md overflow-hidden">
-                    <span class="px-3 text-gray-400"><i class="fas fa-lock"></i></span>
-                    <input type="password" name="password" placeholder="Password"
-                        class="w-full bg-gray-800 text-white px-3 py-2 focus:outline-none @error('password') border border-red-500 @enderror">
-                </div>
-                @error('password')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
+            <div class="crm-auth-field">
+                <iconify-icon icon="solar:lock-password-linear"></iconify-icon>
+                <input type="password"
+                       name="password"
+                       placeholder="Password"
+                       class="@error('password') is-invalid @enderror"
+                       required>
             </div>
+            @error('password')
+                <div class="crm-auth-error">{{ $message }}</div>
+            @enderror
 
-            <!-- Remember & Button -->
-            <div class="flex items-center justify-between mb-4">
-                <label class="inline-flex items-center text-gray-400">
-                    <input type="checkbox" name="remember" class="form-checkbox h-4 w-4 text-blue-500" {{ old('remember') ? 'checked' : '' }}>
-                    <span class="ml-2">Remember Me</span>
+            <div class="crm-auth-actions">
+                <label class="crm-auth-remember">
+                    <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }}>
+                    Remember me
                 </label>
-                <button type="submit"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-semibold">
-                    Sign In
+                <button type="submit" class="crm-auth-submit">
+                    <iconify-icon icon="solar:login-2-linear"></iconify-icon>
+                    Sign in
                 </button>
             </div>
         </form>
-
     </div>
 
-    <script>
-        const rain = document.getElementById('rain');
-
-        function createDrop() {
-            const drop = document.createElement('div');
-            drop.classList.add('drop');
-            drop.style.left = `${Math.random() * window.innerWidth}px`;
-            drop.style.animationDuration = `${0.3 + Math.random() * 0.7}s`;
-            drop.style.opacity = 0.2 + Math.random() * 0.5;
-            drop.style.height = `${15 + Math.random() * 25}px`;
-            rain.appendChild(drop);
-
-            setTimeout(() => {
-                drop.remove();
-            }, 1500);
-        }
-
-        setInterval(() => {
-            for (let i = 0; i < 4; i++) {
-                createDrop();
-            }
-        }, 60);
-    </script>
 </body>
-
 </html>

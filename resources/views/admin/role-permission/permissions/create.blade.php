@@ -3,42 +3,45 @@
 @section('title') Add Permission @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => 'Create Permission',
+        'subtitle' => 'Add a new permission to the access control system.',
+        'breadcrumbs' => [
+            ['label' => 'Permissions', 'url' => route('admin.permissions.index')],
+            ['label' => 'Create'],
+        ],
+        'actions' => [['label' => 'Back', 'url' => route('admin.permissions.index'), 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11', 'icon' => 'solar:alt-arrow-left-linear']],
+    ])
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title text-primary mb-0"><span class="icon">
-                <iconify-icon icon="fa-solid:save"></iconify-icon>
-            </span> Add Permissions</h5>
+    @include('admin.role-permission.partials.module-nav', ['activeTab' => 'permissions'])
 
-        @can('view role')
-        <a href="{{ route('admin.permissions.index') }}" class="btn btn-primary btn-sm">← Back</a>
-        @endcan
-    </div>
-    <div class="card-body">
-        <form class="row gy-3 needs-validation" novalidate action="{{ route('admin.permissions.store') }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            @method('POST')
-
-
-            <div class="col-md-12">
-                 <label>Permission Name</label>
-                <div class="has-validation">
-                    <input type="text" name="name" class="form-control" placeholder="Enter permission name">
-            @error('name') <small class="text-danger">{{ $message }}</small> @enderror
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-24">
+            <form class="needs-validation" novalidate action="{{ route('admin.permissions.store') }}" method="POST">
+                @csrf
+                <div class="um-form-section">
+                    <div class="um-form-section-title">
+                        <iconify-icon icon="solar:key-linear"></iconify-icon>
+                        Permission Details
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-sm">Permission Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control radius-8 @error('name') is-invalid @enderror"
+                                   value="{{ old('name') }}" required placeholder="e.g. view reports">
+                            <small class="text-secondary-light">Use lowercase with underscores: view_users, edit_settings</small>
+                            @error('name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="col-md-12 text-end">
-                @can('view role')
-                <a href="{{ route('admin.permissions.index') }}" class="btn btn-primary btn-sm">← Back</a>
-                @endcan
-
-                <button class="btn btn-sm btn-success-600" type="submit"><span class="icon">
-                        <iconify-icon icon="fa-solid:save"></iconify-icon>
-                    </span> Save</button>
-            </div>
-        </form>
+                <div class="d-flex justify-content-end gap-12">
+                    <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11 fc-btn">Cancel</a>
+                    <button type="submit" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn">
+                        <iconify-icon icon="solar:diskette-linear"></iconify-icon>
+                        <span>Save Permission</span>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
-
 @endsection

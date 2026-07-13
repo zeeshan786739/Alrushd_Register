@@ -150,13 +150,20 @@ class MultiStepFormController extends Controller
     // ===================== Handle step POST =====================
     public function postStep(Request $request, $step)
     {
+        if ($request->header('X-Submission-Id')) {
+            Session::put('submission_id', (int) $request->header('X-Submission-Id'));
+        }
 
-
-        $submissionId = Session::get('submission_id');
+        $submissionId = $request->header('X-Submission-Id')
+            ? (int) $request->header('X-Submission-Id')
+            : Session::get('submission_id');
         $sessionUserId = Session::get('user_id'); // session user id
 
         // যদি session expire হয় বা নেই → Step 1 শুরু হবে
         if (!$submissionId && $step != 1) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Please select a school first.', 'redirect' => '/student-admission/step/1'], 422);
+            }
             return redirect()->route('form.step', 1)->with('info', 'Please Select School.');
         }
 
@@ -475,15 +482,29 @@ class MultiStepFormController extends Controller
 
                 // 6️⃣ Clear session data
                 Session::forget('submission_id');
-                Session::forget('stripe_client_secret'); // in case it exists
+                Session::forget('stripe_client_secret');
+
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => true, 'redirect' => '/payment-success']);
+                }
 
                 return redirect()->route('payment.success')
                     ->with('success', 'Payment successful & form submitted!');
             } catch (\Exception $e) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $e->getMessage()], 422);
+                }
                 return back()->withErrors(['payment_error' => $e->getMessage()]);
             }
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'submission_id' => Session::get('submission_id'),
+                'next_step' => (int) $step + 1,
+            ]);
+        }
 
         return redirect()->route('form.step', $step + 1);
     }

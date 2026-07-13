@@ -3,231 +3,114 @@
 @section('title') Form Students @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => 'Form Students',
+        'subtitle' => 'Track student registration submissions, payments, and enrollment status.',
+        'breadcrumbs' => [['label' => 'Admissions'], ['label' => 'Form Students']],
+    ])
 
+    @php
+        $yearOptions = \App\Models\StudentYear::pluck('name', 'name')->all();
+    @endphp
 
-<!-- 🔍 Filter Form -->
-<form method="GET" action="{{ route('admin.form-students.index') }}" class="bg-primary mt-3 mb-5 mx-2 p-10 rounded row text-light" style="text-align: left;">
+    @include('admin.partials.filter-bar', [
+        'action' => route('admin.form-students.index'),
+        'resetUrl' => route('admin.form-students.index'),
+        'fields' => [
+            ['name' => 'search', 'label' => 'Search', 'placeholder' => 'School, name, number or email…'],
+            ['name' => 'year_id', 'label' => 'Year', 'type' => 'select', 'placeholder' => 'All years', 'options' => $yearOptions],
+            ['name' => 'start_date', 'label' => 'From', 'type' => 'date'],
+            ['name' => 'end_date', 'label' => 'To', 'type' => 'date'],
+        ],
+    ])
 
-    <div class="col-lg-3">
-        <label class="fw-bold" for="search">Search Here</label>
-        <input type="text" name="search" class="form-control search"
-            placeholder="Search School,Name, Number or Email..."
-            value="{{ request('search') }}">
-    </div>
-    <div class="col-lg-3">
-        <label class="fw-bold" for="start_date">Year</label>
-        <select name="year_id" id="year_id" class="form-select select2 search_select">
-            <option value="">Select Year</option>
-            @foreach (\App\Models\StudentYear::all() as $item)
-            <option value="{{ $item->name }}" {{ request('year_id') == $item->name ? 'selected' : '' }}>{{ $item->name }}</option>
-            @endforeach
-        </select>
-    </div>
-    <div class="col-lg-3">
-        <label class="fw-bold" for="start_date">Start Date</label>
-    <input type="date" name="start_date" class="form-control search" value="{{ request('start_date') }}">
-    </div>
-    <div class="col-lg-3">
-            <label class="fw-bold" for="end_date">End Date</label>
-    <input type="date" name="end_date" class="form-control search" value="{{ request('end_date') }}">
-    </div>
-    <div class="col-lg-2 mt-24 text-end ms-auto">
-        <button type="submit" class="btn btn-warning">Filter</button>
-    <a href="{{ route('admin.form-students.index') }}" class="btn btn-dark">Reset</a>
-    </div>
-
-</form>
-
-
-<div class="col-12">
-    <div class="card basic-data-table">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="card-title text-primary mb-0 text-lg">Form Students Lists</h6>
-             <!-- ✅ Pagination Section -->
-            <div class="d-flex justify-content-end mt-5">
-                {{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
+                <h6 class="mb-0 fw-semibold fc-panel-title">
+                    <iconify-icon icon="solar:square-academic-cap-linear"></iconify-icon>
+                    Registrations
+                    <span class="fc-badge fc-badge-neutral ms-8">{{ $data->total() }}</span>
+                </h6>
+                @if($data->hasPages())
+                    <div class="fc-pagination">{{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
+                @endif
             </div>
-        </div>
 
-        <div class="card-body">
-            <div class="table-responsive" style="overflow-x: auto; width: 100%;">
-                <table class="table table-bordered mb-0 w-100" style="min-width: 100%;">
+            <div class="table-responsive">
+                <table class="table bordered-table mb-0 align-middle">
                     <thead>
                         <tr>
-                            <th scope="col">
-                                <div class="form-check style-check d-flex align-items-center">
-
-                                    <label class="form-check-label">
-                                        S.L
-                                    </label>
-                                </div>
-                            </th>
-
-                            <th>
-                               Date Of Submission
-                            </th>
-                            {{-- <th>
-                                School
-                            </th> --}}
-                            {{-- <th>Name</th>
-
-                            <th>Email</th>
-
-                            <th>Phone</th> --}}
-                            <th>Parent(Info)</th>
-                            <th>Student(Info)</th>
-                            <th style="width: 13%">
-                                Amount
-                            </th>
-                            {{-- <th>Total Amount</th>
-                            <th>Paid Amount</th> --}}
-
-                            <th>Status</th>
-
-                            <th style="width: 12%">
-                                Action
-                            </th>
-
+                            <th class="ps-24" style="width:60px">#</th>
+                            <th>Submitted</th>
+                            <th>Parent</th>
+                            <th>Student</th>
+                            <th style="width:140px">Amount</th>
+                            <th style="width:110px">Status</th>
+                            <th class="text-end pe-24" style="width:120px">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($data as $item)
+                        @forelse($data as $item)
                         @can('view coursefee')
                         @if($item->fname)
-                        <tr>
+                        <tr class="fc-form-row">
+                            <td class="ps-24 fw-semibold text-secondary-light">{{ $loop->iteration + ($data->currentPage() - 1) * $data->perPage() }}</td>
+                            <td class="text-secondary-light text-sm fw-medium">{{ $item->created_at->format('Y-m-d') }}</td>
                             <td>
-                                <div class="form-check style-check d-flex align-items-center">
-
-                                    <label class="form-check-label">
-                                        {{ $loop->iteration }}
-                                    </label>
-                                </div>
+                                <p class="mb-0 text-sm"><span class="text-secondary-light">Name:</span> {{ $item->title }} {{ $item->fname }} {{ $item->lname }}</p>
+                                <p class="mb-0 text-sm"><span class="text-secondary-light">Email:</span> {{ $item->email }}</p>
+                                <p class="mb-0 text-sm"><span class="text-secondary-light">Phone:</span> {{ $item->mobile_number }}</p>
                             </td>
-
                             <td>
-                                <b>{{ $item->created_at->format('Y-m-d') }}</b>
-                            </td>
-
-                            {{-- <td>
-                                {{  $item->selected_school }}
-                            </td> --}}
-
-                            <td>
-                                <p class="mb-0"><b>Name :</b> {{ $item->title }} {{ $item->fname }} {{ $item->lname }}</p>
-                                <p class="mb-0"><b>Email :</b> {{ $item->email}}</p>
-                                <p class="mb-0"><b>Phone :</b> {{ $item->mobile_number}}</p>
-                            </td>
-                            
-                            <td>
-                                @foreach ($item->students as $student)
-                                <p class="mb-0"><b>Name :</b> {{ $student->fname }} {{ $student->lname }}</p>
-                                <p class="mb-0"><b>Year :</b> {{ $student->year->name}}</p>
+                                @foreach($item->students as $student)
+                                    <p class="mb-0 text-sm"><span class="text-secondary-light">Name:</span> {{ $student->fname }} {{ $student->lname }}</p>
+                                    <p class="mb-0 text-sm"><span class="text-secondary-light">Year:</span> {{ $student->year->name ?? '—' }}</p>
                                 @endforeach
                             </td>
-
-                            {{-- <td>
-                                {{ $item->title }} {{ $item->fname }} {{ $item->lname }}
-                            </td>
-
                             <td>
-                                {{ $item->email}}
+                                <p class="mb-0 text-sm"><span class="text-secondary-light">Total:</span> {{ $item->total_amount ? '£'.$item->total_amount : 'N/A' }}</p>
+                                <p class="mb-0 text-sm"><span class="text-secondary-light">Paid:</span> {{ $item->paid_amount ? '£'.$item->paid_amount : 'N/A' }}</p>
                             </td>
-
                             <td>
-                                {{ $item->mobile_number}}
-                            </td> --}}
-                            <td>
-                                <p class="mb-0"><b>Total :</b> @if($item->total_amount)
-                                £{{ $item->total_amount}}
+                                @if($item->status == 'paid')
+                                    <span class="fc-badge fc-badge-success">Paid</span>
                                 @else
-                                <span>N/A</span>
-                                @endif</p>
-                                <p class="mb-0"><b>Paid :</b> @if($item->paid_amount)
-                                £{{ $item->paid_amount}}
-                                @else
-                                <span>N/A</span>
-                                @endif</p>
-                            </td>
-
-                            {{-- <td>
-                                @if($item->total_amount)
-                                £{{ $item->total_amount}}
-                                @else
-                                <span>N/A</span>
+                                    <span class="fc-badge fc-badge-primary">In progress</span>
                                 @endif
                             </td>
-
-                            <td>
-                                @if($item->paid_amount)
-                                £{{ $item->paid_amount}}
-                                @else
-                                <span>N/A</span>
-                                @endif
-                            </td> --}}
-
-                            <td>
-                                @if($item->status=='paid')
-                                <span class="bg-success-focus text-success-main px-24 py-4 rounded-pill fw-medium text-sm">Paid</span>
-                                @else
-                                <span class="bg-danger-focus text-light-main px-24 py-4 rounded-pill fw-medium text-sm">Progress</span>
-                                @endif
-                            </td>
-
-                            <td>
-                                 @can('view coursefee')
-                                <a href="{{ route('admin.form-students.show', $item->id) }}"
-                                    class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
-                                    <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
-                                </a>
-                                @endcan
-                                @can('edit coursefee')
-                                <a href="{{ route('admin.form-students.edit', $item->id) }}"
-                                    class="w-32-px h-32-px bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                                    <iconify-icon icon="lucide:edit"></iconify-icon>
-                                </a>
-                                @endcan
-                                @can('delete coursefee')
-                                <form id="delete-form-{{ $item->id }}" action="{{ route('admin.form-students.destroy', $item->id) }}" method="POST" style="display: none;">
-                                    @csrf @method('DELETE')
-                                </form>
-                                <a href="javascript:void(0)" data-id="{{ $item->id }}"
-                                    class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                                    <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
-                                </a>
-                                @endcan
+                            <td class="text-end pe-24">
+                                @include('admin.partials.table-actions', [
+                                    'viewUrl' => auth()->user()->can('view coursefee') ? route('admin.form-students.show', $item->id) : null,
+                                    'editUrl' => auth()->user()->can('edit coursefee') ? route('admin.form-students.edit', $item->id) : null,
+                                    'deleteId' => auth()->user()->can('delete coursefee') ? $item->id : null,
+                                    'deleteRoute' => auth()->user()->can('delete coursefee') ? route('admin.form-students.destroy', $item->id) : null,
+                                    'canView' => auth()->user()->can('view coursefee'),
+                                    'canEdit' => auth()->user()->can('edit coursefee'),
+                                    'canDelete' => auth()->user()->can('delete coursefee'),
+                                ])
                             </td>
                         </tr>
                         @endif
                         @endcan
-                        @endforeach
-
-
-
+                        @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-48">
+                                <div class="um-empty-state border-0">
+                                    <iconify-icon icon="solar:inbox-linear" class="d-block mx-auto"></iconify-icon>
+                                    <h6 class="fw-semibold mb-8">No registrations found</h6>
+                                    <p class="text-secondary-light text-sm mb-0">Try adjusting your filters.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
-
             </div>
+
+            @if($data->hasPages())
+                <div class="fc-pagination px-24 py-16 border-top">{{ $data->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
+            @endif
         </div>
     </div>
-</div>
-@section('script')
-<script>
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you really want to delete this item?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#delete-form-' + id).submit();
-            }
-        });
-    });
-</script>
-@endsection
 @endsection

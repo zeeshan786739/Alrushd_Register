@@ -26,7 +26,7 @@
                                 <th>Date Submitted</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
-                                <th>Action</th>
+                                <th class="text-end">Action</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
@@ -36,16 +36,12 @@
                                     <td>{{ $entry->submission_date }}</td>
                                     <td>{{ $entry->fname ?? '' }}</td>
                                     <td>{{ $entry->lname ?? '' }}</td>
-                                    <td class="text-center">
-                                        <a href="{{ route('admin.open-event-form.show', $entry->id) }}" class="btn btn-sm btn-primary">View</a>
-                                        <a data-id="{{ $entry->id }}" href="{{ route('admin.open-event-form.destroy', $entry->id) }}" class="btn btn-sm btn-danger delete-btn">Delete</a>
-                                          {{-- Hidden Form (Laravel delete) --}}
-                                        <form id="delete-form-{{ $entry->id }}" 
-                                            action="{{ route('admin.open-event-form.destroy', $entry->id) }}" 
-                                            method="POST" style="display: none;">
-                                            @csrf
-                                            @method('DELETE')
-                                        </form>
+                                    <td>
+                                        @include('admin.partials.table-actions', [
+                                            'viewUrl' => route('admin.open-event-form.show', $entry->id),
+                                            'deleteId' => $entry->id,
+                                            'deleteRoute' => route('admin.open-event-form.destroy', $entry->id),
+                                        ])
                                     </td>
                                 </tr>
                             @endforeach
@@ -128,15 +124,19 @@
                     <td>${entry.submission_date ?? ''}</td>
                     <td>${entry.fname ?? ''}</td>
                     <td>${entry.lname ?? ''}</td>
-                    <td class="text-center">
-                        <a href="/admin/open-event-form/${entry.id}" class="btn btn-sm btn-primary">View</a>
-                        <a href="/admin/open-event-form/${entry.id}" data-id="${entry.id}" class="btn btn-sm btn-danger delete-btn">Delete</a>
-                        <form id="delete-form-${entry.id}" 
-                              action="/admin/open-event-form/${entry.id}" 
-                              method="POST" style="display:none;">
-                            @csrf
-                            @method('DELETE')
-                        </form>
+                    <td>
+                        <div class="fc-table-actions">
+                            <a href="/admin/open-event-form/${entry.id}" class="fc-action-icon view" title="View" aria-label="View">
+                                <iconify-icon icon="solar:eye-linear"></iconify-icon>
+                            </a>
+                            <form id="delete-form-${entry.id}" action="/admin/open-event-form/${entry.id}" method="POST" class="d-inline">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="_method" value="DELETE">
+                            </form>
+                            <button type="button" class="fc-action-icon delete delete-btn" data-id="${entry.id}" title="Delete" aria-label="Delete">
+                                <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;

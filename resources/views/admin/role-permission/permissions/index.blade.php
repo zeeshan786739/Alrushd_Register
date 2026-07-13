@@ -1,96 +1,77 @@
 @extends('admin.layouts.app')
 
-@section('title') Permission List @endsection
+@section('title') Permissions @endsection
 
 @section('content')
+    @include('admin.partials.page-header', [
+        'title' => 'User Management',
+        'subtitle' => 'Manage granular permissions that control what each role can do.',
+        'breadcrumbs' => [['label' => 'Permissions']],
+        'actions' => auth()->user()->can('create permission') ? [[
+            'label' => 'Add Permission',
+            'url' => route('admin.permissions.create'),
+            'class' => 'btn-primary-600 radius-8 px-20 py-11',
+            'icon' => 'solar:add-circle-linear',
+        ]] : [],
+    ])
 
+    @include('admin.role-permission.partials.module-nav', ['activeTab' => 'permissions'])
 
-<div class="card basic-data-table">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="card-title text-primary mb-0">Permission Lists</h6>
-        @can('create role')
-        <a href="{{ route('admin.permissions.create') }}" class="btn btn-primary btn-sm">+ Add</a>
-        @endcan
+    <div class="card shadow-2 radius-12 border-0">
+        <div class="card-body p-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
+                <h6 class="mb-0 fw-semibold fc-panel-title">
+                    <iconify-icon icon="solar:key-linear"></iconify-icon>
+                    Permissions
+                    <span class="fc-badge fc-badge-neutral ms-8">{{ $permissions->count() }}</span>
+                </h6>
+                @include('admin.partials.search-bar', ['placeholder' => 'Search permissions…'])
+            </div>
+
+            @if($permissions->isEmpty())
+                <div class="um-empty-state">
+                    <iconify-icon icon="solar:key-linear" class="d-block mx-auto"></iconify-icon>
+                    <h6 class="fw-semibold mb-8">No permissions found</h6>
+                    <p class="text-secondary-light text-sm mb-0">Add permissions to build your access control model.</p>
+                </div>
+            @else
+                <div class="table-responsive">
+                    <table class="table bordered-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-24" style="width:60px">#</th>
+                                <th>Permission</th>
+                                <th style="width:120px">Guard</th>
+                                <th class="text-end pe-24" style="width:120px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($permissions as $permission)
+                            @can('view permission')
+                            <tr class="fc-form-row">
+                                <td class="ps-24 fw-semibold text-secondary-light">{{ $loop->iteration }}</td>
+                                <td>
+                                    <span class="fw-semibold">{{ str_replace('_', ' ', $permission->name) }}</span>
+                                    <span class="d-block text-secondary-light text-xs mt-2">{{ $permission->name }}</span>
+                                </td>
+                                <td><span class="um-guard-badge">{{ $permission->guard_name }}</span></td>
+                                <td class="text-end pe-24">
+                                    @include('admin.partials.table-actions', [
+                                        'editUrl' => route('admin.permissions.edit', $permission->id),
+                                        'deleteId' => $permission->id,
+                                        'deleteRoute' => route('admin.permissions.destroy', $permission->id),
+                                        'canView' => false,
+                                        'canEdit' => auth()->user()->can('edit permission'),
+                                        'canDelete' => auth()->user()->can('delete permission'),
+                                    ])
+                                </td>
+                            </tr>
+                            @endcan
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
     </div>
-
-
-    <div class="card-body">
-        <table class="table bordered-table mb-0" data-page-length='10'>
-            <thead>
-                <tr>
-                    <th scope="col">
-                        <div class="form-check style-check d-flex align-items-center">
-                            <input class="form-check-input" type="checkbox">
-                            <label class="form-check-label">
-                                S.L
-                            </label>
-                        </div>
-                    </th>
-                    <th>Permission Name</th>
-                    <th>Guard</th>
-                    <th scope="col">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                  @foreach ($permissions as $key => $permission)
-                @can('view role')
-                <tr>
-                    <td>{{ $key+1 }}</td>
-                    <td>{{ $permission->name }}</td>
-                    <td>{{ $permission->guard_name }}</td>
-
-                    <td>
-                        @can('view role')
-                        <a href="{{ route('admin.permissions.edit',  $permission->id) }}"
-                            class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
-                        </a>
-                        @endcan
-                        @can('edit role')
-                        <a href="{{ route('admin.permissions.edit',  $permission->id) }}"
-                            class="w-32-px h-32-px bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="lucide:edit"></iconify-icon>
-                        </a>
-                        @endcan
-                        @can('delete role')
-                        <form id="delete-form-{{  $permission->id }}" action="{{ route('admin.permissions.destroy',  $permission->id) }}" method="POST" style="display: none;">
-                            @csrf @method('DELETE')
-                        </form>
-                        <a href="javascript:void(0)" data-id="{{  $permission->id }}"
-                            class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                            <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
-                        </a>
-                        @endcan
-                    </td>
-                </tr>
-                @endcan
-                @endforeach
-
-
-
-            </tbody>
-        </table>
-    </div>
-</div>
-@section('script')
-<script>
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "Do you really want to delete this item?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#delete-form-' + id).submit();
-            }
-        });
-    });
-</script>
-@endsection
-
 @endsection
