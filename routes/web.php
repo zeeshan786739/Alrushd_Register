@@ -45,8 +45,8 @@ Route::get('/email-test',function(){
 });
 
 
-Route::get('/student-admission',[MultiStepFormController::class,'studentAdmission']);
-Route::get('/student-admission/step/{step}', [MultiStepFormController::class, 'showStep'])->name('form.step');
+Route::get('/student-admission', fn () => redirect('/forms/student-admission', 301));
+Route::get('/student-admission/step/{step}', fn () => redirect('/forms/student-admission', 301))->name('form.step');
 Route::post('/student-admission/step/{step}', [MultiStepFormController::class, 'postStep'])->name('form.step.post');
 
 

@@ -465,42 +465,209 @@ class FormDefinitionsSeeder extends Seeder
         ];
     }
 
+    private function titleOptions(): array
+    {
+        return ['Mr', 'Mrs', 'Miss', 'Ms', 'Mx', 'Dr', 'Prof', 'Rev', 'Sir', 'Dame', 'Lady', 'Lord'];
+    }
+
     private function studentAdmissionForm(): array
     {
+        $titles = $this->titleOptions();
+
         return [
             'name' => 'Student Admission',
             'slug' => 'student-admission',
             'legacy_route' => '/student-admission/step/1',
-            'success_route' => '/payment-success',
+            'success_route' => '/forms/student-admission/success',
             'submit_method' => 'multipart',
             'show_on_landing' => true,
             'hero_label' => 'Student Admission',
             'hero_variant' => 'outline',
-            'handler' => 'custom',
+            'handler' => 'dynamic',
             'sort_order' => 3,
-            'settings' => ['heading' => 'Student Admission', 'custom_component' => 'student-admission'],
+            'settings' => [
+                'heading' => 'Student Admission',
+                'wide' => true,
+                'description' => 'Register your child at Al-Rushd Independent School.',
+            ],
             'steps' => [
-                ['title' => 'School Selection', 'fields' => []],
-                ['title' => 'Parent Details', 'fields' => []],
-                ['title' => 'Student Details', 'fields' => []],
-                ['title' => 'Additional Information', 'fields' => []],
-                ['title' => 'Package Selection', 'fields' => []],
-                ['title' => 'Review & Signature', 'fields' => []],
-                ['title' => 'Payment', 'fields' => [
-                    $this->field('application_payment', 'Application Payment', 'payment', [
-                        'required' => true,
-                        'col_span' => 2,
-                        'help_text' => 'Pay the application fee securely online or request offline payment.',
-                        'settings' => [
-                            'amount' => 15,
-                            'currency' => 'gbp',
-                            'fee_label' => 'Application Fee',
-                            'allow_stripe' => true,
-                            'allow_offline' => true,
-                            'show_summary' => true,
-                        ],
-                    ]),
-                ]],
+                [
+                    'title' => 'School Selection',
+                    'description' => 'Select the school you wish to apply to.',
+                    'fields' => [
+                        $this->field('selected_school', 'School', 'select', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'options_source' => 'schools',
+                            'help_text' => 'Choose the Al-Rushd school location for your application.',
+                        ]),
+                    ],
+                ],
+                [
+                    'title' => 'Parent Details',
+                    'description' => 'Primary parent or guardian contact information.',
+                    'fields' => [
+                        $this->field('_section_primary_parent', 'Primary Parent / Guardian', 'section', ['col_span' => 2]),
+                        $this->field('title', 'Title', 'select', ['required' => true, 'options' => $titles]),
+                        $this->field('fname', 'First Name', 'text', ['required' => true]),
+                        $this->field('lname', 'Last Name', 'text', ['required' => true]),
+                        $this->field('relationship', 'Relationship to Student(s)', 'select', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'options_source' => 'relationships',
+                        ]),
+                        $this->field('email', 'Email Address', 'email', ['required' => true]),
+                        $this->field('confirm_email', 'Confirm Email', 'email', ['required' => true]),
+                        $this->field('mobile_number', 'Mobile Number', 'tel', ['required' => true]),
+                        $this->field('home_telephone', 'Home Telephone', 'tel', ['required' => true]),
+                        $this->field('work_number', 'Work Number', 'tel'),
+                        $this->field('address', 'Street Address', 'text', ['required' => true, 'col_span' => 2]),
+                        $this->field('apartment', 'Apartment / Suite', 'text', ['col_span' => 2]),
+                        $this->field('city', 'City', 'text', ['required' => true]),
+                        $this->field('province', 'State / Province', 'text'),
+                        $this->field('postal_code', 'Zip / Postal Code', 'text', ['required' => true]),
+                        $this->field('country', 'Country', 'select', ['required' => true, 'options_source' => 'countries']),
+                        $this->field('file1', 'Proof of ID', 'file', ['required' => true]),
+                        $this->field('file2', 'Proof of Address', 'file', ['required' => true]),
+                        $this->field('_section_secondary_parent', 'Secondary Parent / Guardian', 'section', ['col_span' => 2]),
+                        $this->field('secondary_title', 'Title', 'select', ['options' => $titles]),
+                        $this->field('secondary_fname', 'First Name', 'text'),
+                        $this->field('secondary_lname', 'Last Name', 'text'),
+                        $this->field('secondary_relationship', 'Relationship to Student(s)', 'select', [
+                            'col_span' => 2,
+                            'options_source' => 'relationships',
+                        ]),
+                        $this->field('secondary_email', 'Email Address', 'email'),
+                        $this->field('secondary_confirm_email', 'Confirm Email', 'email'),
+                        $this->field('secondary_mobile_number', 'Mobile Number', 'tel'),
+                        $this->field('secondary_home_telephone', 'Home Telephone', 'tel'),
+                        $this->field('secondary_work_number', 'Work Number', 'tel'),
+                        $this->field('secondary_address', 'Street Address', 'text', ['col_span' => 2]),
+                        $this->field('secondary_apartment', 'Apartment / Suite', 'text', ['col_span' => 2]),
+                        $this->field('secondary_city', 'City', 'text'),
+                        $this->field('secondary_province', 'State / Province', 'text'),
+                        $this->field('secondary_postal_code', 'Zip / Postal Code', 'text'),
+                        $this->field('secondary_country', 'Country', 'select', ['options_source' => 'countries', 'col_span' => 2]),
+                        $this->field('file3', 'Secondary — Proof of ID', 'file'),
+                        $this->field('file4', 'Secondary — Proof of Address', 'file'),
+                    ],
+                ],
+                [
+                    'title' => 'Student Details',
+                    'description' => 'Tell us about each child you are registering.',
+                    'fields' => [
+                        $this->field('students', 'Students', 'repeater', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'settings' => [
+                                'fields' => [
+                                    ['key' => 'fname', 'label' => 'First Name', 'type' => 'text', 'required' => true],
+                                    ['key' => 'lname', 'label' => 'Last Name', 'type' => 'text', 'required' => true],
+                                    ['key' => 'dob', 'label' => 'Date of Birth', 'type' => 'date', 'required' => true],
+                                    ['key' => 'gender', 'label' => 'Gender', 'type' => 'select', 'required' => true, 'options_source' => 'genders'],
+                                    ['key' => 'nationality', 'label' => 'Nationality', 'type' => 'select', 'required' => true, 'options_source' => 'nationalities'],
+                                    ['key' => 'start_date', 'label' => 'Desired Start Date', 'type' => 'select', 'required' => true, 'options_source' => 'admission_dates'],
+                                    ['key' => 'year_group', 'label' => 'Year Group', 'type' => 'select', 'required' => true, 'options_source' => 'student_years'],
+                                    ['key' => 'package', 'label' => 'Package', 'type' => 'select', 'required' => true, 'options_source' => 'student_packages'],
+                                    ['key' => 'student_file1', 'label' => 'Proof of ID', 'type' => 'file', 'required' => true],
+                                    ['key' => 'student_file2', 'label' => 'Previous Academic Report', 'type' => 'file', 'required' => true],
+                                ],
+                            ],
+                        ]),
+                    ],
+                ],
+                [
+                    'title' => 'Additional Information',
+                    'description' => 'Education, health and access information.',
+                    'fields' => [
+                        $this->field('health_care', 'Does the child have an Education Health Care Plan (EHCP)?', 'radio', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'options' => ['Yes', 'No'],
+                        ]),
+                        $this->field('previus_school', 'Has the child been permanently excluded from a previous school?', 'radio', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'options' => ['Yes', 'No'],
+                        ]),
+                        $this->field('access_protocol', 'Fair Access Protocol category', 'textarea', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'placeholder' => 'Describe which category applies, or enter None',
+                        ]),
+                        $this->field('authority', 'Supporting local authority', 'text', ['col_span' => 2]),
+                        $this->field('assigned', 'Assigned social worker name', 'text', ['col_span' => 2]),
+                        $this->field('special_education', 'On SEND code of practice?', 'radio', [
+                            'required' => true,
+                            'options' => ['Yes', 'No'],
+                        ]),
+                        $this->field('medical_condition', 'Long-term medical conditions?', 'radio', [
+                            'required' => true,
+                            'options' => ['Yes', 'No'],
+                        ]),
+                        $this->field('direct_placement', 'Directed to Alternative Provision?', 'radio', [
+                            'required' => true,
+                            'options' => ['Yes', 'No'],
+                        ]),
+                        $this->field('placement_detail', 'Alternative provision details', 'text', ['col_span' => 2]),
+                        $this->field('percentage', 'Attendance percentage at previous school', 'text', ['required' => true]),
+                    ],
+                ],
+                [
+                    'title' => 'Package Selection',
+                    'description' => 'Confirm your preferred pricing package for each student.',
+                    'fields' => [
+                        $this->field('package_notes', 'Package preferences', 'textarea', [
+                            'col_span' => 2,
+                            'placeholder' => 'Add any notes about your preferred package (Essentials, Standard, Premium, etc.)',
+                        ]),
+                        $this->field('preferred_package', 'Preferred package type', 'select', [
+                            'col_span' => 2,
+                            'options_source' => 'student_packages',
+                        ]),
+                    ],
+                ],
+                [
+                    'title' => 'Review & Signature',
+                    'description' => 'Review your application and sign to confirm.',
+                    'fields' => [
+                        $this->field('signature_accept', 'I agree to the Terms & Conditions', 'checkbox', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'settings' => ['text' => 'I have read and agree to the Terms & Conditions.'],
+                        ]),
+                        $this->field('accpet', 'Admission process consent', 'checkbox', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'settings' => ['text' => 'I have read and understood the admission process and agree with the Terms and Conditions of Al-Rushd Independent School.'],
+                        ]),
+                        $this->field('signature', 'Digital signature', 'file', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'settings' => ['accept' => 'image/*'],
+                            'help_text' => 'Upload a signed declaration or signature image.',
+                        ]),
+                    ],
+                ],
+                [
+                    'title' => 'Payment',
+                    'description' => 'Pay the application processing fee.',
+                    'fields' => [
+                        $this->field('application_payment', 'Application Payment', 'payment', [
+                            'required' => true,
+                            'col_span' => 2,
+                            'help_text' => 'Pay the £15 application fee securely online or request offline payment.',
+                            'settings' => [
+                                'amount' => 15,
+                                'currency' => 'gbp',
+                                'fee_label' => 'Application Fee',
+                                'allow_stripe' => true,
+                                'allow_offline' => true,
+                                'show_summary' => true,
+                            ],
+                        ]),
+                    ],
+                ],
             ],
         ];
     }
