@@ -441,6 +441,91 @@ html.ar-form-html {
     letter-spacing: normal;
 }
 
+/* Payment field */
+.ar-payment-field {
+    grid-column: 1 / -1;
+    padding: 24px;
+    border: 1px solid rgba(15, 35, 75, 0.12);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(15, 35, 75, 0.06);
+}
+
+.ar-payment-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ar-navy);
+}
+
+.ar-payment-desc {
+    margin: 0;
+    font-size: 14px;
+    color: rgba(15, 35, 75, 0.65);
+}
+
+.ar-payment-summary {
+    margin: 20px 0;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--ar-cream, #F9F7F0);
+}
+
+.ar-payment-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--ar-navy);
+}
+
+.ar-payment-total {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(15, 35, 75, 0.12);
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.ar-payment-methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.ar-payment-method {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid rgba(15, 35, 75, 0.15);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ar-payment-method:has(input:checked) {
+    border-color: var(--ar-gold);
+    background: rgba(197, 168, 109, 0.12);
+    color: var(--ar-navy);
+}
+
+.ar-payment-card-element {
+    padding: 14px 16px;
+    border: 1px solid rgba(15, 35, 75, 0.15);
+    border-radius: 12px;
+    background: #fff;
+    margin-bottom: 8px;
+}
+
+.ar-payment-terms {
+    margin-top: 16px;
+}
+
 .ar-field-label {
     display: block;
     font-size: 13px;

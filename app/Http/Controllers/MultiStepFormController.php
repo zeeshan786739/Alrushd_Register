@@ -423,64 +423,74 @@ class MultiStepFormController extends Controller
         // ================= Step 7: Payment =================
         elseif ($step == 7) {
 
-            // 1️⃣ Validate the form inputs
             $validated = $request->validate([
-                'payment_email'       => 'required|email',
-                'payment_country'     => 'required|string',
+                'payment_email' => 'required|email',
+                'payment_country' => 'required|string',
                 'payment_postal_code' => 'required|string',
-                'payment_accept'      => 'accepted',
-                'card_holder_name'    => 'required|string',
-                'total_amount'        => 'required|numeric',
-                'stripeToken'         => 'required|string',
+                'payment_accept' => 'accepted',
+                'total_amount' => 'required|numeric',
+                'payment_method' => 'required|in:stripe,offline',
+                'card_holder_name' => 'required_if:payment_method,stripe|nullable|string',
+                'stripeToken' => 'required_if:payment_method,stripe|nullable|string',
             ]);
 
-            // 2️⃣ Retrieve the submission
             $submission = FormSubmission::findOrFail($submissionId);
 
-            // Amount in cents/pence for Stripe
+            if ($validated['payment_method'] === 'offline') {
+                $submission->update([
+                    'payment_email' => $validated['payment_email'],
+                    'payment_country' => $validated['payment_country'],
+                    'payment_postal_code' => $validated['payment_postal_code'],
+                    'payment_accept' => true,
+                    'status' => 'pending_payment',
+                    'total_amount' => $validated['total_amount'],
+                    'payment_date' => now(),
+                ]);
+
+                Session::forget('submission_id');
+
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => true, 'redirect' => '/payment-success']);
+                }
+
+                return redirect()->route('payment.success')
+                    ->with('success', 'Offline payment request submitted. Our team will contact you.');
+            }
+
             $totalAmount = $validated['total_amount'] * 100;
 
-             // // 3️⃣ Set Stripe secret key
-            // \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
-
-            // 3️⃣ Set Stripe secret key (get from database instead of env)
-            $settings = \App\Models\Setting::first(); // Assuming your settings table contains the Stripe keys
+            $settings = \App\Models\Setting::first();
             if ($settings && $settings->stripe_secret) {
-                \Stripe\Stripe::setApiKey($settings->stripe_secret); // Use the key from database
+                \Stripe\Stripe::setApiKey($settings->stripe_secret);
             } else {
                 return back()->withErrors(['error' => 'Stripe keys are not configured properly.']);
             }
 
             try {
-                // 4️⃣ Create a Stripe charge using the token
                 $charge = \Stripe\Charge::create([
                     'amount' => $totalAmount,
-                    'currency' => 'gbp', // change currency if needed
+                    'currency' => 'gbp',
                     'source' => $validated['stripeToken'],
                     'description' => "Payment for Submission ID: {$submission->id}",
                     'receipt_email' => $validated['payment_email'],
                 ]);
 
-                // 5️⃣ Update the submission as paid
                 $submission->update([
-                    'payment_email'       => $validated['payment_email'],
-                    'payment_country'     => $validated['payment_country'],
+                    'payment_email' => $validated['payment_email'],
+                    'payment_country' => $validated['payment_country'],
                     'payment_postal_code' => $validated['payment_postal_code'],
-                    'payment_accept'      => true,
-                    'card_holder_name'    => $validated['card_holder_name'],
-                    'status'              => 'paid',
-                    'paid_amount'         => $validated['total_amount'],
-                    'total_amount'        => $validated['total_amount'],
-                    'transaction_id'      => $charge->id,
-                    'currency'            => $charge->currency,
-                    'payment_date'        => now(),
+                    'payment_accept' => true,
+                    'card_holder_name' => $validated['card_holder_name'],
+                    'status' => 'paid',
+                    'paid_amount' => $validated['total_amount'],
+                    'total_amount' => $validated['total_amount'],
+                    'transaction_id' => $charge->id,
+                    'currency' => $charge->currency,
+                    'payment_date' => now(),
                 ]);
 
-                // 6️⃣ Send confirmation email
                 \Mail::to($submission->email)->send(new \App\Mail\PaymentSuccessMail($submission));
 
-
-                // 6️⃣ Clear session data
                 Session::forget('submission_id');
                 Session::forget('stripe_client_secret');
 

@@ -486,7 +486,21 @@ class FormDefinitionsSeeder extends Seeder
                 ['title' => 'Additional Information', 'fields' => []],
                 ['title' => 'Package Selection', 'fields' => []],
                 ['title' => 'Review & Signature', 'fields' => []],
-                ['title' => 'Payment', 'fields' => []],
+                ['title' => 'Payment', 'fields' => [
+                    $this->field('application_payment', 'Application Payment', 'payment', [
+                        'required' => true,
+                        'col_span' => 2,
+                        'help_text' => 'Pay the application fee securely online or request offline payment.',
+                        'settings' => [
+                            'amount' => 15,
+                            'currency' => 'gbp',
+                            'fee_label' => 'Application Fee',
+                            'allow_stripe' => true,
+                            'allow_offline' => true,
+                            'show_summary' => true,
+                        ],
+                    ]),
+                ]],
             ],
         ];
     }

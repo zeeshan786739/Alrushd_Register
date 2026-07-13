@@ -4,6 +4,8 @@
 
 @section('student')
 
+@php $paymentSetting = \App\Models\Setting::first(); @endphp
+
 <section>
     <div class="container py-5">
         <div class="row mb-5">
@@ -59,6 +61,7 @@
 
                 <form action="{{ route('form.step.post',7) }}" method="POST" id="stripe-form">
                     @csrf
+                    <input type="hidden" name="payment_method" id="payment_method" value="{{ ($paymentSetting->payment_method_status ?? 1) == 1 ? 'stripe' : 'offline' }}">
                     <div class="card p-5" style="background-color:#FFF;border-radius:16px;color:#000;">
                         <div class="card-bodyr">
 
@@ -71,6 +74,7 @@
 
 
                                 <!-- Card Holder Name -->
+                                @if(($paymentSetting->payment_method_status ?? 1) == 1)
                                 <div class="mb-3">
                                     <label class="form-label" style="font-size: 16px;color: #061E42;font-weight:400;">Card Holder Name</label>
                                     <input name="card_holder_name" type="text" class="form-control"
@@ -88,6 +92,11 @@
                                     <!-- Error Message -->
                                     <div id="card-errors" class="text-danger mb-3" role="alert"></div>
                                 </div>
+                                @else
+                                <div class="alert alert-info mb-3" style="border-radius: 12px;">
+                                    Online card payments are currently unavailable. Submit your details to request offline payment instructions from our admissions team.
+                                </div>
+                                @endif
 
 
 
@@ -128,7 +137,11 @@
                             <input type="hidden" name="stripeToken" id="stripe-token">
 
                             <div class="text-center mt-5">
-                                <button type="button" onclick="createToken()" class="btn custom-btn w-100">Pay Now</button>
+                                @if(($paymentSetting->payment_method_status ?? 1) == 1)
+                                <button type="button" onclick="createToken()" class="btn custom-btn w-100">Pay with Stripe</button>
+                                @else
+                                <button type="submit" class="btn custom-btn w-100">Submit Offline Payment Request</button>
+                                @endif
                             </div>
 
 
@@ -154,10 +167,10 @@
 @endsection
 
 @section('script')
+@if(($paymentSetting->payment_method_status ?? 1) == 1)
 <script src="https://js.stripe.com/v3/"></script>
 <script type="text/javascript">
-    // var stripe = Stripe('{{ env("STRIPE_KEY") }}');
-    var stripe = Stripe('{{ \App\Models\Setting::first()->stripe_key }}');
+    var stripe = Stripe('{{ $paymentSetting->stripe_key ?? '' }}');
     var elements = stripe.elements();
     var cardElement = elements.create('card');
     cardElement.mount('#card-element');
@@ -173,6 +186,7 @@
         });
     }
 </script>
+@endif
 <script>
     $(document).ready(function() {
 
