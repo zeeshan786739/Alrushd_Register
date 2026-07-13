@@ -441,14 +441,131 @@ html.ar-form-html {
     letter-spacing: normal;
 }
 
-/* Payment field */
+/* Payment field — legacy Stripe checkout layout */
 .ar-payment-field {
     grid-column: 1 / -1;
-    padding: 24px;
-    border: 1px solid rgba(15, 35, 75, 0.12);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.ar-payment-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 991px) {
+    .ar-payment-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ar-payment-summary-card {
+    padding: 32px 28px;
+    border-radius: 16px;
+    background: #0c2a58;
+    color: #fff;
+}
+
+.ar-payment-summary-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    margin-bottom: 28px;
+    border-radius: 16px;
+    background: #183e77;
+    text-align: center;
+}
+
+.ar-payment-summary-school {
+    font-size: 18px;
+    font-weight: 400;
+}
+
+.ar-payment-summary-amount {
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.ar-payment-summary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ar-payment-summary-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 15px;
+}
+
+.ar-payment-summary-total {
+    border-bottom: none !important;
+    font-weight: 600;
+    padding-top: 18px;
+}
+
+.ar-payment-form-card {
+    padding: 32px 28px;
     border-radius: 16px;
     background: #fff;
-    box-shadow: 0 4px 20px rgba(15, 35, 75, 0.06);
+    border: 1px solid rgba(15, 35, 75, 0.08);
+    box-shadow: 0 8px 28px rgba(15, 35, 75, 0.08);
+}
+
+.ar-payment-input,
+.ar-payment-select {
+    background: #edf6ff !important;
+    border: none !important;
+    color: #061e42 !important;
+    margin-bottom: 16px;
+}
+
+.ar-payment-select {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    appearance: auto;
+}
+
+.ar-payment-address {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 575px) {
+    .ar-payment-address {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ar-payment-offline-note,
+.ar-payment-unavailable {
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(25, 118, 210, 0.08);
+    color: #0c2a58;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.ar-payment-terms-link {
+    color: #ae9a66;
+    text-decoration: none;
 }
 
 .ar-payment-title {
@@ -516,10 +633,11 @@ html.ar-form-html {
 
 .ar-payment-card-element {
     padding: 14px 16px;
-    border: 1px solid rgba(15, 35, 75, 0.15);
+    border: none;
     border-radius: 12px;
-    background: #fff;
-    margin-bottom: 8px;
+    background: #edf6ff;
+    margin-bottom: 12px;
+    min-height: 46px;
 }
 
 .ar-payment-terms {

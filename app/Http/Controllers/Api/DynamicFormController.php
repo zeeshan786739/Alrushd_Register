@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\FormEntry;
+use App\Models\Country;
 use App\Models\Setting;
 use App\Services\FormBuilderService;
 use App\Services\FormOptionsResolver;
@@ -79,6 +80,7 @@ class DynamicFormController extends Controller
         $schema['payment_config'] = [
             'stripe_key' => $settings?->stripe_key,
             'online_enabled' => (bool) ($settings?->payment_method_status ?? true),
+            'countries' => Country::query()->orderBy('name')->pluck('name')->values()->all(),
         ];
         $fieldModels = $form->fields->keyBy('key');
         $schema['steps'] = collect($schema['steps'])->map(function ($step) use ($fieldModels) {

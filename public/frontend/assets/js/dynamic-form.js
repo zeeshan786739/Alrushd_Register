@@ -162,69 +162,104 @@
         return { gbp: '£', usd: '$', eur: '€' }[currency] || '';
     }
 
+    function stripeAvailableForField(field) {
+        const ps = paymentSettings(field);
+        return ps.allow_stripe && !!schema.payment_config?.stripe_key;
+    }
+
+    function paymentMethodForField(field) {
+        const ps = paymentSettings(field);
+        if (stripeAvailableForField(field)) {
+            return 'stripe';
+        }
+        if (ps.allow_offline) {
+            return 'offline';
+        }
+        return null;
+    }
+
+    function currentStepHasStripePayment() {
+        const step = schema.steps?.[currentStep];
+        if (!step) return false;
+        return (step.fields || []).some(function (field) {
+            return field.type === 'payment' && paymentMethodForField(field) === 'stripe';
+        });
+    }
+
+    function submitButtonLabel() {
+        return currentStepHasStripePayment() ? 'Pay with Stripe' : 'Submit';
+    }
+
+    function renderCountryOptions() {
+        const countries = schema.payment_config?.countries || [];
+        return ['<option value="">Select Country</option>']
+            .concat(countries.map(function (name) {
+                return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+            }))
+            .join('');
+    }
+
     function renderPaymentField(field) {
         const ps = paymentSettings(field);
         const sym = currencySymbol(ps.currency);
         const key = field.key;
-        const onlineEnabled = schema.payment_config?.online_enabled !== false;
-        const methods = [];
-        if (ps.allow_stripe && onlineEnabled && schema.payment_config?.stripe_key) {
-            methods.push(['stripe', 'Pay by card (Stripe)']);
-        }
-        if (ps.allow_offline) {
-            methods.push(['offline', 'Offline payment']);
-        }
-        if (!methods.length) {
-            methods.push(['offline', 'Offline payment']);
-        }
+        const method = paymentMethodForField(field);
+        const stripeOn = method === 'stripe';
 
-        const methodsHtml = methods.length > 1
-            ? `<div class="ar-payment-methods">${methods.map(([val, label], i) => `
-                <label class="ar-payment-method">
-                    <input type="radio" name="${escapeHtml(key)}_payment_method" value="${val}" ${i === 0 ? 'checked' : ''}>
-                    <span>${escapeHtml(label)}</span>
-                </label>`).join('')}</div>`
-            : `<input type="hidden" name="${escapeHtml(key)}_payment_method" value="${methods[0][0]}">`;
+        const methodsHtml = method
+            ? `<input type="hidden" name="${escapeHtml(key)}_payment_method" value="${method}">`
+            : `<div class="ar-payment-unavailable">Online payment is not configured. Please contact the school.</div>`;
 
-        const stripePanel = methods.some(m => m[0] === 'stripe')
+        const summaryBlock = ps.show_summary
+            ? `<div class="ar-payment-summary-card">
+                <div class="ar-payment-summary-head">
+                    <span class="ar-payment-summary-school">Pay Al-Rushd Independent School</span>
+                    <span class="ar-payment-summary-amount">${sym}${ps.amount.toFixed(2)}</span>
+                </div>
+                <ul class="ar-payment-summary-list">
+                    <li><span>${escapeHtml(ps.fee_label)}</span><strong>${sym}${ps.amount.toFixed(2)}</strong></li>
+                    <li class="ar-payment-summary-total"><span>Total Payable Amount</span><strong>${sym}${ps.amount.toFixed(2)}</strong></li>
+                </ul>
+            </div>`
+            : '';
+
+        const stripePanel = stripeOn
             ? `<div class="ar-payment-stripe-panel" data-stripe-panel="${escapeHtml(key)}">
-                <label class="ar-field-label" for="${escapeHtml(key)}_card_holder_name">Card holder name</label>
-                <input type="text" class="ar-field-input" name="${escapeHtml(key)}_card_holder_name" id="${escapeHtml(key)}_card_holder_name" ${field.required ? 'required' : ''}>
-                <label class="ar-field-label">Card details</label>
+                <label class="ar-field-label" for="${escapeHtml(key)}_card_holder_name">Card Holder Name</label>
+                <input type="text" class="ar-field-input ar-payment-input" name="${escapeHtml(key)}_card_holder_name" id="${escapeHtml(key)}_card_holder_name" placeholder="Enter name on card" ${field.required ? 'required' : ''}>
+                <label class="ar-field-label">Card Information</label>
                 <div id="${escapeHtml(key)}_card_element" class="ar-payment-card-element"></div>
                 <div class="ar-field-error" data-for="${escapeHtml(key)}_card"></div>
                 <input type="hidden" name="${escapeHtml(key)}_stripe_token" id="${escapeHtml(key)}_stripe_token">
             </div>`
-            : '';
+            : (method === 'offline'
+                ? `<div class="ar-payment-offline-note">Online card payments are currently unavailable. Submit your details to request offline payment instructions from our admissions team.</div>`
+                : '');
 
-        return `<div class="ar-payment-field ar-field--full" data-payment-field="${escapeHtml(key)}">
-            <div class="ar-payment-header">
-                <h3 class="ar-payment-title">${escapeHtml(field.label)}${reqMark(field)}</h3>
-                ${field.help_text ? `<p class="ar-payment-desc">${escapeHtml(field.help_text)}</p>` : ''}
-            </div>
-            ${ps.show_summary ? `<div class="ar-payment-summary">
-                <div class="ar-payment-line"><span>${escapeHtml(ps.fee_label)}</span><strong>${sym}${ps.amount.toFixed(2)}</strong></div>
-                <div class="ar-payment-line ar-payment-total"><span>Total payable</span><strong>${sym}${ps.amount.toFixed(2)}</strong></div>
-            </div>` : ''}
+        const formBlock = `<div class="ar-payment-form-card">
             ${methodsHtml}
-            <label class="ar-field-label" for="${escapeHtml(key)}_payment_email">Payment email</label>
-            <input type="email" class="ar-field-input" name="${escapeHtml(key)}_payment_email" id="${escapeHtml(key)}_payment_email" ${field.required ? 'required' : ''}>
+            <label class="ar-field-label" for="${escapeHtml(key)}_payment_email">Email<span class="ar-required">*</span></label>
+            <input type="email" class="ar-field-input ar-payment-input" name="${escapeHtml(key)}_payment_email" id="${escapeHtml(key)}_payment_email" placeholder="Enter your email" ${field.required ? 'required' : ''}>
             ${stripePanel}
-            <div class="ar-payment-address row g-3">
-                <div class="col-md-6">
-                    <label class="ar-field-label" for="${escapeHtml(key)}_payment_country">Country</label>
-                    <input type="text" class="ar-field-input" name="${escapeHtml(key)}_payment_country" id="${escapeHtml(key)}_payment_country" ${field.required ? 'required' : ''}>
-                </div>
-                <div class="col-md-6">
-                    <label class="ar-field-label" for="${escapeHtml(key)}_payment_postal_code">Postal code</label>
-                    <input type="text" class="ar-field-input" name="${escapeHtml(key)}_payment_postal_code" id="${escapeHtml(key)}_payment_postal_code" ${field.required ? 'required' : ''}>
-                </div>
+            <label class="ar-field-label" for="${escapeHtml(key)}_payment_country">Country or Region</label>
+            <div class="ar-payment-address">
+                <select class="ar-field-input ar-payment-input ar-payment-select" name="${escapeHtml(key)}_payment_country" id="${escapeHtml(key)}_payment_country" ${field.required ? 'required' : ''}>
+                    ${renderCountryOptions()}
+                </select>
+                <input type="text" class="ar-field-input ar-payment-input" name="${escapeHtml(key)}_payment_postal_code" id="${escapeHtml(key)}_payment_postal_code" placeholder="Postal code" ${field.required ? 'required' : ''}>
             </div>
             <label class="ar-field-check ar-payment-terms">
                 <input type="checkbox" name="${escapeHtml(key)}_payment_accept" id="${escapeHtml(key)}_payment_accept" value="1" ${field.required ? 'required' : ''}>
-                <span>I agree to the payment terms and authorise this charge.</span>
+                <span>I agree to the <a href="#" class="ar-payment-terms-link">Terms &amp; Conditions</a></span>
             </label>
             <div class="ar-field-error" data-for="${escapeHtml(field.key)}"></div>
+        </div>`;
+
+        return `<div class="ar-payment-field ar-field--full" data-payment-field="${escapeHtml(key)}">
+            <div class="ar-payment-layout">
+                ${summaryBlock}
+                ${formBlock}
+            </div>
         </div>`;
     }
 
@@ -242,10 +277,12 @@
             const card = elements.create('card', {
                 style: {
                     base: {
-                        fontSize: '15px',
-                        color: '#1A2B4B',
-                        '::placeholder': { color: '#9ca3af' },
+                        fontSize: '16px',
+                        color: '#061E42',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        '::placeholder': { color: '#6b7280' },
                     },
+                    invalid: { color: '#dc2626' },
                 },
             });
             const mountEl = document.getElementById(`${key}_card_element`);
@@ -410,6 +447,7 @@
         const isLast = currentStep >= total - 1;
         $btnNext.toggleClass('d-none', isLast);
         $btnSubmit.toggleClass('d-none', !isLast);
+        $btnSubmit.text(submitButtonLabel());
 
         renderSidebar();
         mountPaymentStripe();
@@ -539,7 +577,7 @@
     function submitForm() {
         if (!validateCurrentStep()) return;
 
-        $btnSubmit.prop('disabled', true).text('Submitting...');
+        $btnSubmit.prop('disabled', true).text(currentStepHasStripePayment() ? 'Processing...' : 'Submitting...');
 
         processPaymentBeforeSubmit()
             .then(function () {
@@ -554,7 +592,7 @@
                         window.location.href = res.success_route || `/forms/${slug}/success`;
                     },
                     error: function (xhr) {
-                        $btnSubmit.prop('disabled', false).text('Submit');
+                        $btnSubmit.prop('disabled', false).text(submitButtonLabel());
                         const msg = xhr.responseJSON?.message || 'Submission failed. Please check your entries and try again.';
                         if (typeof Swal !== 'undefined') {
                             Swal.fire({ icon: 'error', title: msg });
@@ -565,7 +603,7 @@
                 });
             })
             .catch(function (msg) {
-                $btnSubmit.prop('disabled', false).text('Submit');
+                $btnSubmit.prop('disabled', false).text(submitButtonLabel());
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({ icon: 'error', title: msg });
                 } else {

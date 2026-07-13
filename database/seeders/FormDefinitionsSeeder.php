@@ -662,7 +662,7 @@ class FormDefinitionsSeeder extends Seeder
                                 'currency' => 'gbp',
                                 'fee_label' => 'Application Fee',
                                 'allow_stripe' => true,
-                                'allow_offline' => true,
+                                'allow_offline' => false,
                                 'show_summary' => true,
                             ],
                         ]),
