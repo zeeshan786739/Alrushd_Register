@@ -171,13 +171,8 @@ Route::get('/payment-success-page', function () {
 
 
 
-Route::get('/login',function(){
-    return redirect()->route('admin.login');
-});
-
-Route::get('/register',function(){
-    return redirect()->route('admin.login');
-});
+Route::redirect('/login', '/admin/login', 301);
+Route::redirect('/register', '/admin/login', 301);
 
 Route::get('/home',function(){
 
@@ -199,7 +194,8 @@ Route::post('/user-logout', function () {
 })->name('user.logout');
 
 
-Auth::routes();
+// Disable default Laravel UI login/register — admin auth is at /admin/login
+Auth::routes(['login' => false, 'register' => false]);
 
 // Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
