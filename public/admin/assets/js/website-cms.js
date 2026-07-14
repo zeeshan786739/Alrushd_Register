@@ -17,6 +17,7 @@
 
     const editorBody = $('#wcmEditorBody');
     const moduleTitle = $('#wcmModuleTitle');
+    const moduleDesc = $('#wcmModuleDesc');
     const statusEl = $('#wcmStatus');
     const statusText = $('#wcmStatusText');
     const previewFrame = $('#wcmPreviewFrame');
@@ -473,6 +474,16 @@
         const schema = SCHEMAS[moduleId];
         const mod = W.modules.find(m => m.id === moduleId);
         moduleTitle.textContent = mod ? mod.label : moduleId;
+        if (moduleDesc) {
+            moduleDesc.textContent = mod?.description || '';
+            moduleDesc.hidden = !mod?.description;
+        }
+
+        // Hide reset on dashboard
+        const resetBtn = $('#wcmResetSection');
+        if (resetBtn) {
+            resetBtn.style.display = moduleId === 'dashboard' ? 'none' : '';
+        }
 
         if (schema?.type === 'sections_order') {
             renderSectionsOrder();
@@ -480,14 +491,69 @@
         }
 
         if (moduleId === 'dashboard') {
+            const statusChip = W.hasUnpublished
+                ? '<span class="wcm-dash-chip wcm-dash-chip--warn">Unpublished changes</span>'
+                : '<span class="wcm-dash-chip wcm-dash-chip--ok">Published live</span>';
+            const publishedLine = W.publishedAtHuman
+                ? `<span class="wcm-dash-meta">Last published ${esc(W.publishedAtHuman)}</span>`
+                : '<span class="wcm-dash-meta">Not published yet</span>';
+
+            const versionsHtml = W.versionHistory.length
+                ? `<div class="wcm-versions">
+                    <div class="wcm-versions-head">
+                        <h4>Version History</h4>
+                        <span class="wcm-versions-count">${W.versionHistory.length} saved</span>
+                    </div>
+                    <ul class="wcm-versions-list">
+                        ${W.versionHistory.map((v, i) => `
+                            <li class="wcm-versions-item">
+                                <div class="wcm-versions-info">
+                                    <span class="wcm-versions-label">${esc(v.published_at || ('Version ' + (i + 1)))}</span>
+                                    <span class="wcm-versions-note">Published snapshot</span>
+                                </div>
+                                <button type="button" class="wcm-restore-version" data-index="${i}">Restore</button>
+                            </li>`).join('')}
+                    </ul>
+                </div>`
+                : '';
+
             editorBody.innerHTML = `<div class="wcm-dashboard">
-                <div class="wcm-dash-cards">
-                    <div class="wcm-dash-card"><iconify-icon icon="solar:monitor-smartphone-linear"></iconify-icon><h3>Landing Page</h3><p>Edit hero, sections, and content</p><button type="button" class="btn btn-primary-600 btn-sm radius-8" data-goto="hero">Edit Hero</button></div>
-                    <div class="wcm-dash-card"><iconify-icon icon="solar:palette-linear"></iconify-icon><h3>Branding & Theme</h3><p>Colors, logos, typography</p><button type="button" class="btn btn-primary-600 btn-sm radius-8" data-goto="theme">Edit Theme</button></div>
-                    <div class="wcm-dash-card"><iconify-icon icon="solar:document-text-linear"></iconify-icon><h3>Forms</h3><p>Managed in Form Center</p><a href="${W.routes.formCenter}" class="btn btn-outline-primary-600 btn-sm radius-8">Open Form Center</a></div>
-                    <div class="wcm-dash-card"><iconify-icon icon="solar:magnifer-linear"></iconify-icon><h3>SEO</h3><p>Meta tags and analytics</p><button type="button" class="btn btn-primary-600 btn-sm radius-8" data-goto="seo">Edit SEO</button></div>
+                <div class="wcm-dash-intro">
+                    <div>
+                        <h3 class="wcm-dash-welcome">Landing page studio</h3>
+                        <p class="wcm-dash-welcome-sub">Edit content, theme, and SEO — preview updates on the right.</p>
+                    </div>
+                    <div class="wcm-dash-status-row">${statusChip}${publishedLine}</div>
                 </div>
-                ${W.versionHistory.length ? '<div class="wcm-versions"><h4>Version History</h4><ul>' + W.versionHistory.map((v, i) => `<li><button type="button" class="wcm-restore-version" data-index="${i}">Restore ${v.published_at || 'version ' + (i+1)}</button></li>`).join('') + '</ul></div>' : ''}
+                <div class="wcm-dash-cards wcm-dash-cards--primary">
+                    <div class="wcm-dash-card wcm-dash-card--primary">
+                        <div class="wcm-dash-card-icon"><iconify-icon icon="solar:monitor-smartphone-linear"></iconify-icon></div>
+                        <h3>Landing Page</h3>
+                        <p>Edit hero, sections, and homepage content</p>
+                        <button type="button" class="btn btn-primary-600 btn-sm radius-8" data-goto="hero">Edit Hero</button>
+                    </div>
+                    <div class="wcm-dash-card wcm-dash-card--primary">
+                        <div class="wcm-dash-card-icon"><iconify-icon icon="solar:palette-linear"></iconify-icon></div>
+                        <h3>Branding &amp; Theme</h3>
+                        <p>Colors, logos, and typography</p>
+                        <button type="button" class="btn btn-primary-600 btn-sm radius-8" data-goto="theme">Edit Theme</button>
+                    </div>
+                </div>
+                <div class="wcm-dash-cards wcm-dash-cards--secondary">
+                    <div class="wcm-dash-card">
+                        <div class="wcm-dash-card-icon"><iconify-icon icon="solar:magnifer-linear"></iconify-icon></div>
+                        <h3>SEO</h3>
+                        <p>Meta tags and search settings</p>
+                        <button type="button" class="btn btn-primary-600 btn-sm radius-8" data-goto="seo">Edit SEO</button>
+                    </div>
+                    <div class="wcm-dash-card">
+                        <div class="wcm-dash-card-icon"><iconify-icon icon="solar:document-text-linear"></iconify-icon></div>
+                        <h3>Forms</h3>
+                        <p>Managed in Form Center</p>
+                        <a href="${W.routes.formCenter}" class="btn btn-outline-primary-600 btn-sm radius-8">Open Form Center</a>
+                    </div>
+                </div>
+                ${versionsHtml}
             </div>`;
             bindDashboard();
             return;
