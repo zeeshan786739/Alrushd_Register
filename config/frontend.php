@@ -20,7 +20,7 @@ return [
         ],
         [
             'label' => 'Student Admission',
-            'href' => '/student-admission/step/1',
+            'href' => '/forms/student-admission',
             'variant' => 'outline',
         ],
         [
@@ -47,7 +47,7 @@ return [
     */
     'ctas' => [
         'book_a_call' => '/book-a-call',
-        'student_admission' => '/student-admission/step/1',
+        'student_admission' => '/forms/student-admission',
         'enquire_now' => '/enquire-now',
         'referral' => '/referral',
         'open_event' => '/open-event',
@@ -84,7 +84,6 @@ return [
     |--------------------------------------------------------------------------
     */
     'spa_legacy_routes' => [
-        'student-admission',
         'book-a-call',
         'open-event',
         'admin/login',

@@ -96,6 +96,7 @@ return [
         'radio' => 'Radio buttons',
         'checkbox' => 'Checkbox',
         'file' => 'File upload',
+        'payment' => 'Payment (Stripe)',
         'section' => 'Section divider',
         'repeater' => 'Repeatable group',
     ],

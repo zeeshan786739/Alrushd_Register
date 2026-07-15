@@ -2251,6 +2251,84 @@ form.bg-primary .form-select {
 .fc-preview-section--break-before { grid-column: 1 / -1; }
 .fc-preview-section--break-after + .fc-preview-field { clear: both; }
 
+/* Payment field — builder */
+.fc-v2-field-row--payment {
+    grid-template-columns: 28px 28px minmax(0, 1fr) auto auto;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(69, 105, 230, 0.04));
+    border-color: rgba(16, 185, 129, 0.35);
+}
+.fc-v2-row-badge--payment {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+}
+.fc-preview-payment {
+    grid-column: 1 / -1;
+    padding: 16px;
+    border: 1px solid #ddd8cc;
+    border-radius: 12px;
+    background: #fff;
+}
+.fc-preview-payment-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.fc-preview-payment-head iconify-icon {
+    font-size: 24px;
+    color: var(--crm-brand);
+}
+.fc-preview-payment-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1A2B4B;
+}
+.fc-preview-payment-desc {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+.fc-preview-payment-summary {
+    background: #F9F7F0;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+.fc-preview-payment-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 0;
+    color: #4b5563;
+}
+.fc-preview-payment-total {
+    border-top: 1px solid #ddd8cc;
+    margin-top: 6px;
+    padding-top: 8px;
+    font-weight: 700;
+    color: #1A2B4B;
+}
+.fc-preview-payment-methods {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.fc-preview-payment-chip {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--crm-brand-soft);
+    color: var(--crm-brand);
+}
+.fc-preview-payment-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+
 /* Option picker — Admission Form module values */
 .fc-option-builder {
     margin-top: 8px;

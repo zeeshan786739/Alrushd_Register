@@ -2,17 +2,17 @@
 window.FormBuilder = (function () {
     'use strict';
 
-    const FIELD_TYPES = ['section', 'text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'radio', 'checkbox', 'file'];
+    const FIELD_TYPES = ['section', 'text', 'email', 'tel', 'number', 'date', 'textarea', 'select', 'radio', 'checkbox', 'file', 'payment'];
     const FIELD_TYPE_LABELS = {
         section: 'Section', text: 'Short text', email: 'Email', tel: 'Phone', number: 'Number', date: 'Date',
-        textarea: 'Long text', select: 'Dropdown', radio: 'Radio', checkbox: 'Checkbox', file: 'File',
+        textarea: 'Long text', select: 'Dropdown', radio: 'Radio', checkbox: 'Checkbox', file: 'File', payment: 'Payment',
     };
     const FIELD_TYPE_ICONS = {
         section: 'solar:widget-5-linear',
         text: 'solar:text-field-linear', email: 'solar:letter-linear', tel: 'solar:phone-linear',
         number: 'solar:hashtag-linear', date: 'solar:calendar-linear', textarea: 'solar:align-left-linear',
         select: 'solar:alt-arrow-down-linear', radio: 'solar:record-circle-linear',
-        checkbox: 'solar:check-square-linear', file: 'solar:upload-linear',
+        checkbox: 'solar:check-square-linear', file: 'solar:upload-linear', payment: 'solar:card-linear',
     };
     let OPTIONS_SOURCES = Object.keys({
         '': 'Static',
@@ -72,6 +72,31 @@ window.FormBuilder = (function () {
 
     function esc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+
+    function getPaymentSettings(field) {
+        const s = field?.settings || {};
+        return {
+            amount: parseFloat(s.amount ?? 15) || 15,
+            currency: (s.currency || 'gbp').toLowerCase(),
+            fee_label: s.fee_label || 'Application Fee',
+            allow_stripe: s.allow_stripe !== false,
+            allow_offline: !!s.allow_offline,
+            show_summary: s.show_summary !== false,
+        };
+    }
+
+    function collectPaymentFromInspector(f, root) {
+        f.settings = f.settings || {};
+        f.settings.amount = parseFloat(root.querySelector('[data-f="payment_amount"]')?.value || '15') || 15;
+        f.settings.currency = root.querySelector('[data-f="payment_currency"]')?.value || 'gbp';
+        f.settings.fee_label = root.querySelector('[data-f="fee_label"]')?.value || 'Application Fee';
+        f.settings.allow_stripe = root.querySelector('[data-f="allow_stripe"]')?.checked !== false;
+        f.settings.allow_offline = root.querySelector('[data-f="allow_offline"]')?.checked === true;
+        f.settings.show_summary = root.querySelector('[data-f="show_summary"]')?.checked !== false;
+        f.required = root.querySelector('[data-f="required"]')?.checked ?? true;
+        f.width = 'full';
+        f.col_span = 2;
     }
 
     function getSectionSettings(field) {
@@ -215,6 +240,16 @@ window.FormBuilder = (function () {
                     f.help_text = f.help_text || f.settings?.help_text || '';
                     f.width = f.col_span === 1 ? 'half' : (f.width || 'full');
                 }
+                if (f.type === 'payment') {
+                    f.settings = f.settings || {};
+                    if (f.settings.amount === undefined) f.settings.amount = 15;
+                    if (!f.settings.currency) f.settings.currency = 'gbp';
+                    if (!f.settings.fee_label) f.settings.fee_label = 'Application Fee';
+                    if (f.settings.allow_stripe === undefined) f.settings.allow_stripe = true;
+                    if (f.settings.allow_offline === undefined) f.settings.allow_offline = false;
+                    if (f.settings.show_summary === undefined) f.settings.show_summary = true;
+                    f.width = 'full';
+                }
             });
         });
         return s;
@@ -268,6 +303,11 @@ window.FormBuilder = (function () {
         f.type = root.querySelector('[data-f="type"]')?.value || f.type;
         if (f.type === 'section') {
             collectSectionFromInspector(f, root);
+            return;
+        }
+        if (f.type === 'payment') {
+            collectPaymentFromInspector(f, root);
+            f.help_text = root.querySelector('[data-f="help_text"]')?.value || '';
             return;
         }
         f.placeholder = root.querySelector('[data-f="placeholder"]')?.value || '';
@@ -731,7 +771,32 @@ window.FormBuilder = (function () {
             </div>`;
         }
 
-        const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t =>
+        if (field.type === 'payment') {
+            const ps = getPaymentSettings(field);
+            const sym = ps.currency === 'gbp' ? '£' : (ps.currency === 'usd' ? '$' : '');
+            return `
+            <div class="fc-v2-field-row fc-v2-field-row--payment ${isSelected ? 'is-selected' : ''} ${field.required ? 'is-required' : ''}" data-step-index="${si}" data-field-index="${fi}" data-select-field="${si},${fi}">
+                <span class="fc-drag-handle"><iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon></span>
+                <iconify-icon icon="solar:card-linear" class="fc-v2-row-icon"></iconify-icon>
+                <input class="fc-v2-row-label" data-f="label" value="${esc(field.label)}" placeholder="Payment block title">
+                <input type="hidden" data-f="key" value="${esc(field.key)}">
+                <input type="hidden" data-f="type" value="payment">
+                <span class="fc-v2-row-badge fc-v2-row-badge--payment" title="Payment methods">${sym}${ps.amount.toFixed(2)}</span>
+                <div class="fc-v2-row-actions">
+                    <button type="button" class="fc-v2-row-action" data-edit-field="${si},${fi}" title="Payment settings">
+                        <iconify-icon icon="solar:settings-linear"></iconify-icon>
+                    </button>
+                    <button type="button" class="fc-v2-row-action" data-duplicate-field data-step-index="${si}" data-field-index="${fi}" title="Duplicate">
+                        <iconify-icon icon="solar:copy-linear"></iconify-icon>
+                    </button>
+                    <button type="button" class="fc-v2-row-action fc-v2-row-action--danger" data-remove-field data-step-index="${si}" data-field-index="${fi}" title="Delete">
+                        <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        const typeOpts = FIELD_TYPES.filter(t => !['section', 'payment'].includes(t)).map(t =>
             `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`
         ).join('');
 
@@ -846,8 +911,74 @@ window.FormBuilder = (function () {
             </div>`;
         }
 
+        if (field.type === 'payment') {
+            const ps = getPaymentSettings(field);
+            return `
+            <div class="fc-v2-inspector-head">
+                <iconify-icon icon="solar:card-linear"></iconify-icon>
+                <div>
+                    <h4>Payment</h4>
+                    <p>Stripe card payments on your form</p>
+                </div>
+                <button type="button" class="fc-v2-inspector-close" id="closeInspectorBtn" title="Close">
+                    <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+                </button>
+            </div>
+
+            <div class="fc-v2-inspector-section">
+                <h5 class="fc-v2-inspector-section-title">Display</h5>
+                <label class="fc-v2-inspector-label">Block title</label>
+                <input class="form-control radius-8" data-f="label" value="${esc(field.label)}" placeholder="e.g. Application Payment">
+                <input type="hidden" data-f="type" value="payment">
+                <input type="hidden" data-f="key" value="${esc(field.key)}">
+                <label class="fc-v2-inspector-label">Description <span class="text-muted">(optional)</span></label>
+                <textarea class="form-control radius-8" rows="2" data-f="help_text" placeholder="Shown above the payment form">${esc(field.help_text || '')}</textarea>
+            </div>
+
+            <div class="fc-v2-inspector-section">
+                <h5 class="fc-v2-inspector-section-title">Amount</h5>
+                <label class="fc-v2-inspector-label">Fee label</label>
+                <input class="form-control radius-8" data-f="fee_label" value="${esc(ps.fee_label)}" placeholder="Application Fee">
+                <div class="row g-2">
+                    <div class="col-8">
+                        <label class="fc-v2-inspector-label">Amount</label>
+                        <input type="number" min="0" step="0.01" class="form-control radius-8" data-f="payment_amount" value="${ps.amount}">
+                    </div>
+                    <div class="col-4">
+                        <label class="fc-v2-inspector-label">Currency</label>
+                        <select class="form-select radius-8" data-f="payment_currency">
+                            <option value="gbp" ${ps.currency === 'gbp' ? 'selected' : ''}>GBP (£)</option>
+                            <option value="usd" ${ps.currency === 'usd' ? 'selected' : ''}>USD ($)</option>
+                            <option value="eur" ${ps.currency === 'eur' ? 'selected' : ''}>EUR (€)</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="fc-v2-toggle-row mt-2">
+                    <span><strong>Show order summary</strong><small>Display fee breakdown above card form</small></span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="show_summary" ${ps.show_summary ? 'checked' : ''}>
+                </label>
+            </div>
+
+            <div class="fc-v2-inspector-section">
+                <h5 class="fc-v2-inspector-section-title">Payment methods</h5>
+                <p class="text-secondary-light text-sm mb-12">Stripe keys are configured in <strong>Admin → Settings</strong>. Enable methods below.</p>
+                <label class="fc-v2-toggle-row">
+                    <span><strong>Stripe (card)</strong><small>Secure online card payment</small></span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="allow_stripe" ${ps.allow_stripe ? 'checked' : ''}>
+                </label>
+                <label class="fc-v2-toggle-row">
+                    <span><strong>Offline payment</strong><small>Manual / bank transfer request</small></span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="allow_offline" ${ps.allow_offline ? 'checked' : ''}>
+                </label>
+                <label class="fc-v2-toggle-row">
+                    <span><strong>Required</strong><small>Users must complete payment to submit</small></span>
+                    <input type="checkbox" class="fc-v2-switch" data-f="required" ${field.required ? 'checked' : ''}>
+                </label>
+            </div>`;
+        }
+
         const optLines = (field.options || []).join('\n');
-        const typeOpts = FIELD_TYPES.filter(t => t !== 'section').map(t =>
+        const typeOpts = FIELD_TYPES.filter(t => !['section', 'payment'].includes(t)).map(t =>
             `<option value="${t}" ${field.type === t ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`
         ).join('');
         const srcOpts = buildGroupedSourceOptions(field);
@@ -982,6 +1113,9 @@ window.FormBuilder = (function () {
                 if (field.type === 'section') {
                     updateSectionLivePreview(root, field);
                     syncListRowFromField(selectedField.si, selectedField.fi, field);
+                } else if (field.type === 'payment') {
+                    collectFieldFromInspector(field);
+                    syncListRowFromField(selectedField.si, selectedField.fi, field);
                 } else if (el.dataset.f === 'label') {
                     syncListRowFromField(selectedField.si, selectedField.fi, field);
                 }
@@ -1018,6 +1152,10 @@ window.FormBuilder = (function () {
                     } else {
                         syncListRowFromField(selectedField.si, selectedField.fi, field);
                     }
+                } else if (field.type === 'payment') {
+                    collectFieldFromInspector(field);
+                    renderFieldList();
+                    syncListRowFromField(selectedField.si, selectedField.fi, field);
                 } else {
                     syncListRowFromField(selectedField.si, selectedField.fi, field);
                 }
@@ -1255,6 +1393,35 @@ window.FormBuilder = (function () {
             return `<div class="${classes}"><h4 class="fc-preview-section__title">${esc(field.label)}</h4>${desc}</div>`;
         }
 
+        if (field.type === 'payment') {
+            const ps = getPaymentSettings(field);
+            const sym = ps.currency === 'gbp' ? '£' : (ps.currency === 'usd' ? '$' : '€');
+            const methods = [];
+            if (ps.allow_stripe) methods.push('Stripe');
+            if (ps.allow_offline) methods.push('Offline');
+            return `<div class="fc-preview-payment fc-preview-field--full">
+                <div class="fc-preview-payment-head">
+                    <iconify-icon icon="solar:card-linear"></iconify-icon>
+                    <div>
+                        <h4 class="fc-preview-payment-title">${esc(field.label || 'Payment')}${req}</h4>
+                        ${field.help_text ? `<p class="fc-preview-payment-desc">${esc(field.help_text)}</p>` : ''}
+                    </div>
+                </div>
+                ${ps.show_summary ? `<div class="fc-preview-payment-summary">
+                    <div class="fc-preview-payment-line"><span>${esc(ps.fee_label)}</span><strong>${sym}${ps.amount.toFixed(2)}</strong></div>
+                    <div class="fc-preview-payment-line fc-preview-payment-total"><span>Total</span><strong>${sym}${ps.amount.toFixed(2)}</strong></div>
+                </div>` : ''}
+                <div class="fc-preview-payment-methods">${methods.map(m => `<span class="fc-preview-payment-chip">${m}</span>`).join('')}</div>
+                <div class="fc-preview-payment-form">
+                    <div class="fc-preview-input" disabled>Card number</div>
+                    <div class="fc-preview-payment-row">
+                        <div class="fc-preview-input" disabled>MM / YY</div>
+                        <div class="fc-preview-input" disabled>CVC</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
         let input = '';
         switch (field.type) {
             case 'textarea':
@@ -1348,6 +1515,26 @@ window.FormBuilder = (function () {
                     collapsed: false,
                 },
             });
+        } else if (type === 'payment') {
+            step.fields.push({
+                key: 'payment_' + Date.now(),
+                label: 'Payment',
+                type: 'payment',
+                required: true,
+                help_text: '',
+                options: [],
+                options_source: '',
+                width: 'full',
+                col_span: 2,
+                settings: {
+                    amount: 15,
+                    currency: 'gbp',
+                    fee_label: 'Application Fee',
+                    allow_stripe: true,
+                    allow_offline: false,
+                    show_summary: true,
+                },
+            });
         } else {
             step.fields.push({
                 key: 'field_' + activeFieldStep + '_' + fi,
@@ -1394,6 +1581,9 @@ window.FormBuilder = (function () {
         state.steps.forEach(step => {
             (step.fields || []).forEach(field => {
                 if (field.type === 'section') {
+                    field.col_span = 2;
+                    field.settings = field.settings || {};
+                } else if (field.type === 'payment') {
                     field.col_span = 2;
                     field.settings = field.settings || {};
                 } else {

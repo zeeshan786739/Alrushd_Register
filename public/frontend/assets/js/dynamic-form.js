@@ -12,6 +12,7 @@
     let schema = null;
     let currentStep = 0;
     let repeaterCounts = {};
+    let stripeInstances = {};
 
     const $loading = $('#formLoading');
     const $error = $('#formError');
@@ -145,6 +146,153 @@
         return classes.join(' ');
     }
 
+    function paymentSettings(field) {
+        const s = field.settings || {};
+        return {
+            amount: parseFloat(s.amount ?? 15) || 15,
+            currency: (s.currency || 'gbp').toLowerCase(),
+            fee_label: s.fee_label || 'Application Fee',
+            allow_stripe: s.allow_stripe !== false,
+            allow_offline: !!s.allow_offline,
+            show_summary: s.show_summary !== false,
+        };
+    }
+
+    function currencySymbol(currency) {
+        return { gbp: '£', usd: '$', eur: '€' }[currency] || '';
+    }
+
+    function stripeAvailableForField(field) {
+        const ps = paymentSettings(field);
+        return ps.allow_stripe && !!schema.payment_config?.stripe_key;
+    }
+
+    function paymentMethodForField(field) {
+        const ps = paymentSettings(field);
+        if (stripeAvailableForField(field)) {
+            return 'stripe';
+        }
+        if (ps.allow_offline) {
+            return 'offline';
+        }
+        return null;
+    }
+
+    function currentStepHasStripePayment() {
+        const step = schema.steps?.[currentStep];
+        if (!step) return false;
+        return (step.fields || []).some(function (field) {
+            return field.type === 'payment' && paymentMethodForField(field) === 'stripe';
+        });
+    }
+
+    function submitButtonLabel() {
+        return currentStepHasStripePayment() ? 'Pay with Stripe' : 'Submit';
+    }
+
+    function renderCountryOptions() {
+        const countries = schema.payment_config?.countries || [];
+        return ['<option value="">Select Country</option>']
+            .concat(countries.map(function (name) {
+                return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+            }))
+            .join('');
+    }
+
+    function renderPaymentField(field) {
+        const ps = paymentSettings(field);
+        const sym = currencySymbol(ps.currency);
+        const key = field.key;
+        const method = paymentMethodForField(field);
+        const stripeOn = method === 'stripe';
+
+        const methodsHtml = method
+            ? `<input type="hidden" name="${escapeHtml(key)}_payment_method" value="${method}">`
+            : `<div class="ar-payment-unavailable">Online payment is not configured. Please contact the school.</div>`;
+
+        const summaryBlock = ps.show_summary
+            ? `<div class="ar-payment-summary-card">
+                <div class="ar-payment-summary-head">
+                    <span class="ar-payment-summary-school">Pay Al-Rushd Independent School</span>
+                    <span class="ar-payment-summary-amount">${sym}${ps.amount.toFixed(2)}</span>
+                </div>
+                <ul class="ar-payment-summary-list">
+                    <li><span>${escapeHtml(ps.fee_label)}</span><strong>${sym}${ps.amount.toFixed(2)}</strong></li>
+                    <li class="ar-payment-summary-total"><span>Total Payable Amount</span><strong>${sym}${ps.amount.toFixed(2)}</strong></li>
+                </ul>
+            </div>`
+            : '';
+
+        const stripePanel = stripeOn
+            ? `<div class="ar-payment-stripe-panel" data-stripe-panel="${escapeHtml(key)}">
+                <label class="ar-field-label" for="${escapeHtml(key)}_card_holder_name">Card Holder Name</label>
+                <input type="text" class="ar-field-input ar-payment-input" name="${escapeHtml(key)}_card_holder_name" id="${escapeHtml(key)}_card_holder_name" placeholder="Enter name on card" ${field.required ? 'required' : ''}>
+                <label class="ar-field-label">Card Information</label>
+                <div id="${escapeHtml(key)}_card_element" class="ar-payment-card-element"></div>
+                <div class="ar-field-error" data-for="${escapeHtml(key)}_card"></div>
+                <input type="hidden" name="${escapeHtml(key)}_stripe_token" id="${escapeHtml(key)}_stripe_token">
+            </div>`
+            : (method === 'offline'
+                ? `<div class="ar-payment-offline-note">Online card payments are currently unavailable. Submit your details to request offline payment instructions from our admissions team.</div>`
+                : '');
+
+        const formBlock = `<div class="ar-payment-form-card">
+            ${methodsHtml}
+            <label class="ar-field-label" for="${escapeHtml(key)}_payment_email">Email<span class="ar-required">*</span></label>
+            <input type="email" class="ar-field-input ar-payment-input" name="${escapeHtml(key)}_payment_email" id="${escapeHtml(key)}_payment_email" placeholder="Enter your email" ${field.required ? 'required' : ''}>
+            ${stripePanel}
+            <label class="ar-field-label" for="${escapeHtml(key)}_payment_country">Country or Region</label>
+            <div class="ar-payment-address">
+                <select class="ar-field-input ar-payment-input ar-payment-select" name="${escapeHtml(key)}_payment_country" id="${escapeHtml(key)}_payment_country" ${field.required ? 'required' : ''}>
+                    ${renderCountryOptions()}
+                </select>
+                <input type="text" class="ar-field-input ar-payment-input" name="${escapeHtml(key)}_payment_postal_code" id="${escapeHtml(key)}_payment_postal_code" placeholder="Postal code" ${field.required ? 'required' : ''}>
+            </div>
+            <label class="ar-field-check ar-payment-terms">
+                <input type="checkbox" name="${escapeHtml(key)}_payment_accept" id="${escapeHtml(key)}_payment_accept" value="1" ${field.required ? 'required' : ''}>
+                <span>I agree to the <a href="#" class="ar-payment-terms-link">Terms &amp; Conditions</a></span>
+            </label>
+            <div class="ar-field-error" data-for="${escapeHtml(field.key)}"></div>
+        </div>`;
+
+        return `<div class="ar-payment-field ar-field--full" data-payment-field="${escapeHtml(key)}">
+            <div class="ar-payment-layout">
+                ${summaryBlock}
+                ${formBlock}
+            </div>
+        </div>`;
+    }
+
+    function mountPaymentStripe() {
+        stripeInstances = {};
+        if (!window.Stripe || !schema.payment_config?.stripe_key) return;
+
+        $('.ar-payment-field').each(function () {
+            const key = $(this).data('payment-field');
+            const $panel = $(this).find(`[data-stripe-panel="${key}"]`);
+            if (!$panel.length || $panel.is(':hidden')) return;
+
+            const stripe = window.Stripe(schema.payment_config.stripe_key);
+            const elements = stripe.elements();
+            const card = elements.create('card', {
+                style: {
+                    base: {
+                        fontSize: '16px',
+                        color: '#061E42',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        '::placeholder': { color: '#6b7280' },
+                    },
+                    invalid: { color: '#dc2626' },
+                },
+            });
+            const mountEl = document.getElementById(`${key}_card_element`);
+            if (!mountEl) return;
+            mountEl.innerHTML = '';
+            card.mount(`#${key}_card_element`);
+            stripeInstances[key] = { stripe, card };
+        });
+    }
+
     function renderField(field) {
         if (field.type === 'section') {
             const desc = field.settings?.help_text || field.help_text;
@@ -155,6 +303,10 @@
                 <h3 class="ar-form-section__title">${escapeHtml(field.label)}</h3>
                 ${descHtml}
             </div>`;
+        }
+
+        if (field.type === 'payment') {
+            return renderPaymentField(field);
         }
 
         const col = fieldWidthClass(field.col_span || 2);
@@ -262,6 +414,7 @@
         if ($.fn.select2) {
             $('.select2-field').select2({ width: '100%', minimumResultsForSearch: 10 });
         }
+        mountPaymentStripe();
     }
 
     function totalSteps() {
@@ -294,8 +447,10 @@
         const isLast = currentStep >= total - 1;
         $btnNext.toggleClass('d-none', isLast);
         $btnSubmit.toggleClass('d-none', !isLast);
+        $btnSubmit.text(submitButtonLabel());
 
         renderSidebar();
+        mountPaymentStripe();
     }
 
     function clearErrors() {
@@ -314,6 +469,28 @@
         let valid = true;
         (step.fields || []).forEach(function (field) {
             if (field.type === 'section' || !field.required) return;
+
+            if (field.type === 'payment') {
+                const key = field.key;
+                const method = $(`[name="${key}_payment_method"]:checked`).val() || $(`[name="${key}_payment_method"]`).val();
+                if (!$('#' + key + '_payment_email').val()) {
+                    showFieldError(field.key, 'Payment email is required.');
+                    valid = false;
+                }
+                if (!$('#' + key + '_payment_country').val() || !$('#' + key + '_payment_postal_code').val()) {
+                    showFieldError(field.key, 'Country and postal code are required.');
+                    valid = false;
+                }
+                if (!$('#' + key + '_payment_accept').is(':checked')) {
+                    showFieldError(field.key, 'You must accept the payment terms.');
+                    valid = false;
+                }
+                if (method === 'stripe' && !$('#' + key + '_card_holder_name').val()) {
+                    showFieldError(field.key, 'Card holder name is required.');
+                    valid = false;
+                }
+                return;
+            }
 
             if (field.type === 'checkbox') {
                 if (!$('#field_' + field.key).is(':checked')) {
@@ -357,27 +534,82 @@
         return formData;
     }
 
+    function processPaymentBeforeSubmit() {
+        return new Promise(function (resolve, reject) {
+            const paymentFields = [];
+            (schema.steps || []).forEach(function (step) {
+                (step.fields || []).forEach(function (field) {
+                    if (field.type === 'payment') paymentFields.push(field);
+                });
+            });
+
+            if (!paymentFields.length) {
+                resolve();
+                return;
+            }
+
+            const field = paymentFields[0];
+            const key = field.key;
+            const method = $(`[name="${key}_payment_method"]:checked`).val() || $(`[name="${key}_payment_method"]`).val();
+
+            if (method === 'offline') {
+                resolve();
+                return;
+            }
+
+            const inst = stripeInstances[key];
+            if (!inst) {
+                reject('Card payments are not available. Please contact the school.');
+                return;
+            }
+
+            inst.stripe.createToken(inst.card).then(function (result) {
+                if (result.error) {
+                    reject(result.error.message);
+                } else {
+                    $('#' + key + '_stripe_token').val(result.token.id);
+                    resolve();
+                }
+            });
+        });
+    }
+
     function submitForm() {
         if (!validateCurrentStep()) return;
 
-        $btnSubmit.prop('disabled', true).text('Submitting...');
+        $btnSubmit.prop('disabled', true).text(currentStepHasStripePayment() ? 'Processing...' : 'Submitting...');
 
-        $.ajax({
-            url: `${apiBase}/${slug}/submit`,
-            method: 'POST',
-            data: buildFormData(),
-            processData: false,
-            contentType: false,
-            headers: { 'X-CSRF-TOKEN': csrfToken },
-            success: function (res) {
-                window.location.href = res.success_route || `/forms/${slug}/success`;
-            },
-            error: function (xhr) {
-                $btnSubmit.prop('disabled', false).text('Submit');
-                const msg = xhr.responseJSON?.message || 'Submission failed. Please check your entries and try again.';
-                Swal.fire({ icon: 'error', title: msg });
-            }
-        });
+        processPaymentBeforeSubmit()
+            .then(function () {
+                $.ajax({
+                    url: `${apiBase}/${slug}/submit`,
+                    method: 'POST',
+                    data: buildFormData(),
+                    processData: false,
+                    contentType: false,
+                    headers: { 'X-CSRF-TOKEN': csrfToken },
+                    success: function (res) {
+                        window.location.href = res.success_route || `/forms/${slug}/success`;
+                    },
+                    error: function (xhr) {
+                        $btnSubmit.prop('disabled', false).text(submitButtonLabel());
+                        const msg = xhr.responseJSON?.message || 'Submission failed. Please check your entries and try again.';
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({ icon: 'error', title: msg });
+                        } else {
+                            alert(msg);
+                        }
+                    }
+                });
+            })
+            .catch(function (msg) {
+                $btnSubmit.prop('disabled', false).text(submitButtonLabel());
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: msg });
+                } else {
+                    alert(msg);
+                }
+            });
     }
 
     function bindEvents() {
@@ -421,6 +653,18 @@
             const name = this.files?.[0]?.name;
             if (name && $label.length) {
                 $label.find('span').first().text(name);
+            }
+        });
+
+        $stepsContainer.on('change', 'input[name$="_payment_method"]', function () {
+            const key = this.name.replace('_payment_method', '');
+            const method = $(this).val();
+            const $panel = $(`[data-stripe-panel="${key}"]`);
+            if (method === 'stripe') {
+                $panel.show();
+                mountPaymentStripe();
+            } else {
+                $panel.hide();
             }
         });
     }

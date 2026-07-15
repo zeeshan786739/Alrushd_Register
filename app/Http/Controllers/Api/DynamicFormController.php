@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\FormEntry;
+use App\Models\Country;
+use App\Models\Setting;
 use App\Services\FormBuilderService;
 use App\Services\FormOptionsResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Stripe\Stripe;
 
 class DynamicFormController extends Controller
 {
@@ -73,6 +76,12 @@ class DynamicFormController extends Controller
 
         $schema = $this->builder->toSchema($form);
         $schema['success_route'] = $form->successPath();
+        $settings = Setting::first();
+        $schema['payment_config'] = [
+            'stripe_key' => $settings?->stripe_key,
+            'online_enabled' => (bool) ($settings?->payment_method_status ?? true),
+            'countries' => Country::query()->orderBy('name')->pluck('name')->values()->all(),
+        ];
         $fieldModels = $form->fields->keyBy('key');
         $schema['steps'] = collect($schema['steps'])->map(function ($step) use ($fieldModels) {
             $step['fields'] = collect($step['fields'])->map(function ($field) use ($fieldModels) {
@@ -95,6 +104,21 @@ class DynamicFormController extends Controller
         $data = [];
         foreach ($form->fields as $field) {
             $field->setRelation('form', $form);
+            if ($field->type === 'payment') {
+                try {
+                    $value = $this->extractPayment($request, $field);
+                } catch (\InvalidArgumentException $e) {
+                    return response()->json(['message' => $e->getMessage()], 422);
+                }
+                if ($field->required && empty($value)) {
+                    return response()->json(['message' => "{$field->label} is required."], 422);
+                }
+                if ($value !== null) {
+                    $data[$field->key] = $value;
+                }
+                continue;
+            }
+
             $value = $this->extractFieldValue($request, $field);
             if ($field->required && ($value === null || $value === '' || $value === [])) {
                 return response()->json(['message' => "{$field->label} is required."], 422);
@@ -180,5 +204,72 @@ class DynamicFormController extends Controller
         }
 
         return $result;
+    }
+
+    private function extractPayment(Request $request, $field): ?array
+    {
+        $key = $field->key;
+        $settings = $field->settings ?? [];
+        $method = $request->input("{$key}_payment_method", 'stripe');
+
+        if ($method === 'offline' && empty($settings['allow_offline'])) {
+            throw new \InvalidArgumentException('Offline payment is not enabled for this form.');
+        }
+
+        if ($method === 'stripe' && ($settings['allow_stripe'] ?? true) === false) {
+            throw new \InvalidArgumentException('Online payment is not enabled for this form.');
+        }
+
+        $payment = [
+            'method' => $method,
+            'amount' => (float) ($settings['amount'] ?? 0),
+            'currency' => strtolower($settings['currency'] ?? 'gbp'),
+            'email' => $request->input("{$key}_payment_email"),
+            'country' => $request->input("{$key}_payment_country"),
+            'postal_code' => $request->input("{$key}_payment_postal_code"),
+            'card_holder_name' => $request->input("{$key}_card_holder_name"),
+            'accepted_terms' => $request->boolean("{$key}_payment_accept"),
+        ];
+
+        if ($field->required) {
+            if (! $payment['email'] || ! $payment['country'] || ! $payment['postal_code']) {
+                throw new \InvalidArgumentException('Please complete all payment details.');
+            }
+            if (! $payment['accepted_terms']) {
+                throw new \InvalidArgumentException('You must accept the payment terms.');
+            }
+            if ($method === 'stripe' && ! $payment['card_holder_name']) {
+                throw new \InvalidArgumentException('Card holder name is required.');
+            }
+        }
+
+        if ($method === 'stripe') {
+            $token = $request->input("{$key}_stripe_token");
+            if (! $token) {
+                throw new \InvalidArgumentException('Card payment could not be processed. Please check your card details.');
+            }
+
+            $siteSettings = Setting::first();
+            if (! $siteSettings?->stripe_secret) {
+                throw new \InvalidArgumentException('Stripe is not configured. Please contact the school.');
+            }
+
+            Stripe::setApiKey($siteSettings->stripe_secret);
+
+            $charge = \Stripe\Charge::create([
+                'amount' => (int) round($payment['amount'] * 100),
+                'currency' => $payment['currency'],
+                'source' => $token,
+                'description' => 'Form payment: '.($field->form->name ?? 'Form'),
+                'receipt_email' => $payment['email'],
+            ]);
+
+            $payment['transaction_id'] = $charge->id;
+            $payment['status'] = 'paid';
+        } else {
+            $payment['status'] = 'pending_offline';
+        }
+
+        return $payment;
     }
 }

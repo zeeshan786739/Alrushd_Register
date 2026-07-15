@@ -35,11 +35,19 @@
         {{-- Sidebar modules --}}
         <aside class="wcm-sidebar" id="wcmSidebar">
             <nav class="wcm-nav">
-                @foreach($modules as $mod)
-                <button type="button" class="wcm-nav-item {{ $loop->first ? 'is-active' : '' }}" data-module="{{ $mod['id'] }}">
-                    <iconify-icon icon="{{ $mod['icon'] }}"></iconify-icon>
-                    <span>{{ $mod['label'] }}</span>
-                </button>
+                @php
+                    $navGroups = collect($modules)->groupBy(fn ($m) => $m['group'] ?? 'Other');
+                @endphp
+                @foreach($navGroups as $groupLabel => $groupMods)
+                <div class="wcm-nav-group">
+                    <div class="wcm-nav-group-label">{{ $groupLabel }}</div>
+                    @foreach($groupMods as $mod)
+                    <button type="button" class="wcm-nav-item {{ ($mod['id'] ?? '') === 'dashboard' ? 'is-active' : '' }}" data-module="{{ $mod['id'] }}">
+                        <iconify-icon icon="{{ $mod['icon'] }}"></iconify-icon>
+                        <span>{{ $mod['label'] }}</span>
+                    </button>
+                    @endforeach
+                </div>
                 @endforeach
             </nav>
         </aside>
@@ -47,7 +55,10 @@
         {{-- Editor panel --}}
         <main class="wcm-editor">
             <div class="wcm-editor-header">
-                <h2 class="wcm-module-title" id="wcmModuleTitle">Dashboard</h2>
+                <div class="wcm-editor-heading">
+                    <h2 class="wcm-module-title" id="wcmModuleTitle">Dashboard</h2>
+                    <p class="wcm-module-desc" id="wcmModuleDesc">Quick links and publish overview</p>
+                </div>
                 <div class="wcm-editor-actions">
                     <button type="button" class="btn btn-outline-neutral-500 btn-sm radius-8" id="wcmResetSection">
                         <iconify-icon icon="solar:restart-linear"></iconify-icon> Reset Section
@@ -112,6 +123,9 @@
         },
         modules: @json($modules),
         versionHistory: @json($versionHistory),
+        hasUnpublished: @json((bool) $hasUnpublished),
+        publishedAt: @json($publishedAt?->toIso8601String()),
+        publishedAtHuman: @json($publishedAt?->diffForHumans()),
         csrf: @json(csrf_token()),
     };
 </script>
