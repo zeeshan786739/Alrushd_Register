@@ -66,6 +66,9 @@ Route::prefix('admin')->name('admin.')
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    require __DIR__.'/crm.php';
+    require __DIR__.'/email-marketing.php';
+
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
 

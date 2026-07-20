@@ -20,6 +20,7 @@ use App\Models\StudentPackage;
 use App\Models\StudentSubject;
 use App\Models\StudentYear;
 use App\Models\TermsAndCondition;
+use App\Services\Crm\LeadSyncService;
 use Illuminate\Support\Facades\Storage;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
@@ -447,6 +448,8 @@ class MultiStepFormController extends Controller
                     'payment_date' => now(),
                 ]);
 
+                $this->syncAdmissionLead($submission->fresh());
+
                 Session::forget('submission_id');
 
                 if ($request->expectsJson()) {
@@ -488,6 +491,8 @@ class MultiStepFormController extends Controller
                     'currency' => $charge->currency,
                     'payment_date' => now(),
                 ]);
+
+                $this->syncAdmissionLead($submission->fresh());
 
                 \Mail::to($submission->email)->send(new \App\Mail\PaymentSuccessMail($submission));
 
@@ -675,6 +680,12 @@ class MultiStepFormController extends Controller
         return redirect()->route('form.step', 6);
     }
 
+    private function syncAdmissionLead(FormSubmission $submission): void
+    {
+        try {
+            app(LeadSyncService::class)->syncFromFormSubmission($submission);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
 }
-
-

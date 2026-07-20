@@ -52,6 +52,165 @@
     </li>
     @endcanany
 
+    {{-- ================= CRM ================= --}}
+    @canany([
+        'view leads','view customers','view projects','view quotations','view invoices','view form submissions'
+    ])
+    <li class="dropdown">
+        <a href="javascript:void(0)">
+            <iconify-icon icon="solar:chart-2-linear" class="menu-icon"></iconify-icon>
+            <span>CRM</span>
+        </a>
+        <ul class="sidebar-submenu">
+            @can('view leads')
+            <li>
+                <a href="{{ route('admin.crm.leads.index') }}">
+                    <iconify-icon icon="solar:user-hand-up-linear" class="menu-icon"></iconify-icon>
+                    <span>Leads</span>
+                </a>
+            </li>
+            @endcan
+            @can('view customers')
+            <li>
+                <a href="{{ route('admin.crm.customers.index') }}">
+                    <iconify-icon icon="solar:users-group-rounded-linear" class="menu-icon"></iconify-icon>
+                    <span>Customers</span>
+                </a>
+            </li>
+            @endcan
+            @can('view projects')
+            <li>
+                <a href="{{ route('admin.crm.projects.index') }}">
+                    <iconify-icon icon="solar:folder-linear" class="menu-icon"></iconify-icon>
+                    <span>Projects</span>
+                </a>
+            </li>
+            @endcan
+            @can('view quotations')
+            <li>
+                <a href="{{ route('admin.crm.quotations.index') }}">
+                    <iconify-icon icon="solar:document-text-linear" class="menu-icon"></iconify-icon>
+                    <span>Quotations</span>
+                </a>
+            </li>
+            @endcan
+            @can('view invoices')
+            <li>
+                <a href="{{ route('admin.crm.invoices.index') }}">
+                    <iconify-icon icon="solar:bill-list-linear" class="menu-icon"></iconify-icon>
+                    <span>Invoices</span>
+                </a>
+            </li>
+            @endcan
+            @if(auth('admin')->check())
+            <li>
+                <a href="{{ route('admin.form-manager.index') }}">
+                    <iconify-icon icon="mdi:form-select" class="menu-icon"></iconify-icon>
+                    <span>Forms</span>
+                </a>
+            </li>
+            @endif
+            @can('view form submissions')
+            <li>
+                <a href="{{ route('admin.crm.form-entries.index') }}">
+                    <iconify-icon icon="solar:inbox-in-linear" class="menu-icon"></iconify-icon>
+                    <span>Form Submission</span>
+                </a>
+            </li>
+            @endcan
+        </ul>
+    </li>
+    @endcanany
+
+    {{-- ================= EMAIL MARKETING ================= --}}
+    @canany([
+        'view inbox','view sent emails','manage drafts','star emails','compose emails','view campaigns','view templates'
+    ])
+    <li class="dropdown">
+        <a href="javascript:void(0)">
+            <iconify-icon icon="solar:letter-linear" class="menu-icon"></iconify-icon>
+            <span>Email Marketing</span>
+            @php
+                $emUnread = 0;
+                try {
+                    if (auth('admin')->user()?->organization_id && auth('admin')->user()->can('view inbox')) {
+                        $emUnread = \App\Models\EmailMarketing\Message::forCurrentOrganization()->inbox()->unread()->count();
+                    }
+                } catch (\Throwable) {}
+            @endphp
+            @if($emUnread > 0)
+                <span class="text-primary-600 text-sm ms-auto">{{ $emUnread }}</span>
+            @endif
+        </a>
+        <ul class="sidebar-submenu">
+            @can('view inbox')
+            <li>
+                <a href="{{ route('admin.email.inbox') }}">
+                    <iconify-icon icon="solar:inbox-linear" class="menu-icon"></iconify-icon>
+                    <span>Inbox</span>
+                </a>
+            </li>
+            @endcan
+            @can('compose emails')
+            <li>
+                <a href="{{ route('admin.email.compose') }}">
+                    <iconify-icon icon="solar:pen-new-square-linear" class="menu-icon"></iconify-icon>
+                    <span>Compose</span>
+                </a>
+            </li>
+            @endcan
+            @can('view sent emails')
+            <li>
+                <a href="{{ route('admin.email.sent') }}">
+                    <iconify-icon icon="solar:plain-linear" class="menu-icon"></iconify-icon>
+                    <span>Sent</span>
+                </a>
+            </li>
+            @endcan
+            @can('manage drafts')
+            <li>
+                <a href="{{ route('admin.email.drafts') }}">
+                    <iconify-icon icon="solar:document-linear" class="menu-icon"></iconify-icon>
+                    <span>Drafts</span>
+                </a>
+            </li>
+            @endcan
+            @can('star emails')
+            <li>
+                <a href="{{ route('admin.email.starred') }}">
+                    <iconify-icon icon="solar:star-linear" class="menu-icon"></iconify-icon>
+                    <span>Starred</span>
+                </a>
+            </li>
+            @endcan
+            @can('view campaigns')
+            <li>
+                <a href="{{ route('admin.email.campaigns.index') }}">
+                    <iconify-icon icon="solar:flag-linear" class="menu-icon"></iconify-icon>
+                    <span>Campaigns</span>
+                </a>
+            </li>
+            @endcan
+            @can('view templates')
+            <li>
+                <a href="{{ route('admin.email.templates.index') }}">
+                    <iconify-icon icon="solar:clipboard-list-linear" class="menu-icon"></iconify-icon>
+                    <span>Templates</span>
+                </a>
+            </li>
+            @endcan
+            @can('manage mailbox settings')
+            <li>
+                <a href="{{ route('admin.email.mailbox.settings') }}">
+                    <iconify-icon icon="solar:settings-linear" class="menu-icon"></iconify-icon>
+                    <span>Mailbox Settings</span>
+                </a>
+            </li>
+            @endcan
+        </ul>
+    </li>
+    @endcanany
+
 
     {{-- ================= OPEN EVENTS ================= --}}
     @canany([

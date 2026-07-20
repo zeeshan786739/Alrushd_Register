@@ -60,6 +60,20 @@ Route::get('/payment-success', function (\Illuminate\Http\Request $request) {
 
 Route::get('/payment-cancel', [FrontendController::class, 'paymentCancel'])->name('payment.cancel');
 
+// Public email marketing tracking / unsubscribe (opaque tokens only — no auth)
+Route::get('/email-marketing/track/open/{token}', [\App\Http\Controllers\EmailMarketing\PublicTrackingController::class, 'open'])
+    ->middleware('throttle:120,1')
+    ->name('email-marketing.track.open');
+Route::get('/email-marketing/track/click/{token}', [\App\Http\Controllers\EmailMarketing\PublicTrackingController::class, 'click'])
+    ->middleware('throttle:120,1')
+    ->name('email-marketing.track.click');
+Route::get('/email-marketing/unsubscribe/{token}', [\App\Http\Controllers\EmailMarketing\PublicTrackingController::class, 'unsubscribeShow'])
+    ->middleware('throttle:30,1')
+    ->name('email-marketing.unsubscribe.show');
+Route::post('/email-marketing/unsubscribe/{token}', [\App\Http\Controllers\EmailMarketing\PublicTrackingController::class, 'unsubscribeStore'])
+    ->middleware('throttle:30,1')
+    ->name('email-marketing.unsubscribe.store');
+
 Route::get('/parents-update/{id}', [MultiStepFormController::class, 'parentUpdate'])->name('parent-update');
 Route::put('/parents-update/{id}', [MultiStepFormController::class, 'parentUpdateData'])->name('parents-update');
 

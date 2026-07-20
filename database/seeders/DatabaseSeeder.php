@@ -264,6 +264,9 @@ class DatabaseSeeder extends Seeder
             $admin->assignRole($role);
         }
 
+        $this->call(CrmOrganizationSeeder::class);
+        $this->call(CrmPermissionsSeeder::class);
+        $this->call(EmailMarketingPermissionsSeeder::class);
         $this->call(FormDefinitionsSeeder::class);
         $this->call(MigrateLegacyFormSubmissionsSeeder::class);
     }
