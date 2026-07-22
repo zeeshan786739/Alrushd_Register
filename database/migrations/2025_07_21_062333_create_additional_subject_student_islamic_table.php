@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Production-safe: table may already exist on legacy databases.
+        if (Schema::hasTable('additional_subject_student_islamic')) {
+            return;
+        }
+
         Schema::create('additional_subject_student_islamic', function (Blueprint $table) {
             $table->id();
             $table->foreignId('student_id')->constrained()->onDelete('cascade');

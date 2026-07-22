@@ -60,20 +60,24 @@ class AdmissionLeadSyncTest extends CrmTestCase
     /** @param  array<string, mixed>  $attributes */
     protected function createFormSubmission(array $attributes = []): FormSubmission
     {
-        Schema::disableForeignKeyConstraints();
-
-        $id = DB::table('form_submissions')->insertGetId(array_merge([
-            'form_submission_id' => 1,
+        $payload = array_merge([
             'fname' => 'Test',
             'email' => 'test@example.com',
             'status' => 'paid',
             'created_at' => now(),
             'updated_at' => now(),
-        ], $attributes));
+        ], $attributes);
 
-        DB::table('form_submissions')->where('id', $id)->update(['form_submission_id' => $id]);
-
-        Schema::enableForeignKeyConstraints();
+        // Fresh installs still have the historical self-FK column; production clones do not.
+        if (Schema::hasColumn('form_submissions', 'form_submission_id')) {
+            Schema::disableForeignKeyConstraints();
+            $payload['form_submission_id'] = $payload['form_submission_id'] ?? 1;
+            $id = DB::table('form_submissions')->insertGetId($payload);
+            DB::table('form_submissions')->where('id', $id)->update(['form_submission_id' => $id]);
+            Schema::enableForeignKeyConstraints();
+        } else {
+            $id = DB::table('form_submissions')->insertGetId($payload);
+        }
 
         return FormSubmission::findOrFail($id);
     }

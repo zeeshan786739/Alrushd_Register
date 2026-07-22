@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Production-safe: table may already exist on legacy databases.
+        if (Schema::hasTable('api_subscriptions')) {
+            return;
+        }
+
         Schema::create('api_subscriptions', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('entry_id')->index();

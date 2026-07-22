@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Production-safe: table may already exist on legacy databases.
+        if (Schema::hasTable('terms_and_conditions')) {
+            return;
+        }
+
         Schema::create('terms_and_conditions', function (Blueprint $table) {
             $table->id();
             $table->longText('terms_description')->nullable();

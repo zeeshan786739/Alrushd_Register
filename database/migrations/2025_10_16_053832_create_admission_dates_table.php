@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Production-safe: table may already exist on legacy databases.
+        if (Schema::hasTable('admission_dates')) {
+            return;
+        }
+
         Schema::create('admission_dates', function (Blueprint $table) {
             $table->id();
              $table->string('date')->nullable();

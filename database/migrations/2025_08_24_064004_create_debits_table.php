@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Production-safe: table may already exist on legacy databases.
+        if (Schema::hasTable('debits')) {
+            return;
+        }
+
         Schema::create('debits', function (Blueprint $table) {
             $table->id();
             $table->string('forename')->nullable();
