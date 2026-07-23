@@ -145,7 +145,7 @@ Route::post('/job-applications-form',[FrontendController::class,'jobAdmissionFor
 
 
 
-Route::get('/student-application',[FrontendController::class,'studentApplication'])->name('index');
+Route::get('/student-application',[FrontendController::class,'studentApplication'])->name('student.application');
 Route::get('/step1',[FrontendController::class,'step1'])->name('step1');
 Route::get('/step2',[FrontendController::class,'step2'])->name('step2');
 Route::get('/step3',[FrontendController::class,'step3'])->name('step3');

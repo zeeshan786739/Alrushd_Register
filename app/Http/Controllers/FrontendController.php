@@ -746,7 +746,7 @@ class FrontendController extends Controller
             return view('frontend.step1', compact('step1_data', 'user'));
         }
 
-        return redirect()->route('index');
+        return redirect()->route('student.application');
     }
 
     public function stepOneStore(Request $request, $id)
@@ -797,13 +797,13 @@ class FrontendController extends Controller
             $user = Guardiant::find($guardianId);
 
             if (!$user) {
-                return redirect()->route('index')->with('error', 'Guardian not found.');
+                return redirect()->route('student.application')->with('error', 'Guardian not found.');
             }
 
             return view('frontend.step2', compact('step2_data', 'user'));
         }
 
-        return redirect()->route('index');
+        return redirect()->route('student.application');
     }
 
     public function stepTwoStore(Request $request, $id)
@@ -857,7 +857,7 @@ class FrontendController extends Controller
             $user = Guardiant::find($guardianId);
 
             if (!$user) {
-                return redirect()->route('index')->with('error', 'Guardian not found.');
+                return redirect()->route('student.application')->with('error', 'Guardian not found.');
             }
 
             $times = TimeTable::where('status', 1)->get();
@@ -865,7 +865,7 @@ class FrontendController extends Controller
             return view('frontend.step3', compact('step3_data', 'user', 'times'));
         }
 
-        return redirect()->route('index');
+        return redirect()->route('student.application');
     }
 
     public function updateTimetableForm(Request $request, $id)
@@ -897,13 +897,13 @@ class FrontendController extends Controller
             $user = Guardiant::find($guardianId);
 
             if (!$user) {
-                return redirect()->route('index')->with('error', 'Guardian not found.');
+                return redirect()->route('student.application')->with('error', 'Guardian not found.');
             }
 
             return view('frontend.step4', compact('user'));
         }
 
-        return redirect()->route('index');
+        return redirect()->route('student.application');
     }
 
 
@@ -930,13 +930,13 @@ class FrontendController extends Controller
         $guardianId = session('guardian_id');
 
         if (!$guardianId) {
-            return redirect()->route('index');
+            return redirect()->route('student.application');
         }
 
         $guardian = Guardiant::find($guardianId);
 
         if (!$guardian) {
-            return redirect()->route('index')->with('error', 'Guardian not found.');
+            return redirect()->route('student.application')->with('error', 'Guardian not found.');
         }
 
         $students = $guardian->students()->orderBy('id')->get();
@@ -1003,7 +1003,7 @@ class FrontendController extends Controller
         $serial = session('student_serial');
 
         if (!$guardianId) {
-            return redirect()->route('index')->with('error', 'Session expired. Please start again.');
+            return redirect()->route('student.application')->with('error', 'Session expired. Please start again.');
         }
 
         // Find the student belonging to this guardian by serial
@@ -1104,7 +1104,7 @@ class FrontendController extends Controller
         $guardianId = session('guardian_id');
 
         if (!$guardianId) {
-            return redirect()->route('index');
+            return redirect()->route('student.application');
         }
 
         // Get GroupYear data filtered by guardian's year_group_id
@@ -1138,7 +1138,7 @@ class FrontendController extends Controller
         $studentSerial = $request->student_serial;
 
         if (!$guardianId) {
-            return redirect()->route('index')->with('error', 'Session expired. Please start again.');
+            return redirect()->route('student.application')->with('error', 'Session expired. Please start again.');
         }
 
         $student = Student::where('user_id', $guardianId)
@@ -1164,7 +1164,7 @@ class FrontendController extends Controller
         $guardianId = session('guardian_id');
 
         if (!$guardianId) {
-            return redirect()->route('index');
+            return redirect()->route('student.application');
         }
 
         $groupYearId = session('group_year_id');
@@ -1200,7 +1200,7 @@ class FrontendController extends Controller
         $studentSerial = $request->student_serial;
 
         if (!$guardianId) {
-            return redirect()->route('index')->with('error', 'Session expired. Please start again.');
+            return redirect()->route('student.application')->with('error', 'Session expired. Please start again.');
         }
 
         $student = Student::where('user_id', $guardianId)
@@ -1224,7 +1224,7 @@ class FrontendController extends Controller
         $guardianId = session('guardian_id');
 
         if (!$guardianId) {
-            return redirect()->route('index');
+            return redirect()->route('student.application');
         }
 
         $serial = session('student_serial');
@@ -1258,7 +1258,7 @@ class FrontendController extends Controller
         $guardianId = session('guardian_id');
 
         if (!$guardianId) {
-            return redirect()->route('index');
+            return redirect()->route('student.application');
         }
 
         $request->validate([
@@ -1307,7 +1307,7 @@ class FrontendController extends Controller
             $guardian = Guardiant::with('courseFee', 'students')->find($guardianId);
 
             if (!$guardian) {
-                return redirect()->route('index');
+                return redirect()->route('student.application');
             }
 
             $userIds = $guardian->students->pluck('user_id')->unique();
@@ -1328,7 +1328,7 @@ class FrontendController extends Controller
             return view('frontend.step9', compact('students', 'guardian', 'setting'));
         }
 
-        return redirect()->route('index');
+        return redirect()->route('student.application');
     }
 
 
@@ -1350,7 +1350,7 @@ class FrontendController extends Controller
     //         return view('frontend.step9', compact('students'));
     //     }
 
-    //     return redirect()->route('index');
+    //     return redirect()->route('student.application');
     // }
 
 
@@ -1505,7 +1505,7 @@ class FrontendController extends Controller
 
     //     Auth::logout();
 
-    //     return redirect()->route('index')->with('success', 'Order placed successfully. Please log in again to continue.');
+    //     return redirect()->route('student.application')->with('success', 'Order placed successfully. Please log in again to continue.');
     // }
 
 
