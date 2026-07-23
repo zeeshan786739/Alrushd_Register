@@ -14,7 +14,8 @@ class FormDefinitionsSeeder extends Seeder
 
         foreach ($this->definitions() as $definition) {
             $existing = Form::where('slug', $definition['slug'])->first();
-            $builder->syncForm($definition, $existing);
+            // prune=false keeps setup idempotent and preserves any custom fields/steps.
+            $builder->syncForm($definition, $existing, ['prune' => false]);
         }
     }
 

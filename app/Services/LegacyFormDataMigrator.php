@@ -123,6 +123,7 @@ class LegacyFormDataMigrator
                         'legacy_record_id' => $row->id,
                     ],
                     [
+                        'organization_id' => $form->organization_id,
                         'entry_id' => $mapped['entry_id'],
                         'data' => $mapped['data'],
                         'status' => $mapped['status'],

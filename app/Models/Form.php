@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Form extends Model
 {
     protected $fillable = [
+        'organization_id',
         'name',
         'slug',
         'description',

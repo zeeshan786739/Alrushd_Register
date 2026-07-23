@@ -5,11 +5,19 @@ namespace App\Services;
 use App\Models\Form;
 use App\Models\FormField;
 use App\Models\FormStep;
+use App\Models\Organization;
+use Illuminate\Support\Facades\Schema;
 
 class FormBuilderService
 {
-    public function syncForm(array $payload, ?Form $form = null): Form
+    /**
+     * @param  array{prune?: bool}  $options  When prune=false (Form Center setup), existing
+     *                                        custom steps/fields are preserved and matched
+     *                                        by id/key/sort_order instead of being deleted.
+     */
+    public function syncForm(array $payload, ?Form $form = null, array $options = []): Form
     {
+        $prune = (bool) ($options['prune'] ?? true);
         $form = $form ?? new Form();
 
         $slug = $payload['slug'];
@@ -35,6 +43,10 @@ class FormBuilderService
             'sort_order' => (int) ($payload['sort_order'] ?? 0),
         ]);
 
+        if (Schema::hasColumn('forms', 'organization_id') && empty($form->organization_id)) {
+            $form->organization_id = Organization::default()->id;
+        }
+
         if (array_key_exists('placements', $payload)) {
             $form->setPlacements($payload['placements'] ?? []);
         } elseif (array_key_exists('show_on_landing', $payload) && ! array_key_exists('settings', $payload)) {
@@ -50,13 +62,7 @@ class FormBuilderService
         $stepIds = [];
         $stepsMeta = [];
         foreach ($payload['steps'] ?? [] as $index => $stepData) {
-            $step = isset($stepData['id'])
-                ? FormStep::where('form_id', $form->id)->find($stepData['id'])
-                : null;
-
-            if (! $step) {
-                $step = new FormStep(['form_id' => $form->id]);
-            }
+            $step = $this->resolveStep($form->id, $stepData, $index + 1);
 
             $step->fill([
                 'title' => $stepData['title'],
@@ -97,19 +103,59 @@ class FormBuilderService
                 $fieldIds[] = $field->id;
             }
 
-            FormField::where('form_step_id', $step->id)
-                ->whereNotIn('id', $fieldIds)
-                ->delete();
+            if ($prune) {
+                FormField::where('form_step_id', $step->id)
+                    ->whereNotIn('id', $fieldIds)
+                    ->delete();
+            }
         }
 
-        FormStep::where('form_id', $form->id)->whereNotIn('id', $stepIds)->delete();
-        FormField::where('form_id', $form->id)->whereNull('form_step_id')->delete();
+        if ($prune) {
+            FormStep::where('form_id', $form->id)->whereNotIn('id', $stepIds)->delete();
+            FormField::where('form_id', $form->id)->whereNull('form_step_id')->delete();
+        }
 
         $settings = $form->settings ?? [];
-        $settings['steps_meta'] = $stepsMeta;
+        $settings['steps_meta'] = array_replace($settings['steps_meta'] ?? [], $stepsMeta);
         $form->update(['settings' => $settings]);
 
         return $form->fresh(['steps.fields']);
+    }
+
+    private function resolveStep(int $formId, array $stepData, int $sortOrder): FormStep
+    {
+        if (! empty($stepData['id'])) {
+            $step = FormStep::query()
+                ->where('form_id', $formId)
+                ->whereKey($stepData['id'])
+                ->first();
+
+            if ($step) {
+                return $step;
+            }
+        }
+
+        $step = FormStep::query()
+            ->where('form_id', $formId)
+            ->where('sort_order', $sortOrder)
+            ->first();
+
+        if ($step) {
+            return $step;
+        }
+
+        if (! empty($stepData['title'])) {
+            $step = FormStep::query()
+                ->where('form_id', $formId)
+                ->where('title', $stepData['title'])
+                ->first();
+
+            if ($step) {
+                return $step;
+            }
+        }
+
+        return new FormStep(['form_id' => $formId]);
     }
 
     private function resolveField(int $formId, array $fieldData, int $stepId): FormField
