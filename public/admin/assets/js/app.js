@@ -1,18 +1,31 @@
 (function ($) {
   'use strict';
 
-  // sidebar submenu collapsible js
-  $(".sidebar-menu .dropdown").on("click", function(){
+  // sidebar submenu collapsible js (delegated — survives PJAX sidebar swaps)
+  function syncDropdownAria($item) {
+    var expanded = $item.hasClass("dropdown-open") || $item.hasClass("open");
+    $item.children("a[role='button']").attr("aria-expanded", expanded ? "true" : "false");
+  }
+
+  $(document).on("click", ".sidebar-menu .dropdown", function (e) {
+    // Ignore clicks that originate from submenu links (navigation)
+    if ($(e.target).closest(".sidebar-submenu").length) {
+      return;
+    }
+
     var item = $(this);
-    item.siblings(".dropdown").children(".sidebar-submenu").slideUp();
+    var prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var slideSpeed = prefersReducedMotion ? 0 : 200;
 
-    item.siblings(".dropdown").removeClass("dropdown-open");
+    item.siblings(".dropdown").children(".sidebar-submenu").slideUp(slideSpeed);
+    item.siblings(".dropdown").removeClass("dropdown-open open");
+    item.siblings(".dropdown").each(function () {
+      syncDropdownAria($(this));
+    });
 
-    item.siblings(".dropdown").removeClass("open");
-
-    item.children(".sidebar-submenu").slideToggle();
-
-    item.toggleClass("dropdown-open");
+    item.children(".sidebar-submenu").slideToggle(slideSpeed);
+    item.toggleClass("dropdown-open open");
+    syncDropdownAria(item);
   });
 
   function updateSidebarToggleState($btn) {

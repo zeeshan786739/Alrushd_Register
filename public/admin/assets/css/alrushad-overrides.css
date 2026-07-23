@@ -66,6 +66,12 @@
     box-sizing: border-box;
 }
 
+/* Persistent content shell — never re-animate on PJAX swaps */
+#admin-page-content.dashboard-main-body {
+    animation: none;
+    position: relative;
+}
+
 /* Pages/partials that nest another shell — don't double-constrain */
 .dashboard-main-body .dashboard-main-body {
     max-width: none;
@@ -93,8 +99,13 @@
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s var(--crm-ease), visibility 0.2s;
+    pointer-events: none;
 }
-#crm-page-loader.is-active { opacity: 1; visibility: visible; }
+#crm-page-loader.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
 #crm-page-loader .crm-loader-spinner {
     width: 44px; height: 44px;
     border: 3px solid var(--crm-border);
@@ -131,9 +142,66 @@
     box-sizing: border-box;
 }
 
-/* ── Sidebar ── */
-.sidebar {
-    border-right: 1px solid var(--crm-border) !important;
+/* Admin PJAX — content-only loading; sidebar/header must stay fully visible */
+html.admin-pjax-loading #admin-page-content {
+    pointer-events: none;
+}
+
+html.admin-pjax-loading #admin-page-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.35);
+    pointer-events: none;
+}
+
+html.admin-pjax-loading #admin-page-content::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 40%;
+    z-index: 3;
+    background: var(--crm-brand, #1e3a5f);
+    border-radius: 0 2px 2px 0;
+    animation: adminPjaxProgress 0.9s var(--crm-ease, ease) infinite;
+    pointer-events: none;
+}
+
+@keyframes adminPjaxProgress {
+    0% { left: 0; width: 20%; }
+    50% { left: 30%; width: 45%; }
+    100% { left: 100%; width: 15%; }
+}
+
+/* Persistent chrome — never fade, blur, or disable during PJAX */
+html.admin-pjax-loading .sidebar,
+html.admin-pjax-loading .navbar-header,
+html.admin-pjax-enabled .sidebar,
+html.admin-pjax-enabled .navbar-header {
+    opacity: 1 !important;
+    visibility: visible !important;
+    filter: none !important;
+    pointer-events: auto !important;
+}
+
+/* While PJAX is active, never show the full-screen page loader overlay */
+html.admin-pjax-enabled.admin-pjax-loading #crm-page-loader,
+html.admin-pjax-enabled.admin-pjax-loading #crm-page-loader.is-active {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.admin-pjax-loading #admin-page-content::after {
+        animation: none;
+        width: 100%;
+        left: 0;
+        opacity: 0.7;
+    }
 }
 .sidebar-menu > li > a,
 .sidebar-menu .sidebar-submenu li a {
@@ -141,13 +209,14 @@
     transition: background var(--crm-duration) var(--crm-ease),
                 color var(--crm-duration) var(--crm-ease);
 }
-.sidebar-menu > li > a:hover,
-.sidebar-menu .sidebar-submenu li a:hover {
+/* Hover only for non-active / non-open items (active must keep selected look) */
+.sidebar-menu > li:not(.open):not(.dropdown-open) > a:not(.active-page):hover,
+.sidebar-menu .sidebar-submenu li a:not(.active-page):hover {
     background: var(--crm-brand-soft) !important;
 }
 .sidebar-menu > li > a.active-page,
 .sidebar-menu .sidebar-submenu li a.active-page {
-    background: var(--crm-brand-soft) !important;
+    background: var(--crm-accent-soft) !important;
     color: var(--crm-brand) !important;
     font-weight: 600;
 }
@@ -156,6 +225,53 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     opacity: 0.65;
+    margin-block: 0.85rem 0.35rem !important;
+    padding-inline: 0.75rem !important;
+    pointer-events: none;
+    list-style: none;
+}
+
+.sidebar-menu > li.dropdown.open .sidebar-submenu,
+.sidebar-menu > li.dropdown.dropdown-open .sidebar-submenu {
+    display: block;
+}
+
+.sidebar-menu .sidebar-submenu {
+    padding-inline-start: 0.35rem;
+}
+
+.sidebar-menu .sidebar-submenu li a {
+    min-height: 36px;
+    padding-inline-start: 1.35rem !important;
+}
+
+.sidebar-menu a:focus-visible,
+.sidebar-toggle:focus-visible,
+.sidebar-close-btn:focus-visible {
+    outline: 2px solid var(--crm-accent, #c9a227);
+    outline-offset: 2px;
+}
+
+.sidebar-badge {
+    margin-inline-start: auto;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--crm-accent-soft, rgba(201, 162, 39, 0.18));
+    color: var(--crm-brand, #8b6914);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.25rem;
+    text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-menu > li > a,
+    .sidebar-menu .sidebar-submenu li a,
+    .sidebar-menu .sidebar-submenu {
+        transition: none !important;
+    }
 }
 
 /* ── Icons & buttons ── */
@@ -2745,9 +2861,18 @@ h5, .h5, h6, .h6 { font-size: 0.875rem !important; font-weight: 600 !important; 
     margin-top: 1px;
 }
 
-/* Active states — same gold accent in open + collapsed */
+/*
+ * Sidebar state priority (highest → lowest):
+ * 1) active + focus-visible  2) active + hover  3) active
+ * 4) focus-visible  5) hover  6) default
+ * Active/open must never lose selected appearance on hover.
+ */
 .sidebar-menu > li > a.active-page,
-.sidebar-menu .sidebar-submenu li a.active-page {
+.sidebar-menu > li > a.active-page:hover,
+.sidebar-menu > li > a.active-page:focus-visible,
+.sidebar-menu .sidebar-submenu li a.active-page,
+.sidebar-menu .sidebar-submenu li a.active-page:hover,
+.sidebar-menu .sidebar-submenu li a.active-page:focus-visible {
     color: var(--crm-brand) !important;
     background: var(--crm-accent-soft) !important;
     box-shadow: inset 3px 0 0 var(--crm-accent);
@@ -2755,7 +2880,50 @@ h5, .h5, h6, .h6 { font-size: 0.875rem !important; font-weight: 600 !important; 
     font-size: var(--crm-sidebar-font) !important;
 }
 
-.sidebar.active .sidebar-menu > li > a.active-page {
+.sidebar-menu > li > a.active-page:hover .menu-icon,
+.sidebar-menu > li > a.active-page:hover iconify-icon,
+.sidebar-menu > li > a.active-page:focus-visible .menu-icon,
+.sidebar-menu > li > a.active-page:focus-visible iconify-icon,
+.sidebar-menu .sidebar-submenu li a.active-page:hover .menu-icon,
+.sidebar-menu .sidebar-submenu li a.active-page:hover iconify-icon,
+.sidebar-menu .sidebar-submenu li a.active-page:focus-visible .menu-icon,
+.sidebar-menu .sidebar-submenu li a.active-page:focus-visible iconify-icon {
+    color: var(--crm-brand) !important;
+}
+
+/* Expanded parent (e.g. CRM while a child is current) */
+.sidebar-menu li.dropdown.open > a,
+.sidebar-menu li.dropdown.dropdown-open > a,
+.sidebar-menu li.dropdown.open > a:hover,
+.sidebar-menu li.dropdown.dropdown-open > a:hover,
+.sidebar-menu li.dropdown.open > a:focus-visible,
+.sidebar-menu li.dropdown.dropdown-open > a:focus-visible {
+    background-color: var(--brand) !important;
+    background: var(--brand) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+}
+
+.sidebar-menu li.dropdown.open > a:hover .menu-icon,
+.sidebar-menu li.dropdown.dropdown-open > a:hover .menu-icon,
+.sidebar-menu li.dropdown.open > a:hover iconify-icon,
+.sidebar-menu li.dropdown.dropdown-open > a:hover iconify-icon,
+.sidebar-menu li.dropdown.open > a:focus-visible .menu-icon,
+.sidebar-menu li.dropdown.dropdown-open > a:focus-visible .menu-icon,
+.sidebar-menu li.dropdown.open > a:focus-visible iconify-icon,
+.sidebar-menu li.dropdown.dropdown-open > a:focus-visible iconify-icon,
+.sidebar-menu li.dropdown.open > a::after,
+.sidebar-menu li.dropdown.dropdown-open > a::after,
+.sidebar-menu li.dropdown.open > a:hover::after,
+.sidebar-menu li.dropdown.dropdown-open > a:hover::after,
+.sidebar-menu li.dropdown.open > a:focus-visible::after,
+.sidebar-menu li.dropdown.dropdown-open > a:focus-visible::after {
+    color: #fff !important;
+}
+
+.sidebar.active .sidebar-menu > li > a.active-page,
+.sidebar.active .sidebar-menu > li > a.active-page:hover,
+.sidebar.active .sidebar-menu > li > a.active-page:focus-visible {
     box-shadow: inset 3px 0 0 var(--crm-accent) !important;
 }
 
@@ -2768,8 +2936,9 @@ h5, .h5, h6, .h6 { font-size: 0.875rem !important; font-weight: 600 !important; 
     font-size: var(--crm-sidebar-font) !important;
 }
 
-.sidebar-menu > li > a:hover,
-.sidebar-menu .sidebar-submenu li a:hover {
+/* Inactive hover only — must not compete with active/open rules above */
+.sidebar-menu > li:not(.open):not(.dropdown-open) > a:not(.active-page):hover,
+.sidebar-menu .sidebar-submenu li a:not(.active-page):hover {
     background: var(--crm-brand-soft) !important;
 }
 

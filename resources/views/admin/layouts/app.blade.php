@@ -6,6 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@yield('title') — Al Rushd</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset('frontend/assets/img/logo.png') }}" sizes="16x16" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,10 +73,6 @@
             min-width: 100%;
         }
     </style>
-
-    @yield('css')
-
-
 </head>
 
 <body>
@@ -130,7 +127,9 @@
         </a>
     </div>
     <div class="sidebar-menu-area">
-        @include('admin.layouts.sidebar')
+        <nav aria-label="Admin primary">
+            @include('admin.layouts.sidebar')
+        </nav>
     </div>
 </aside>
 
@@ -595,7 +594,10 @@
             </div>
         </div>
     </div>
-    <div class="dashboard-main-body">
+    <div id="admin-page-styles" data-admin-page-styles>
+        @yield('css')
+    </div>
+    <div class="dashboard-main-body" id="admin-page-content" data-admin-page-content aria-live="polite">
         @yield('content')
     </div>
 
@@ -611,7 +613,9 @@
     </footer>
 </main>
 
-@yield('modals')
+<div id="admin-page-modals" data-admin-page-modals>
+    @yield('modals')
+</div>
 
 <!-- jQuery library js -->
 <script src="{{ asset('admin/') }}/assets/js/lib/jquery-3.7.1.min.js"></script>
@@ -647,6 +651,7 @@
 <!-- main js -->
 <script src="{{ asset('admin/') }}/assets/js/app.js"></script>
 <script src="{{ asset('admin/') }}/assets/js/alrushad-ui.js"></script>
+<script src="{{ asset('admin/') }}/assets/js/admin-pjax.js"></script>
 
 <script src="{{ asset('admin/') }}/assets/js/homeTwoChart.js"></script>
 
@@ -670,13 +675,15 @@
         })
     })()
 </script>
+
+<div id="admin-page-scripts" data-admin-page-scripts>
 @if(session('success'))
 <script>
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'success',
-        title: "{{ session('success') }}",
+        title: @json(session('success')),
         showConfirmButton: false,
         timer: 3000,
         timerProgressBar: true,
@@ -693,7 +700,7 @@
         toast: true,
         position: 'top-end',
         icon: 'error',
-        title: "{{ session('error') }}",
+        title: @json(session('error')),
         showConfirmButton: false,
         timer: 3000,
         timerProgressBar: true,
@@ -705,30 +712,8 @@
 </script>
 @endif
 
-<script>
-  $(document).ready(function () {
-  $('.summernote').summernote({
-    placeholder: 'Write your content here...',
-    tabsize: 2,
-    height: 300,
-    fontSizes: ['8', '10', '12', '14', '16', '18', '20'], // ✅ reasonable sizes only
-    toolbar: [
-      ['style', ['style']],
-      ['font', ['bold', 'italic', 'underline', 'clear']],
-      ['fontname', ['fontname']],
-      ['fontsize', ['fontsize']],
-      ['color', ['color']],
-      ['para', ['ul', 'ol', 'paragraph']],
-      ['insert', ['link', 'picture', 'video']],
-      ['view', ['fullscreen', 'codeview', 'help']]
-    ]
-  });
-});
-
-</script>
-
-
 @yield('script')
+</div>
 
 
 </body>
