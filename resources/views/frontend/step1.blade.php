@@ -154,7 +154,7 @@
                                 <div class="form-check d-flex">
                                     <input class="form-check-input" type="checkbox" id="updatesCheck" name="subscribe_newsletter" required>
                                     <label class="form-check-label ms-2" for="updatesCheck" style="font-size: 18px;color: #FFF;margin-left: 16px !important;">
-                                        Please keep me updated on news, events and offers from Al-Rushd Independent School
+                                        Please keep me updated on news, events and offers from AL-Rushd Independent School
                                     </label>
                                     @error('subscribe_newsletter')
                                     <span class="text-danger">{{ $message }}</span>

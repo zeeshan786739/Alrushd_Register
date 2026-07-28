@@ -260,7 +260,7 @@
                         <label style="color:#FFF;">Consent <span class="text-danger">*</span></label><br>
                         <label class="custom-checks" for="chek" style="color:#FFF;">
                             I have read and understood your admission process and agree with the Terms
-                            and Conditions of Al-Rushd Independent&nbsp;School.
+                            and Conditions of AL-Rushd Independent&nbsp;School.
                             <input id="chek" type="checkbox" required name="accpet" value="1" {{ (isset($data['accpet']) && $data['accpet']==1) ? 'checked' : '' }} required>
                             <span class="custom-checkmarks"></span>
                         </label>

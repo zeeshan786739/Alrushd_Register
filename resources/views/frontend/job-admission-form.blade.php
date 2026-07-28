@@ -626,7 +626,7 @@
 
                                     <div class="col-md-12 mb-3">
                                         <label class="form-label">Personal Statement</label>
-                                        <textarea style="height: 100px !important;" class="form-control" name="personal_statement" id="personal_statement" rows="4" cols="4" placeholder="Why do you want to work with Al-Rushd?" required></textarea>
+                                        <textarea style="height: 100px !important;" class="form-control" name="personal_statement" id="personal_statement" rows="4" cols="4" placeholder="Why do you want to work with AL-Rushd?" required></textarea>
                                     </div>
 
                                 </div>
@@ -659,7 +659,7 @@
                                     <div class="align-items-center col-md-12 d-flex">
                                         <input class="form-check-input" type="checkbox" name="recruitment_purposes" id="recruitment_purposes" value="1" required>
                                         <label class="form-check-label text-light ms-2" for="recruitment_purposes">
-                                            I consent to my data being stored and processed by Al-Rushd for recruitment purposes.
+                                            I consent to my data being stored and processed by AL-Rushd for recruitment purposes.
                                         </label>
 
                                     </div>

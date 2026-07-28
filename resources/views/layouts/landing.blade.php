@@ -5,7 +5,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     @php $seo = ($cms ?? [])['seo'] ?? []; $brand = ($cms ?? [])['branding'] ?? []; @endphp
-    <title>@yield('title', $seo['meta_title'] ?? ($brand['browser_title'] ?? 'Al Rushd Online School'))</title>
+    <title>@yield('title', $seo['meta_title'] ?? ($brand['browser_title'] ?? 'AL-Rushd Online School'))</title>
     <meta name="description" content="{{ $seo['meta_description'] ?? ($brand['website_description'] ?? '') }}">
     <meta name="keywords" content="{{ $seo['meta_keywords'] ?? '' }}">
     @if(!empty($seo['canonical_url']))<link rel="canonical" href="{{ $seo['canonical_url'] }}">@endif

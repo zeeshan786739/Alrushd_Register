@@ -29,7 +29,7 @@
                     <div class="card-body mb-5">
 
                         <h1 class="mb-5" style="background:#183E77;border-radius:16px;text-align:center;padding: 10px;">
-                            <span style="font-size: 24px;font-weight:400;">Pay Al-Rushd Independence school</span>
+                            <span style="font-size: 24px;font-weight:400;">Pay AL-Rushd Independence school</span>
                             <span class="badge" style="font-size:48px;font-weight:600;display: block;padding: 0px;">£{{ count($data['students'] ?? []) * 15 }}</span>
                         </h1>
 

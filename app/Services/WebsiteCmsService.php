@@ -19,19 +19,19 @@ class WebsiteCmsService
 
         return [
             'branding' => [
-                'company_name' => $setting?->company_name ?? 'Al Rushd',
-                'short_name' => 'Al Rushd',
+                'company_name' => $setting?->company_name ?? 'AL-Rushd',
+                'short_name' => 'AL-Rushd',
                 'tagline' => 'Where Young Minds Thrive',
                 'logo' => $setting?->header_logo ? asset('storage/'.$setting->header_logo) : asset('frontend/assets/img/logo.png'),
                 'logo_dark' => $setting?->header_logo ? asset('storage/'.$setting->header_logo) : asset('frontend/assets/img/logo.png'),
                 'logo_light' => $setting?->header_logo ? asset('storage/'.$setting->header_logo) : asset('frontend/assets/img/logo.png'),
                 'footer_logo' => $setting?->footer_logo ? asset('storage/'.$setting->footer_logo) : asset('frontend/assets/img/logo.png'),
                 'favicon' => $setting?->favicon ? asset('storage/'.$setting->favicon) : asset('frontend/assets/img/logo.png'),
-                'website_title' => $setting?->meta_title ?? 'Al Rushd Online School',
-                'browser_title' => $setting?->meta_title ?? 'Al Rushd Online School — Where Young Minds Thrive',
+                'website_title' => $setting?->meta_title ?? 'AL-Rushd Online School',
+                'browser_title' => $setting?->meta_title ?? 'AL-Rushd Online School — Where Young Minds Thrive',
                 'website_description' => $setting?->meta_description ?? 'Quality Islamic & modern education online.',
                 'default_language' => 'en',
-                'copyright' => $setting?->copyright ?? '© '.date('Y').' Al Rushd Online School. All rights reserved.',
+                'copyright' => $setting?->copyright ?? '© '.date('Y').' AL-Rushd Online School. All rights reserved.',
                 'company_registration' => '',
             ],
             'theme' => [
@@ -88,10 +88,10 @@ class WebsiteCmsService
                 'enabled' => true,
                 'badge' => 'Trusted by 5,000+ families worldwide',
                 'badge_icon' => 'fa-star',
-                'heading' => 'Welcome to Al Rushd Online',
-                'heading_highlight' => 'Al Rushd',
+                'heading' => 'Welcome to AL-Rushd Online',
+                'heading_highlight' => 'AL-Rushd',
                 'subheading' => 'Where Young Minds Thrive Through Quality Islamic & Modern Education',
-                'description' => 'Al Rushd Online School delivers world-class education in a nurturing Islamic environment. Join thousands of families who trust us to shape their children\'s future.',
+                'description' => 'AL-Rushd Online School delivers world-class education in a nurturing Islamic environment. Join thousands of families who trust us to shape their children\'s future.',
                 'bg_image' => '',
                 'bg_video' => '',
                 'overlay_opacity' => '0.6',
@@ -113,8 +113,8 @@ class WebsiteCmsService
             'about' => [
                 'enabled' => true,
                 'eyebrow' => 'About Us',
-                'heading' => 'About Al Rushd Online School',
-                'description' => "Al Rushd is a pioneering online Islamic school committed to providing exceptional education that blends traditional Islamic values with a modern, internationally recognised curriculum.\n\nOur qualified teachers, flexible online platform, and supportive community make quality education accessible to families across the globe.",
+                'heading' => 'About AL-Rushd Online School',
+                'description' => "AL-Rushd is a pioneering online Islamic school committed to providing exceptional education that blends traditional Islamic values with a modern, internationally recognised curriculum.\n\nOur qualified teachers, flexible online platform, and supportive community make quality education accessible to families across the globe.",
                 'image' => asset('frontend/assets/img/open.jpg'),
                 'badge' => 'Est. Excellence in Education',
                 'features' => [
@@ -169,7 +169,7 @@ class WebsiteCmsService
             'gallery' => [
                 'enabled' => false,
                 'eyebrow' => 'Campus Life',
-                'heading' => 'Life at Al Rushd',
+                'heading' => 'Life at AL-Rushd',
                 'description' => 'A glimpse into our vibrant online learning community and student achievements.',
                 'items' => [
                     ['image' => asset('frontend/assets/img/01.jpg'), 'caption' => 'Interactive online classes'],
@@ -182,7 +182,7 @@ class WebsiteCmsService
                 'enabled' => true,
                 'eyebrow' => 'Testimonials',
                 'heading' => 'What Parents Say',
-                'description' => 'Hear from families who have chosen Al Rushd for their children\'s education.',
+                'description' => 'Hear from families who have chosen AL-Rushd for their children\'s education.',
                 'auto_slider' => true,
                 'items' => $landing['testimonials'] ?? [],
             ],
@@ -190,7 +190,7 @@ class WebsiteCmsService
                 'enabled' => true,
                 'eyebrow' => 'FAQ',
                 'heading' => 'Frequently Asked Questions',
-                'description' => 'Everything you need to know about applying to Al Rushd Online School.',
+                'description' => 'Everything you need to know about applying to AL-Rushd Online School.',
                 'items' => $landing['faq'] ?? [],
             ],
             'contact' => [
@@ -201,7 +201,7 @@ class WebsiteCmsService
                 'email' => $landing['contact']['email'] ?? ($setting?->email_one ?? 'info@alrushd.online'),
                 'phone' => $landing['contact']['phone'] ?? ($setting?->phone_one ?? '+44 20 3633 0757'),
                 'whatsapp' => '',
-                'address' => $landing['contact']['address'] ?? ($setting?->address ?? 'Al Rushd Online School, United Kingdom'),
+                'address' => $landing['contact']['address'] ?? ($setting?->address ?? 'AL-Rushd Online School, United Kingdom'),
                 'map_embed' => $landing['contact']['map_embed'] ?? '',
                 'working_hours' => 'Monday – Friday, 8:30 am – 6:00 pm',
                 'support_email' => $setting?->email_two ?? '',
@@ -209,7 +209,7 @@ class WebsiteCmsService
             ],
             'cta' => [
                 'enabled' => true,
-                'heading' => 'Ready to Join Al Rushd?',
+                'heading' => 'Ready to Join AL-Rushd?',
                 'description' => 'Take the first step towards exceptional education for your child today.',
                 'primary_text' => 'Apply Now',
                 'primary_url' => '#forms',
@@ -217,7 +217,7 @@ class WebsiteCmsService
                 'secondary_url' => '#contact',
             ],
             'footer' => [
-                'description' => 'Al Rushd Online School provides quality Islamic and modern education to students worldwide through our innovative online platform.',
+                'description' => 'AL-Rushd Online School provides quality Islamic and modern education to students worldwide through our innovative online platform.',
                 'quick_links' => [
                     ['label' => 'Home', 'href' => '#home'],
                     ['label' => 'About', 'href' => '#about'],
@@ -271,7 +271,7 @@ class WebsiteCmsService
                 'scroll_reveal' => true,
             ],
             'seo' => [
-                'meta_title' => $setting?->meta_title ?? 'Al Rushd Online School',
+                'meta_title' => $setting?->meta_title ?? 'AL-Rushd Online School',
                 'meta_description' => $setting?->meta_description ?? '',
                 'meta_keywords' => $setting?->meta_keyword ?? '',
                 'og_image' => $setting?->meta_image ? asset('storage/'.$setting->meta_image) : '',

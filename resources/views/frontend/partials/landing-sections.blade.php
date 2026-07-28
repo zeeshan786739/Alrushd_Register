@@ -12,7 +12,7 @@
                             @if(!empty($hero['badge']))
                             <div class="lp-hero-badge"><i class="fa {{ $hero['badge_icon'] ?? 'fa-star' }}"></i> {{ $hero['badge'] }}</div>
                             @endif
-                            <h1 class="lp-hero-title">{{ $hero['heading'] ?? 'Welcome to Al Rushd Online' }}</h1>
+                            <h1 class="lp-hero-title">{{ $hero['heading'] ?? 'Welcome to AL-Rushd Online' }}</h1>
                             <p class="lp-hero-sub">{{ $hero['subheading'] ?? '' }}</p>
                             <p class="lp-hero-desc">{{ $hero['description'] ?? '' }}</p>
                             <div class="lp-hero-actions">
@@ -24,7 +24,7 @@
                             <div class="lp-hero-shape lp-hero-shape--1"></div>
                             <div class="lp-hero-shape lp-hero-shape--2"></div>
                             @foreach(($hero['images'] ?? []) as $i => $img)
-                            <img class="lp-hero-img lp-hero-img--{{ $i + 1 }}" src="{{ $img }}" alt="Al Rushd student" loading="{{ $i === 0 ? 'eager' : 'lazy' }}">
+                            <img class="lp-hero-img lp-hero-img--{{ $i + 1 }}" src="{{ $img }}" alt="AL-Rushd student" loading="{{ $i === 0 ? 'eager' : 'lazy' }}">
                             @endforeach
                             @foreach(($hero['float_cards'] ?? []) as $fi => $fc)
                             <div class="lp-hero-float-card lp-hero-float-card--{{ $fi + 1 }}">
@@ -72,14 +72,14 @@
                 <div class="lp-container">
                     <div class="lp-about-grid">
                         <div class="lp-about-img-wrap" data-aos="fade-right">
-                            <img src="{{ $about['image'] ?? asset('frontend/assets/img/open.jpg') }}" alt="Al Rushd Online School" loading="lazy">
+                            <img src="{{ $about['image'] ?? asset('frontend/assets/img/open.jpg') }}" alt="AL-Rushd Online School" loading="lazy">
                             @if(!empty($about['badge']))
                             <div class="lp-about-badge"><i class="fa fa-award"></i> {{ $about['badge'] }}</div>
                             @endif
                         </div>
                         <div data-aos="fade-left">
                             <span class="lp-eyebrow">{{ $about['eyebrow'] ?? 'About Us' }}</span>
-                            <h2 class="lp-section-title">{{ $about['heading'] ?? 'About Al Rushd Online School' }}</h2>
+                            <h2 class="lp-section-title">{{ $about['heading'] ?? 'About AL-Rushd Online School' }}</h2>
                             @foreach(explode("\n\n", $about['description'] ?? '') as $para)
                                 @if(trim($para))
                                 <p class="lp-section-desc" style="text-align:left;margin:0 0 8px">{{ trim($para) }}</p>
@@ -315,7 +315,7 @@
                                 </div>
                             </div>
                             <div class="lp-contact-map">
-                                <iframe src="{{ $contactSec['map_embed'] ?? $landing['contact']['map_embed'] }}" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Al Rushd location"></iframe>
+                                <iframe src="{{ $contactSec['map_embed'] ?? $landing['contact']['map_embed'] }}" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="AL-Rushd location"></iframe>
                             </div>
                         </div>
                         <form class="lp-contact-form" id="lpContactForm" action="{{ url('/enquire/store') }}" method="POST" data-aos="fade-left">
@@ -350,7 +350,7 @@
             <section class="lp-cta" id="cta">
                 <div class="lp-cta-glow"></div>
                 <div class="lp-container" data-aos="zoom-in">
-                    <h2 class="lp-cta-title">{{ $cta['heading'] ?? 'Ready to Join Al Rushd?' }}</h2>
+                    <h2 class="lp-cta-title">{{ $cta['heading'] ?? 'Ready to Join AL-Rushd?' }}</h2>
                     <p class="lp-cta-desc">{{ $cta['description'] ?? '' }}</p>
                     <div class="lp-cta-actions">
                         <a href="{{ $cta['primary_url'] ?? '#forms' }}" class="lp-btn lp-btn--primary">{{ $cta['primary_text'] ?? 'Apply Now' }}</a>

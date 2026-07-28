@@ -177,7 +177,7 @@
                     <div class="consent-box" onclick="toggleConsent(this)">
                         <h5>Consent</h5>
                         <div class="checkmark"><i class="fa-solid fa-check"></i></div>
-                        <p>I have read and understood your direct debit process and agree with the Terms and Conditions of Al-Rushd Independent School.</p>
+                        <p>I have read and understood your direct debit process and agree with the Terms and Conditions of AL-Rushd Independent School.</p>
                         <p class="highlight">Please check that all information is correct before submitting it.</p>
                         <p>Direct Debit will be set up by us in accordance with your chosen monthly or quarterly payment option. You will receive an email confirmation from Gocardless once the setup is completed. Please make sure you have sufficient funds in your account by the selected date.</p>
                     </div>

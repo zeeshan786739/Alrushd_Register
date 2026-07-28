@@ -150,7 +150,7 @@ class FrontendController extends Controller
         $descMap = [
             'student-admission' => 'Begin your child\'s journey with our comprehensive admission process.',
             'staff-application' => 'Join our team of dedicated educators and staff members.',
-            'job-applications' => 'Apply for teaching and administrative positions at Al Rushd.',
+            'job-applications' => 'Apply for teaching and administrative positions at AL-Rushd.',
             'debit-form' => 'Set up direct debit for convenient fee payments.',
             'enquire-now' => 'Get in touch with our admissions team for more information.',
             'referral' => 'Refer a family and help grow our learning community.',

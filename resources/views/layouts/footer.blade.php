@@ -45,7 +45,7 @@
                 <h4>Academic Programs</h4>
                 <ul>
                     <li><a href="https://alrushd.co.uk/hifz-hifdh-programme/" target="_blank">Hifz – Hifdh Programme</a></li>
-                    <li><a href="https://alrushd.co.uk/al-rushd-madrasah/" target="_blank">Al-Rushd Madrasah</a></li>
+                    <li><a href="https://alrushd.co.uk/al-rushd-madrasah/" target="_blank">AL-Rushd Madrasah</a></li>
                     <li><a href="https://alrushd.co.uk/islamic-curriculum/" target="_blank">Islamic Curriculum</a></li>
                     <li><a href="https://alrushd.co.uk/grade-placement/" target="_blank">Grade Placement</a></li>
                     <li><a href="https://alrushd.co.uk/timetable/" target="_blank">Timetable</a></li>

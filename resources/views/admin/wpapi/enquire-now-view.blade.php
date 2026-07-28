@@ -122,7 +122,7 @@
                     </tr>
 
                      <tr>
-                        <th>Please keep me updated on news, events and offers from Al-Rushd</th>
+                        <th>Please keep me updated on news, events and offers from AL-Rushd</th>
                         <td>{{ $data->radio_2 }}</td>
                     </tr>
 

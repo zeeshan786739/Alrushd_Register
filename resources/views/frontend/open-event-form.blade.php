@@ -173,7 +173,7 @@
                                 </div>
 
                                 <div class="mb-3 col-lg-6">
-                                    <label class="form-label">Please keep me updated on news, events and offers from Al-Rushd</label>
+                                    <label class="form-label">Please keep me updated on news, events and offers from AL-Rushd</label>
                                     <input type="radio" name="terms" value="yes" required> <span class="text-light">Yes</span>
                                     <input type="radio" name="terms" value="no" required> <span class="text-light">No</span>
 

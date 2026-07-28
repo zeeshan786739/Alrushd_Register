@@ -102,7 +102,7 @@
         <tr>
           <td style="padding:20px;background:#f9fafb;font-size:13px;color:#6b7280;">
             <strong>Notes:</strong> Your payment has been received successfully. Keep this invoice for your records.<br><br>
-            <em>Prepared by:</em> Al-Rushd Online School
+            <em>Prepared by:</em> AL-Rushd Online School
 
           </td>
         </tr>

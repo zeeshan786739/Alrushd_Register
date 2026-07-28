@@ -87,7 +87,7 @@
                                     <div class="form-check d-flex">
                                         <input class="form-check-input" type="checkbox" id="updatesCheck" required>
                                         <label class="form-check-label ms-2" for="updatesCheck">
-                                            Please keep me updated on news, events and offers from Al-Rushd Independent School
+                                            Please keep me updated on news, events and offers from AL-Rushd Independent School
                                         </label>
                                     </div>
                                 </div>

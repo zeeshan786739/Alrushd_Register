@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', ($cms['seo']['meta_title'] ?? null) ?: 'Al Rushd Online School — Where Young Minds Thrive')
+@section('title', ($cms['seo']['meta_title'] ?? null) ?: 'AL-Rushd Online School — Where Young Minds Thrive')
 
 @section('content')
 @php
@@ -32,8 +32,8 @@
 <nav class="lp-nav" id="lpNav" aria-label="Main navigation">
     <div class="lp-container lp-nav-inner">
         <a href="#home" class="lp-nav-brand">
-            <img src="{{ $b['logo'] ?? asset('frontend/assets/img/logo.png') }}" alt="{{ $b['company_name'] ?? 'Al Rushd' }}" class="lp-nav-logo" loading="eager">
-            <span class="lp-nav-logo-text">{{ $b['short_name'] ?? ($b['company_name'] ?? 'Al Rushd') }}</span>
+            <img src="{{ $b['logo'] ?? asset('frontend/assets/img/logo.png') }}" alt="{{ $b['company_name'] ?? 'AL-Rushd' }}" class="lp-nav-logo" loading="eager">
+            <span class="lp-nav-logo-text">{{ $b['short_name'] ?? ($b['company_name'] ?? 'AL-Rushd') }}</span>
         </a>
 
         <ul class="lp-nav-menu" id="lpNavMenu">
@@ -94,7 +94,7 @@
     <div class="lp-container">
         <div class="lp-footer-grid">
             <div class="lp-footer-brand">
-                <img src="{{ $b['footer_logo'] ?? ($b['logo'] ?? asset('frontend/assets/img/logo.png')) }}" alt="{{ $b['company_name'] ?? 'Al Rushd' }}" loading="lazy">
+                <img src="{{ $b['footer_logo'] ?? ($b['logo'] ?? asset('frontend/assets/img/logo.png')) }}" alt="{{ $b['company_name'] ?? 'AL-Rushd' }}" loading="lazy">
                 <p>{{ $footer['description'] ?? '' }}</p>
                 <div class="lp-footer-social">
                     @if(($social['enabled']['facebook'] ?? false) && !empty($social['facebook']))
@@ -141,7 +141,7 @@
             </div>
         </div>
         <div class="lp-footer-bottom">
-            <span>{{ $b['copyright'] ?? '© '.date('Y').' Al Rushd Online School.' }}</span>
+            <span>{{ $b['copyright'] ?? '© '.date('Y').' AL-Rushd Online School.' }}</span>
             <div class="lp-footer-legal">
                 <a href="{{ $footer['privacy_url'] ?? '#' }}">Privacy Policy</a>
                 <a href="{{ $footer['terms_url'] ?? '#' }}">Terms of Service</a>

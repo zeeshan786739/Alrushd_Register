@@ -6,7 +6,7 @@
 <div class="ar-form-page">
     <header class="ar-form-header">
         <a href="{{ url('/') }}" class="ar-form-header-logo">
-            <img src="{{ asset('frontend/assets/img/logo.png') }}" alt="Al-Rushd">
+            <img src="{{ asset('frontend/assets/img/logo.png') }}" alt="AL-Rushd">
         </a>
         <h1 class="ar-form-page-title" id="pageFormTitle">{{ $formName }}</h1>
     </header>

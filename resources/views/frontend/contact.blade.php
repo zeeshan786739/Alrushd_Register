@@ -445,7 +445,7 @@
                                             <i class="fa fa-clock" style="background: #183E77;border-radius: 28px;padding: 11px;font-size: 20px;color: #FFF;"></i>
                                         </div>
                                         <div>
-                                            <h4 class="text-light mb-0">Al-Rushd Independent School</h4>
+                                            <h4 class="text-light mb-0">AL-Rushd Independent School</h4>
                                             <p class="mb-1 minutes_time">15 Min Admission Meeting</p>
                                         </div>
                                     </div>
@@ -735,7 +735,7 @@
                                             <textarea name="details3" class="form-control" rows="5"></textarea>
                                         </div>
                                         <div class="mb-4 col-lg-12 col-12">
-                                            <label class="form-label">Please keep me updated on news, events and offers from Al-Rushd</label>
+                                            <label class="form-label">Please keep me updated on news, events and offers from AL-Rushd</label>
                                             <div>
                                                 <input type="radio" value="1" name="details4"> <span class="text-light">Yes</span>
                                                 <input type="radio" value="0" name="details4"> <span class="text-light">No</span>
@@ -929,7 +929,7 @@
                                             <textarea name="details3" class="form-control" rows="5"></textarea>
                                         </div>
                                         <div class="mb-4 col-lg-12 col-12">
-                                            <label class="form-label">Please keep me updated on news, events and offers from Al-Rushd</label>
+                                            <label class="form-label">Please keep me updated on news, events and offers from AL-Rushd</label>
                                             <div>
                                                 <input type="radio" value="1" name="details4"> <span class="text-light">Yes</span>
                                                 <input type="radio" value="0" name="details4"> <span class="text-light">No</span>

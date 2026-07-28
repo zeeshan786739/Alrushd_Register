@@ -189,7 +189,7 @@ class FormDefinitionsSeeder extends Seeder
                         $this->field('declaration', 'Declaration', 'checkbox', [
                             'required' => true,
                             'col_span' => 2,
-                            'settings' => ['text' => 'I authorise Al-Rushd to collect payments via Direct Debit and confirm the information is accurate.'],
+                            'settings' => ['text' => 'I authorise AL-Rushd to collect payments via Direct Debit and confirm the information is accurate.'],
                         ]),
                     ],
                 ],
@@ -489,7 +489,7 @@ class FormDefinitionsSeeder extends Seeder
             'settings' => [
                 'heading' => 'Student Admission',
                 'wide' => true,
-                'description' => 'Register your child at Al-Rushd Independent School.',
+                'description' => 'Register your child at AL-Rushd Independent School.',
             ],
             'steps' => [
                 [
@@ -500,7 +500,7 @@ class FormDefinitionsSeeder extends Seeder
                             'required' => true,
                             'col_span' => 2,
                             'options_source' => 'schools',
-                            'help_text' => 'Choose the Al-Rushd school location for your application.',
+                            'help_text' => 'Choose the AL-Rushd school location for your application.',
                         ]),
                     ],
                 ],
@@ -640,7 +640,7 @@ class FormDefinitionsSeeder extends Seeder
                         $this->field('accpet', 'Admission process consent', 'checkbox', [
                             'required' => true,
                             'col_span' => 2,
-                            'settings' => ['text' => 'I have read and understood the admission process and agree with the Terms and Conditions of Al-Rushd Independent School.'],
+                            'settings' => ['text' => 'I have read and understood the admission process and agree with the Terms and Conditions of AL-Rushd Independent School.'],
                         ]),
                         $this->field('signature', 'Digital signature', 'file', [
                             'required' => true,

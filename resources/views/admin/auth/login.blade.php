@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Al Rushd — Sign In</title>
+    <title>AL-Rushd — Sign In</title>
     <link href="{{ asset('frontend/assets/img/logo.png') }}" rel="icon">
     <link href="{{ asset('frontend/assets/img/logo.png') }}" rel="apple-touch-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -214,8 +214,8 @@
 <body>
     <div class="ar-login">
         <div class="ar-login-brand">
-            <img src="{{ asset('frontend/assets/img/logo.png') }}" alt="Al Rushd" class="ar-login-logo">
-            <h1 class="ar-login-title">Al Rushd</h1>
+            <img src="{{ asset('frontend/assets/img/logo.png') }}" alt="AL-Rushd" class="ar-login-logo">
+            <h1 class="ar-login-title">AL-Rushd</h1>
             <p class="ar-login-sub">Sign in to your admin account</p>
         </div>
 

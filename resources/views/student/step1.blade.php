@@ -24,7 +24,7 @@
                 </div>
                 <div class="row mb-4">
                     <div class="col-lg-12 step-one m-auto">
-                        <h3 class="text-center">Register at <br> Al-Rushd International School</h3>
+                        <h3 class="text-center">Register at <br> AL-Rushd International School</h3>
                         <p class="text-center text-light" style="font-size: 24px;font-weight:500;">Select your school</p>
                     </div>
                 </div>

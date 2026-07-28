@@ -294,7 +294,7 @@
                 <div class="row">
                     <div class="col-lg-8">
                         <p style="margin: 0; font-weight: 600;">Consent:</p>
-                        <p style="margin: 4px 0 0; color: #666; ">I have read and understood your admission process and agree with the Terms and Conditions of Al-Rushd Independent School.</p>
+                        <p style="margin: 4px 0 0; color: #666; ">I have read and understood your admission process and agree with the Terms and Conditions of AL-Rushd Independent School.</p>
                     </div>
                     <div class="col-lg-4">
                         <b>{{ $data->accpet==1 ? 'Yes' : 'No' }}</b>

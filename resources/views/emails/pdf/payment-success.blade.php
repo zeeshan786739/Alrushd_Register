@@ -143,7 +143,7 @@
 
     <div class="header-section">
         <img src="https://register.alrushd.co.uk/frontend/assets/img/logo.png" alt="Logo">
-        <h1>Al-Rushd Independent School</h1>
+        <h1>AL-Rushd Independent School</h1>
         <p>Email: admin@alrushd.co.uk | Phone: +442036330757</p>
         <p>Unit 8, Church Road Studios 62 Church Road London E12 6AF</p>
     </div>
@@ -323,8 +323,8 @@
         @endif
 
         <div class="terms-section">
-            <h2>Terms and Conditions of Al Rushd School</h2>
-            <p>I have read and understood your admission process and agree with the Terms and Conditions of Al-Rushd Independent School.</p>
+            <h2>Terms and Conditions of AL-Rushd School</h2>
+            <p>I have read and understood your admission process and agree with the Terms and Conditions of AL-Rushd Independent School.</p>
         </div>
 
         <div class="signature-section">

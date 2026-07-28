@@ -151,6 +151,7 @@
                             data-is-active="{{ $form->is_active ? '1' : '0' }}"
                             data-on-landing="{{ $form->hasPlacement('landing') ? '1' : '0' }}"
                             data-entries-count="{{ $form->entries_count }}"
+                            data-entries-url="{{ route('admin.form-manager.entries', $form) }}"
                             data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
                             data-toggle-url="{{ route('admin.form-manager.toggle', $form) }}"
                             data-toggle-placement-url="{{ route('admin.form-manager.toggle-placement', $form) }}"
@@ -209,7 +210,7 @@
                                     {{ $form->is_active ? 'Active' : 'Inactive' }}
                                 </button>
                             </td>
-                            <td class="text-end pe-24">
+                            <td class="text-end pe-24" onclick="event.stopPropagation()">
                                 <div class="fc-table-actions">
                                     @if($form->usesDynamicRenderer())
                                     <a href="{{ url($form->routePath()) }}"
@@ -218,37 +219,31 @@
                                        class="fc-action-icon view"
                                        title="Preview live form"
                                        aria-label="Preview live form">
-                                        <i class="ri-eye-line" aria-hidden="true"></i>
+                                        <i class="ri-eye-fill" aria-hidden="true"></i>
                                     </a>
                                     @endif
                                     <a href="{{ route('admin.form-manager.edit', $form) }}"
                                        class="fc-action-icon edit"
                                        title="Customize form"
                                        aria-label="Customize form">
-                                        <i class="ri-pencil-line" aria-hidden="true"></i>
+                                        <i class="ri-pencil-fill" aria-hidden="true"></i>
                                     </a>
                                     <button type="button"
-                                            class="fc-action-icon view border-0"
+                                            class="fc-action-icon settings border-0"
                                             title="Display settings"
                                             aria-label="Display settings"
                                             data-form-settings
                                             data-form-name="{{ $form->name }}"
                                             data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
                                             data-placements="{{ implode(',', $form->placements()) }}">
-                                        <i class="ri-settings-3-line" aria-hidden="true"></i>
+                                        <i class="ri-settings-3-fill" aria-hidden="true"></i>
                                     </button>
-                                    <a href="{{ route('admin.form-manager.entries', $form) }}"
-                                       class="fc-action-icon link"
-                                       title="View submissions"
-                                       aria-label="View submissions">
-                                        <i class="ri-inbox-line" aria-hidden="true"></i>
-                                    </a>
                                     <button type="button"
-                                            class="fc-action-icon duplicate border-0"
+                                            class="fc-action-icon link border-0"
                                             title="Copy form URL"
                                             aria-label="Copy form URL"
                                             data-copy-form-url="{{ url($form->routePath()) }}">
-                                        <i class="ri-link" aria-hidden="true"></i>
+                                        <i class="ri-link-m" aria-hidden="true"></i>
                                     </button>
                                     <form action="{{ route('admin.form-manager.duplicate', $form) }}" method="POST" class="d-inline">
                                         @csrf
@@ -256,7 +251,7 @@
                                                 class="fc-action-icon duplicate"
                                                 title="Duplicate form"
                                                 aria-label="Duplicate form">
-                                            <i class="ri-file-copy-line" aria-hidden="true"></i>
+                                            <i class="ri-file-copy-2-fill" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                     <button type="button"
@@ -264,8 +259,15 @@
                                             title="Delete form"
                                             aria-label="Delete form"
                                             data-delete-form>
-                                        <i class="ri-delete-bin-line" aria-hidden="true"></i>
+                                        <i class="ri-delete-bin-fill" aria-hidden="true"></i>
                                     </button>
+                                    <a href="{{ route('admin.form-manager.entries', $form) }}"
+                                       class="btn btn-sm fc-submissions-btn radius-8 px-12 py-8 fc-btn"
+                                       title="View submissions"
+                                       aria-label="View submissions">
+                                        <i class="ri-inbox-2-fill" aria-hidden="true"></i>
+                                        <span>Submissions</span>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
@@ -462,6 +464,15 @@
     });
 
     applyFormFilter('all');
+
+    document.getElementById('formsTable')?.addEventListener('click', function (event) {
+        const row = event.target.closest('[data-form-row]');
+        if (!row || !row.dataset.entriesUrl) return;
+        if (event.target.closest('.fc-table-actions')) return;
+        if (event.target.closest('a, button, form, input, select, textarea, label')) return;
+
+        window.location.href = row.dataset.entriesUrl;
+    });
 
     const modalEl = document.getElementById('formSettingsModal');
     const form = document.getElementById('formSettingsForm');

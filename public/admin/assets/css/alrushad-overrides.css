@@ -1,9 +1,9 @@
 /**
- * Al Rushd CRM — Enterprise Design System
+ * AL-Rushd CRM — Enterprise Design System
  * Global overrides for all admin pages (150+ blades)
  */
 
-/* ── Design tokens (Al Rushd brand) ── */
+/* ── Design tokens (AL-Rushd brand) ── */
 :root {
     --crm-brand: #0F274A;
     --crm-brand-hover: #1a3a6b;
@@ -342,25 +342,28 @@ button.w-32-px.h-32-px.rounded-circle,
 button.fc-action-icon,
 a.delete-btn,
 .fc-action-icon {
-    width: 34px !important;
-    height: 34px !important;
+    width: 38px !important;
+    height: 38px !important;
     padding: 0 !important;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 50% !important;
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 20px;
     text-decoration: none;
     cursor: pointer;
     transition: transform var(--crm-duration) var(--crm-ease),
-                box-shadow var(--crm-duration) var(--crm-ease);
+                box-shadow var(--crm-duration) var(--crm-ease),
+                border-color var(--crm-duration) var(--crm-ease);
     vertical-align: middle;
+    flex-shrink: 0;
 }
 .fc-action-icon i {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1;
     pointer-events: none;
+    -webkit-font-smoothing: antialiased;
 }
 a.w-32-px.h-32-px.rounded-circle:hover,
 a.delete-btn:hover,
@@ -369,15 +372,37 @@ a.delete-btn:hover,
     box-shadow: var(--crm-shadow-sm);
 }
 a.bg-primary-light.text-primary-600.rounded-circle,
-.fc-action-icon.view { background: var(--crm-brand-soft) !important; color: var(--crm-brand) !important; }
+.fc-action-icon.view { background: rgba(15, 39, 74, 0.14) !important; color: var(--crm-brand) !important; border-color: rgba(15, 39, 74, 0.18) !important; }
 a.bg-success-focus.text-success-main.rounded-circle,
-.fc-action-icon.edit { background: rgba(22, 163, 74, 0.1) !important; color: var(--success-main) !important; }
+.fc-action-icon.edit { background: rgba(22, 163, 74, 0.16) !important; color: #15803d !important; border-color: rgba(22, 163, 74, 0.22) !important; }
+.fc-action-icon.settings { background: rgba(15, 39, 74, 0.12) !important; color: var(--crm-brand) !important; border-color: rgba(15, 39, 74, 0.16) !important; }
 a.bg-danger-focus.text-danger-main.rounded-circle,
-a.delete-btn, .fc-action-icon.delete { background: rgba(239, 68, 68, 0.1) !important; color: var(--danger-main) !important; }
-.fc-action-icon.link { background: rgba(8, 145, 178, 0.1) !important; color: #0891b2 !important; }
-.fc-action-icon.duplicate { background: rgba(100, 116, 139, 0.12) !important; color: #64748b !important; }
+a.delete-btn, .fc-action-icon.delete { background: rgba(239, 68, 68, 0.14) !important; color: #dc2626 !important; border-color: rgba(239, 68, 68, 0.22) !important; }
+.fc-action-icon.link { background: rgba(100, 116, 139, 0.14) !important; color: #475569 !important; border-color: rgba(100, 116, 139, 0.2) !important; }
+.fc-action-icon.duplicate { background: rgba(100, 116, 139, 0.14) !important; color: #475569 !important; border-color: rgba(100, 116, 139, 0.2) !important; }
+.fc-submissions-btn {
+    background: rgba(8, 145, 178, 0.12) !important;
+    color: #0e7490 !important;
+    border: 1.5px solid rgba(8, 145, 178, 0.35) !important;
+    box-shadow: none !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    gap: 6px !important;
+    min-height: 32px;
+    line-height: 1.2;
+}
+.fc-submissions-btn i {
+    font-size: 16px;
+    font-weight: 700;
+}
+.fc-submissions-btn:hover {
+    background: rgba(8, 145, 178, 0.22) !important;
+    color: #155e75 !important;
+    border-color: rgba(8, 145, 178, 0.5) !important;
+    box-shadow: 0 2px 8px rgba(8, 145, 178, 0.18) !important;
+}
 
-.fc-table-actions { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.fc-table-actions { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: nowrap; }
 
 td:has(.fc-table-actions),
 td:has(.delete-btn), td:has(.w-32-px) {
@@ -791,6 +816,7 @@ form.bg-primary .form-select {
 }
 
 .fc-form-row { transition: background var(--crm-duration); }
+.fc-form-row[data-entries-url] { cursor: pointer; }
 .fc-form-row:hover { background: rgba(69, 105, 230, 0.04) !important; }
 
 /* ── User Management module ── */
@@ -1438,7 +1464,10 @@ form.bg-primary .form-select {
 @media (max-width: 575px) {
     .um-module-nav__link { flex: 1 1 100%; }
     a.w-32-px.h-32-px.rounded-circle,
-    .fc-action-icon { width: 32px !important; height: 32px !important; font-size: 16px; }
+    .fc-action-icon { width: 36px !important; height: 36px !important; font-size: 18px; }
+    .fc-action-icon i { font-size: 18px; }
+    .fc-submissions-btn { font-size: 11px !important; padding: 6px 10px !important; }
+    .fc-submissions-btn i { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

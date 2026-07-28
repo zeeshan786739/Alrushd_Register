@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@yield('title') — Al Rushd</title>
+    <title>@yield('title') — AL-Rushd</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset('frontend/assets/img/logo.png') }}" sizes="16x16" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,7 +91,7 @@
         }
     }
 
-    $crmBrandName = $crmSetting?->company_name ?? 'Al Rushd';
+    $crmBrandName = $crmSetting?->company_name ?? 'AL-Rushd';
 
     $adminUser = auth()->guard('admin')->user();
     $adminAvatarDefault = asset('admin/assets/images/user.png');

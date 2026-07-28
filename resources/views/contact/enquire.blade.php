@@ -192,7 +192,7 @@
                                     <textarea name="details3" class="form-control" rows="5"></textarea>
                                 </div>
                                 <div class="mb-4 col-lg-12 col-12">
-                                    <label class="form-label">Please keep me updated on news, events and offers from Al-Rushd</label>
+                                    <label class="form-label">Please keep me updated on news, events and offers from AL-Rushd</label>
                                     <div>
                                         <input type="radio" value="1" name="details4"> <span class="text-light">Yes</span>
                                         <input type="radio" value="0" name="details4"> <span class="text-light">No</span>

@@ -58,7 +58,7 @@ return [
     ],
 
     'footer_explore' => [
-        ['label' => 'Why Al-Rushd', 'href' => '#philosophy'],
+        ['label' => 'Why AL-Rushd', 'href' => '#philosophy'],
         ['label' => 'Curriculum', 'href' => '#academics'],
         ['label' => 'Islamic Ethos', 'href' => '#features'],
         ['label' => 'Reviews', 'href' => '#testimonials'],
@@ -105,9 +105,9 @@ return [
             ['title' => 'Weekend Classes', 'desc' => 'Supplementary weekend sessions for busy families.', 'icon' => 'fa-calendar-week'],
         ],
         'testimonials' => [
-            ['name' => 'Fatima Ahmed', 'role' => 'Parent', 'text' => 'Al Rushd has transformed my children\'s love for learning. The teachers are caring, qualified, and truly dedicated.', 'rating' => 5],
+            ['name' => 'Fatima Ahmed', 'role' => 'Parent', 'text' => 'AL-Rushd has transformed my children\'s love for learning. The teachers are caring, qualified, and truly dedicated.', 'rating' => 5],
             ['name' => 'Omar Hassan', 'role' => 'Parent', 'text' => 'The online platform is seamless and the Islamic environment gives us complete peace of mind as parents.', 'rating' => 5],
-            ['name' => 'Aisha Khan', 'role' => 'Parent', 'text' => 'Flexible scheduling and excellent curriculum — our family couldn\'t be happier with Al Rushd Online School.', 'rating' => 5],
+            ['name' => 'Aisha Khan', 'role' => 'Parent', 'text' => 'Flexible scheduling and excellent curriculum — our family couldn\'t be happier with AL-Rushd Online School.', 'rating' => 5],
         ],
         'faq' => [
             ['q' => 'How do I apply?', 'a' => 'Choose the relevant form from our Forms section, complete each step, and submit. Our admissions team will guide you through the process.'],
@@ -119,7 +119,7 @@ return [
         'contact' => [
             'email' => 'info@alrushd.online',
             'phone' => '+44 20 3633 0757',
-            'address' => 'Al Rushd Online School, United Kingdom',
+            'address' => 'AL-Rushd Online School, United Kingdom',
             'map_embed' => 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2483.0!2d-0.1276!3d51.5074!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTHCsDMwJzI2LjYiTiAwwrAwNyczOS40Ilc!5e0!3m2!1sen!2suk!4v1',
         ],
     ],

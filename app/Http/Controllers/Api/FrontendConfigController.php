@@ -27,7 +27,7 @@ class FrontendConfigController extends Controller
             'footer_explore' => config('frontend.footer_explore'),
             'form_endpoints' => $this->formEndpoints(),
             'site' => [
-                'company_name' => $settings?->company_name ?? 'Al-Rushd Online School',
+                'company_name' => $settings?->company_name ?? 'AL-Rushd Online School',
                 'email' => $settings?->email_one ?? 'admin@alrushd.org.uk',
                 'phone' => $settings?->phone_one ?? '+44 20 3633 0757',
                 'address' => $settings?->address,

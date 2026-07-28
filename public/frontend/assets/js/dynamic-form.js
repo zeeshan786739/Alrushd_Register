@@ -213,7 +213,7 @@
         const summaryBlock = ps.show_summary
             ? `<div class="ar-payment-summary-card">
                 <div class="ar-payment-summary-head">
-                    <span class="ar-payment-summary-school">Pay Al-Rushd Independent School</span>
+                    <span class="ar-payment-summary-school">Pay AL-Rushd Independent School</span>
                     <span class="ar-payment-summary-amount">${sym}${ps.amount.toFixed(2)}</span>
                 </div>
                 <ul class="ar-payment-summary-list">

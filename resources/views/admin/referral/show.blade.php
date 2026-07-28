@@ -109,7 +109,7 @@
                         <td>{{ $data->details3 ?? '' }}</td>
                     </tr>
                     <tr>
-                        <th>Please keep me updated on news, events and offers from Al-Rushd</th>
+                        <th>Please keep me updated on news, events and offers from AL-Rushd</th>
                         <td>{{ $data->details4==1 ? 'Yes' : 'No' }}</td>
                     </tr>
                     

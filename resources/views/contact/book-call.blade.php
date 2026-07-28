@@ -58,7 +58,7 @@
                                     <i class="fa fa-clock" style="background: #183E77;border-radius: 28px;padding: 11px;font-size: 20px;color: #FFF;"></i>
                                 </div>
                                 <div>
-                                    <h4 class="text-light mb-0">Al-Rushd Independent School</h4>
+                                    <h4 class="text-light mb-0">AL-Rushd Independent School</h4>
                                     <p class="mb-1 minutes_time">15 Min Admission Meeting</p>
                                 </div>
                             </div>
