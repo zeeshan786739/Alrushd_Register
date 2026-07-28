@@ -211,7 +211,10 @@ Route::post('/user-logout', function () {
 // Disable default Laravel UI login/register — admin auth is at /admin/login
 Auth::routes(['login' => false, 'register' => false]);
 
-// Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::prefix('webhooks/meta')->group(function () {
+    Route::get('leads', [\App\Http\Controllers\Webhooks\MetaLeadWebhookController::class, 'verify']);
+    Route::post('leads', [\App\Http\Controllers\Webhooks\MetaLeadWebhookController::class, 'handle']);
+});
 
 require __DIR__.'/admin-auth.php';
 

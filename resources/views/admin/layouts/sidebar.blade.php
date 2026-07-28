@@ -143,6 +143,51 @@
     </li>
     @endcanany
 
+    {{-- ================= INTEGRATIONS ================= --}}
+    @canany(['view integrations', 'manage integrations'])
+    <li class="sidebar-menu-group-title" role="presentation">Integrations</li>
+    <li class="{{ AdminNav::dropdownClass([
+        'admin.integrations.*'
+    ]) }}">
+        <a href="javascript:void(0)"
+           role="button"
+           aria-expanded="{{ AdminNav::expanded(['admin.integrations.*']) }}"
+           aria-controls="nav-integrations"
+           title="Integrations">
+            <iconify-icon icon="solar:plug-circle-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Integrations</span>
+        </a>
+        <ul class="sidebar-submenu" id="nav-integrations">
+            @can('view integrations')
+            <li>
+                <a href="{{ route('admin.integrations.hub') }}"
+                   class="{{ AdminNav::linkClass('admin.integrations.hub') }}"
+                   title="Integration Hub">
+                    <iconify-icon icon="solar:widget-5-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Integration Hub</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('admin.integrations.facebook.show') }}"
+                   class="{{ AdminNav::linkClass('admin.integrations.facebook.*') }}"
+                   title="Facebook Lead Ads">
+                    <iconify-icon icon="logos:facebook" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Facebook Lead Ads</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('admin.integrations.tiktok.show') }}"
+                   class="{{ AdminNav::linkClass('admin.integrations.tiktok.*') }}"
+                   title="TikTok Lead Generation">
+                    <iconify-icon icon="logos:tiktok-icon" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>TikTok</span>
+                </a>
+            </li>
+            @endcan
+        </ul>
+    </li>
+    @endcanany
+
     {{-- ================= FORMS & SUBMISSIONS ================= --}}
     @php
         $canFormsSection = auth('admin')->check()

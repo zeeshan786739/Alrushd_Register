@@ -13,6 +13,7 @@ use App\Models\Admin;
 use App\Models\Crm\Lead;
 use App\Models\Crm\SavedFilter;
 use App\Services\Crm\LeadConversionService;
+use App\Support\LeadSourceOptions;
 use App\Support\OrganizationContext;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -52,6 +53,10 @@ class LeadController extends Controller
             'won' => (clone $orgScope)->where('lead_status', 'won')->count(),
             'follow_up_today' => (clone $orgScope)->followUpToday()->count(),
             'monthly_change' => round($percentageChange, 1),
+            'facebook_this_week' => (clone $orgScope)
+                ->where('source', 'facebook_lead_ads')
+                ->where('created_at', '>=', Carbon::now()->subDays(7))
+                ->count(),
         ];
 
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
@@ -61,7 +66,8 @@ class LeadController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters'));
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters'))
+            ->with('sourceOptions', LeadSourceOptions::filterOptions());
     }
 
     public function create(): View
@@ -87,7 +93,7 @@ class LeadController extends Controller
     public function show(Lead $lead): View
     {
         $this->authorize('view', $lead);
-        $lead->load(['assignedAdmin', 'notes.admin', 'activities.admin', 'customer']);
+        $lead->load(['assignedAdmin', 'notes.admin', 'activities.admin', 'customer', 'formEntry', 'metaLeadSubmission.formMapping']);
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
 
         return view('admin.crm.leads.show', compact('lead', 'admins'));
@@ -285,6 +291,7 @@ class LeadController extends Controller
             ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', $status))
             ->when($request->priority, fn ($q, $priority) => $q->where('priority', $priority))
             ->when($request->assigned_to, fn ($q, $assigned) => $q->where('assigned_to', $assigned))
+            ->when($request->source, fn ($q, $source) => $q->where('source', $source))
             ->when($request->search, function ($q, $search) {
                 $q->where(function ($inner) use ($search) {
                     $inner->where('first_name', 'like', "%{$search}%")
