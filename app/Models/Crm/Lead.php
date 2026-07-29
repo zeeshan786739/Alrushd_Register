@@ -7,10 +7,12 @@ use App\Enums\LeadStatus;
 use App\Models\Admin;
 use App\Models\FormEntry;
 use App\Models\FormSubmission;
+use App\Models\Integrations\MetaLeadSubmission;
 use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Lead extends Model
@@ -60,6 +62,16 @@ class Lead extends Model
     public function formEntry(): BelongsTo
     {
         return $this->belongsTo(FormEntry::class, 'form_entry_id');
+    }
+
+    public function metaLeadSubmission(): HasOne
+    {
+        return $this->hasOne(MetaLeadSubmission::class, 'lead_id');
+    }
+
+    public function isFromFacebook(): bool
+    {
+        return $this->source === 'facebook_lead_ads';
     }
 
     public function notes(): HasMany

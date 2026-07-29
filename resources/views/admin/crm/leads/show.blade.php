@@ -26,6 +26,7 @@
                     <div class="d-flex flex-wrap gap-12 mb-20">
                         @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
                         @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
+                        @include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])
                         @if($lead->is_converted)<span class="crm-status-pill crm-status-pill--accepted">Converted</span>@endif
                     </div>
                     <div class="row g-3">
@@ -33,12 +34,35 @@
                         <div class="col-md-6"><strong>Phone</strong><br>{{ $lead->phone ?? '—' }}</div>
                         <div class="col-md-6"><strong>Company</strong><br>{{ $lead->company ?? '—' }}</div>
                         <div class="col-md-6"><strong>Source</strong><br>{{ $lead->lead_source ?? $lead->source ?? '—' }}</div>
+                        @if($lead->formEntry)
+                        <div class="col-md-6"><strong>Form Submission</strong><br><a href="{{ route('admin.crm.form-entries.show', $lead->formEntry) }}">View submission #{{ $lead->formEntry->id }}</a></div>
+                        @endif
                         <div class="col-md-6"><strong>Assigned To</strong><br>{{ $lead->assignedAdmin?->name ?? 'Unassigned' }}</div>
                         <div class="col-md-6"><strong>Estimated Value</strong><br>{{ $lead->estimated_value ? number_format($lead->estimated_value,2) : '—' }}</div>
                         <div class="col-12"><strong>Description</strong><br>{{ $lead->lead_description ?? '—' }}</div>
                     </div>
                 </div>
             </div>
+
+            @if($lead->isFromFacebook() && $lead->metaLeadSubmission)
+            @php $meta = $lead->metaLeadSubmission; @endphp
+            <div class="card radius-12 shadow-2 border-0 mb-24">
+                <div class="card-body p-24">
+                    <div class="d-flex align-items-center gap-8 mb-16">
+                        <iconify-icon icon="logos:facebook" width="22"></iconify-icon>
+                        <h6 class="fw-semibold mb-0">Facebook Lead Ads</h6>
+                    </div>
+                    <div class="row g-3 text-sm">
+                        <div class="col-md-6"><strong>Form mapping</strong><br>{{ $meta->formMapping?->internal_label ?? '—' }}</div>
+                        <div class="col-md-6"><strong>Meta lead ID</strong><br><code>{{ $meta->meta_leadgen_id }}</code></div>
+                        <div class="col-md-4"><strong>Form ID</strong><br>{{ $meta->meta_form_id ?? '—' }}</div>
+                        <div class="col-md-4"><strong>Ad ID</strong><br>{{ $meta->meta_ad_id ?? '—' }}</div>
+                        <div class="col-md-4"><strong>Campaign ID</strong><br>{{ $meta->meta_campaign_id ?? '—' }}</div>
+                        <div class="col-md-6"><strong>Received</strong><br>{{ $meta->created_at->format('M j, Y H:i') }}</div>
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <div class="card radius-12 shadow-2 border-0 mb-24">
                 <div class="card-body p-24">

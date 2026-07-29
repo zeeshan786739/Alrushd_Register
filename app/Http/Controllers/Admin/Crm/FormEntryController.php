@@ -144,6 +144,7 @@ class FormEntryController extends Controller
             ->when($formId, fn ($q) => $q->where('form_id', $formId))
             ->when($request->form_id, fn ($q, $id) => $q->where('form_id', $id))
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->legacy_source, fn ($q, $source) => $q->where('legacy_source', $source))
             ->when($request->search, function ($q, $search) {
                 $q->where(function ($inner) use ($search) {
                     $inner->where('entry_id', 'like', "%{$search}%")
@@ -165,6 +166,7 @@ class FormEntryController extends Controller
             'pending' => (clone $base)->where('status', 'pending')->count(),
             'approved' => (clone $base)->where('status', 'approved')->count(),
             'rejected' => (clone $base)->where('status', 'rejected')->count(),
+            'facebook' => (clone $base)->where('legacy_source', 'facebook_lead_ads')->count(),
         ];
     }
 

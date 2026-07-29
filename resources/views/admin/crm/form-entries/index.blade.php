@@ -14,19 +14,31 @@
         <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Total','value'=>$stats['total'],'icon'=>'solar:documents-linear','tone'=>'navy'])</div>
         <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Pending','value'=>$stats['pending'],'icon'=>'solar:clock-circle-linear','tone'=>'amber'])</div>
         <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Approved','value'=>$stats['approved'],'icon'=>'solar:check-circle-linear','tone'=>'green'])</div>
-        <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Rejected','value'=>$stats['rejected'],'icon'=>'solar:close-circle-linear','tone'=>'rose'])</div>
+        <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Facebook','value'=>$stats['facebook'],'icon'=>'logos:facebook','tone'=>'gold'])</div>
     </div>
     @include('admin.partials.filter-bar', ['action'=>route('admin.crm.form-entries.index'),'resetUrl'=>route('admin.crm.form-entries.index'),'fields'=>[
         ['name'=>'search','label'=>'Search','placeholder'=>'Entry data'],
         ['name'=>'form_id','label'=>'Form','type'=>'select','options'=>$forms->pluck('name','id')->all()],
+        ['name'=>'legacy_source','label'=>'Channel','type'=>'select','options'=>['facebook_lead_ads'=>'Facebook Lead Ads']],
         ['name'=>'status','label'=>'Status','type'=>'select','options'=>['pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected']],
         ['name'=>'date_from','label'=>'From','type'=>'date'],
         ['name'=>'date_to','label'=>'To','type'=>'date'],
     ]])
     <div class="card radius-12 shadow-2 border-0"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0">
         <thead><tr><th>ID</th><th>Form</th><th>Status</th><th>Submitted</th><th>Preview</th><th></th></tr></thead>
-        <tbody>@forelse($entries as $entry)@php $data = is_array($entry->data)?$entry->data:[]; $preview = collect($data)->take(2)->map(fn($v,$k)=>$k.': '.$v)->implode(' · '); @endphp
-            <tr><td>#{{ $entry->id }}</td><td>{{ $entry->form?->name ?? '—' }}</td><td>@include('admin.crm.partials.status-pill',['status'=>$entry->status])</td><td>{{ optional($entry->submitted_at)->format('M j, Y H:i') ?? '—' }}</td><td class="text-sm">{{ Str::limit($preview, 80) }}</td>
+        <tbody>@forelse($entries as $entry)@php
+            $data = is_array($entry->data) ? $entry->data : [];
+            $fields = $data['fields'] ?? $data;
+            $preview = collect($fields)->take(2)->map(fn($v,$k)=>$k.': '.(is_array($v)?json_encode($v):$v))->implode(' · ');
+        @endphp
+            <tr>
+                <td>#{{ $entry->id }}</td>
+                <td>
+                    {{ $entry->form?->name ?? '—' }}
+                    @if($entry->legacy_source === 'facebook_lead_ads')
+                        <br><span class="badge bg-primary-50 text-primary-600 radius-8 text-xs">Facebook</span>
+                    @endif
+                </td><td>@include('admin.crm.partials.status-pill',['status'=>$entry->status])</td><td>{{ optional($entry->submitted_at)->format('M j, Y H:i') ?? '—' }}</td><td class="text-sm">{{ Str::limit($preview, 80) }}</td>
             <td>@include('admin.partials.table-actions',['viewUrl'=>route('admin.crm.form-entries.show',$entry),'editUrl'=>auth('admin')->user()?->can('update form submissions')?route('admin.crm.form-entries.edit',$entry):null,'deleteId'=>$entry->id,'deleteRoute'=>route('admin.crm.form-entries.destroy',$entry),'canDelete'=>auth('admin')->user()?->can('delete form submissions')])</td></tr>
         @empty<tr><td colspan="6" class="text-center py-40 text-secondary-light">No submissions found.</td></tr>@endforelse</tbody>
     </table></div></div></div>

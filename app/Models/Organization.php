@@ -19,6 +19,11 @@ class Organization extends Model
         return $this->hasMany(Admin::class);
     }
 
+    public function integrationConnections(): HasMany
+    {
+        return $this->hasMany(\App\Models\Integrations\IntegrationConnection::class);
+    }
+
     public static function default(): self
     {
         return static::firstOrCreate(
