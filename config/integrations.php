@@ -14,7 +14,7 @@ return [
             'trim',
             explode(',', (string) env(
                 'META_OAUTH_SCOPES',
-                'pages_show_list,pages_read_engagement,business_management,ads_management,pages_manage_ads'
+                'pages_show_list,pages_read_engagement,business_management,ads_management'
             ))
         ))),
     ],
