@@ -143,7 +143,7 @@ class FacebookIntegrationController extends Controller
         } catch (MetaGraphException $e) {
             return redirect()
                 ->route('admin.integrations.facebook.show')
-                ->with('error', 'Could not sync Lead Forms from Facebook: '.$e->getMessage().' Try reconnecting Facebook with ads_management scope, or add a form manually by ID below.');
+                ->with('error', 'Could not sync Lead Forms from Facebook: '.$e->getMessage().' Add pages_manage_ads to META_OAUTH_SCOPES on Meta app, reconnect Facebook, or add a form manually by ID below.');
         } catch (\Throwable $e) {
             report($e);
 
