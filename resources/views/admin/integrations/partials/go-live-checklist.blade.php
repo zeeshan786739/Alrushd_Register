@@ -20,6 +20,14 @@
             </li>
             <li class="d-flex align-items-start gap-8 mb-12">
                 <iconify-icon icon="solar:info-circle-linear" class="text-primary-600 mt-2"></iconify-icon>
+                <span>OAuth scopes in <code>META_OAUTH_SCOPES</code> must match permissions on your Meta app. Do not request <code>leads_retrieval</code> or <code>pages_manage_metadata</code> until Meta approves them.</span>
+            </li>
+            <li class="d-flex align-items-start gap-8 mb-12">
+                <iconify-icon icon="solar:info-circle-linear" class="text-primary-600 mt-2"></iconify-icon>
+                <span><code>leads_retrieval</code> is required to fetch lead field data after webhook. Request via Meta <strong>Publish</strong> → App Review after Connect works.</span>
+            </li>
+            <li class="d-flex align-items-start gap-8 mb-12">
+                <iconify-icon icon="solar:info-circle-linear" class="text-primary-600 mt-2"></iconify-icon>
                 <span>Queue worker running: <code>php artisan queue:work</code></span>
             </li>
             <li class="d-flex align-items-start gap-8">
