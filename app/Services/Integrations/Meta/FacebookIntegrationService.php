@@ -116,15 +116,18 @@ class FacebookIntegrationService
                 ]),
             ]);
 
-            $subscribed = $this->graphClient->subscribePageToLeadgen(
-                $connection->external_account_id,
-                $connection->access_token
-            );
+            try {
+                $subscribed = $this->graphClient->subscribePageToLeadgen(
+                    $connection->external_account_id,
+                    $connection->access_token
+                );
 
-            if ($subscribed) {
-                $connection->update(['webhook_subscribed_at' => now()]);
-            } else {
-                $connection->update(['status' => IntegrationConnectionStatus::Error]);
+                if ($subscribed) {
+                    $connection->update(['webhook_subscribed_at' => now()]);
+                }
+            } catch (\Throwable) {
+                // Webhook may already be subscribed manually in Meta Developer App.
+                // Keep the Page connection; leadgen can still arrive via app-level webhook.
             }
 
             session()->forget(['meta_oauth_user_token', 'meta_oauth_pages', 'meta_oauth_org_id']);
