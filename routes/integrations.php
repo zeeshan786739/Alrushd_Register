@@ -14,6 +14,7 @@ Route::prefix('integrations')->name('integrations.')->group(function () {
         Route::post('/select-page', [FacebookIntegrationController::class, 'selectPage'])->name('select-page');
         Route::post('/disconnect', [FacebookIntegrationController::class, 'disconnect'])->name('disconnect');
         Route::post('/sync-forms', [FacebookIntegrationController::class, 'syncForms'])->name('sync-forms');
+        Route::post('/register-form', [FacebookIntegrationController::class, 'registerForm'])->name('register-form');
         Route::put('/mappings/{mapping}', [FacebookIntegrationController::class, 'updateMapping'])->name('mappings.update');
         Route::post('/reprocess-pending', [FacebookIntegrationController::class, 'reprocessPending'])->name('reprocess-pending');
         Route::post('/submissions/{submission}/reprocess', [FacebookIntegrationController::class, 'reprocessSubmission'])->name('submissions.reprocess');

@@ -8,6 +8,7 @@ use App\Models\Admin;
 use App\Models\Integrations\IntegrationFormMapping;
 use App\Models\Integrations\MetaLeadSubmission;
 use App\Services\Integrations\Meta\FacebookIntegrationService;
+use App\Services\Integrations\Meta\MetaGraphException;
 use App\Services\Integrations\Meta\MetaLeadReprocessService;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
@@ -136,11 +137,44 @@ class FacebookIntegrationController extends Controller
     public function syncForms(): RedirectResponse
     {
         $connection = $this->facebookService->connectionForCurrentOrganization();
-        $forms = $this->facebookService->syncLeadForms($connection);
+
+        try {
+            $forms = $this->facebookService->syncLeadForms($connection);
+        } catch (MetaGraphException $e) {
+            return redirect()
+                ->route('admin.integrations.facebook.show')
+                ->with('error', 'Could not sync Lead Forms from Facebook: '.$e->getMessage().' Try reconnecting Facebook with ads_management scope, or add a form manually by ID below.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.integrations.facebook.show')
+                ->with('error', 'Could not sync Lead Forms ('.$e->getMessage().'). If integration tables are missing, run migrations. You can also add a form manually by ID below.');
+        }
 
         return redirect()
             ->route('admin.integrations.facebook.show')
             ->with('success', count($forms).' Facebook Lead Form(s) synced. Configure mappings below.');
+    }
+
+    public function registerForm(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'external_form_id' => ['required', 'string', 'max:64'],
+            'external_form_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $connection = $this->facebookService->connectionForCurrentOrganization();
+
+        $this->facebookService->registerLeadFormManually(
+            $connection,
+            $validated['external_form_id'],
+            $validated['external_form_name'] ?? null
+        );
+
+        return redirect()
+            ->route('admin.integrations.facebook.show')
+            ->with('success', 'Lead Form added. Configure the mapping below.');
     }
 
     public function updateMapping(UpdateFacebookFormMappingRequest $request, IntegrationFormMapping $mapping): RedirectResponse

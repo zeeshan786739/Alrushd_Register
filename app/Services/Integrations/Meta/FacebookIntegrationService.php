@@ -190,6 +190,41 @@ class FacebookIntegrationService
         return $forms;
     }
 
+    public function registerLeadFormManually(
+        IntegrationConnection $connection,
+        string $formId,
+        ?string $formName = null
+    ): IntegrationFormMapping {
+        if (! $connection->isConnected()) {
+            abort(422, 'Facebook Page must be connected before adding a form.');
+        }
+
+        $name = $formName;
+
+        if (! filled($name)) {
+            try {
+                $form = $this->graphClient->fetchLeadForm($formId, $connection->access_token);
+                $name = (string) ($form['name'] ?? 'Facebook Form');
+            } catch (\Throwable) {
+                $name = 'Facebook Form';
+            }
+        }
+
+        return IntegrationFormMapping::updateOrCreate(
+            [
+                'organization_id' => $connection->organization_id,
+                'external_form_id' => $formId,
+            ],
+            [
+                'integration_connection_id' => $connection->id,
+                'external_form_name' => $name,
+                'internal_label' => $name,
+                'lead_source_label' => 'Facebook — '.$name,
+                'is_active' => true,
+            ]
+        );
+    }
+
     public function availablePagesFromSession(): array
     {
         return session('meta_oauth_pages', []);

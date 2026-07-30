@@ -2,7 +2,6 @@
 
 namespace App\Services\Integrations\Meta;
 
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
 class MetaGraphClient
@@ -79,6 +78,15 @@ class MetaGraphClient
         ]);
     }
 
+    /** @return array<string, mixed> */
+    public function fetchLeadForm(string $formId, string $pageAccessToken): array
+    {
+        return $this->get('/'.$formId, [
+            'access_token' => $pageAccessToken,
+            'fields' => 'id,name,status',
+        ]);
+    }
+
     public function subscribePageToLeadgen(string $pageId, string $pageAccessToken): bool
     {
         $response = Http::asForm()->post($this->url('/'.$pageId.'/subscribed_apps'), [
@@ -108,7 +116,10 @@ class MetaGraphClient
     private function get(string $path, array $query = []): array
     {
         $response = Http::get($this->url($path), $query);
-        $response->throw();
+
+        if ($response->failed()) {
+            throw MetaGraphException::fromResponse($response);
+        }
 
         return $response->json() ?? [];
     }

@@ -106,6 +106,27 @@
                             <iconify-icon icon="solar:document-linear" width="40" class="mb-12"></iconify-icon>
                             <p class="mb-0">No Lead Forms synced yet. Connect Facebook and click <strong>Sync Lead Forms</strong>.</p>
                         </div>
+                        @can('manage integrations')
+                        @if($connection->isConnected())
+                        <div class="border-top pt-20 mt-20">
+                            <p class="text-sm text-secondary-light mb-12">If sync fails, paste the Form ID from Meta → Lead ads forms (click a form → copy ID from URL).</p>
+                            <form method="POST" action="{{ route('admin.integrations.facebook.register-form') }}" class="row g-2 align-items-end">
+                                @csrf
+                                <div class="col-md-5">
+                                    <label class="form-label text-sm" for="external_form_id">Form ID</label>
+                                    <input type="text" name="external_form_id" id="external_form_id" class="form-control form-control-sm radius-8" placeholder="e.g. 1234567890" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label text-sm" for="external_form_name">Form name (optional)</label>
+                                    <input type="text" name="external_form_name" id="external_form_name" class="form-control form-control-sm radius-8" placeholder="Fitraho Test Lead Form">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8 w-100">Add form</button>
+                                </div>
+                            </form>
+                        </div>
+                        @endif
+                        @endcan
                     @else
                         <div class="table-responsive">
                             <table class="table align-middle mb-0">
