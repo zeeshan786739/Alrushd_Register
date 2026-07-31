@@ -225,7 +225,7 @@ class WebsiteCmsService
                     ['label' => 'Testimonials', 'href' => '#testimonials'],
                     ['label' => 'FAQ', 'href' => '#faq'],
                 ],
-                'privacy_url' => '#',
+                'privacy_url' => '/privacy-policy',
                 'terms_url' => '#',
                 'cookies_url' => '#',
                 'newsletter_enabled' => true,

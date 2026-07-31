@@ -69,6 +69,23 @@ class FrontendController extends Controller
         ]);
     }
 
+    public function privacyPolicy(WebsiteCmsService $cmsService)
+    {
+        $cms = $cmsService->getForFrontend(false);
+
+        return view('frontend.legal.privacy-policy', [
+            'cms' => $cms,
+            'themeCss' => $cmsService->cssVariables($cms),
+            'landing' => [
+                'contact' => [
+                    'email' => $cms['contact']['email'] ?? config('frontend.landing.contact.email'),
+                    'phone' => $cms['contact']['phone'] ?? config('frontend.landing.contact.phone'),
+                    'address' => $cms['contact']['address'] ?? config('frontend.landing.contact.address'),
+                ],
+            ],
+        ]);
+    }
+
     public function dynamicForm(string $slug)
     {
         $form = Form::query()

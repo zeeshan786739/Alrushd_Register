@@ -93,6 +93,7 @@ Route::post('/apply-coupon', [FrontendController::class, 'applyCoupon'])->name('
 
 
 Route::get('/',[FrontendController::class,'index'])->name('index');
+Route::get('/privacy-policy', [FrontendController::class, 'privacyPolicy'])->name('privacy-policy');
 
 Route::get('/forms/{slug}', [FrontendController::class, 'dynamicForm'])->name('dynamic-form');
 Route::get('/forms/{slug}/success', [FrontendController::class, 'dynamicFormSuccess'])->name('dynamic-form.success');
