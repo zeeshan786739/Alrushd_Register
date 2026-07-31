@@ -27,7 +27,13 @@
                         </div>
                         <p class="text-sm mb-8"><strong>Page:</strong> {{ $connection->external_account_name }}</p>
                         <p class="text-sm mb-8"><strong>Page ID:</strong> <code>{{ $connection->external_account_id }}</code></p>
-                        <p class="text-sm mb-8"><strong>Webhook:</strong> {{ $connection->webhook_subscribed_at ? 'Subscribed '.$connection->webhook_subscribed_at->diffForHumans() : 'Not confirmed' }}</p>
+                        <p class="text-sm mb-8"><strong>Webhook:</strong>
+                            @if($connection->webhook_subscribed_at || $connection->last_webhook_at)
+                                Confirmed {{ ($connection->last_webhook_at ?? $connection->webhook_subscribed_at)?->diffForHumans() }}
+                            @else
+                                Not confirmed — send a test from Meta Webhooks
+                            @endif
+                        </p>
                         <p class="text-sm mb-16"><strong>Last lead received:</strong> {{ $connection->last_webhook_at?->diffForHumans() ?? 'Never' }}</p>
 
                         @can('manage integrations')

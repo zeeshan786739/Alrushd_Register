@@ -239,8 +239,8 @@ class FacebookIntegrationController extends Controller
 
         if (! $connection->isConnected()) {
             $issues[] = 'Facebook Page is not connected for this school';
-        } elseif (! $connection->webhook_subscribed_at) {
-            $issues[] = 'Webhook subscription is not confirmed';
+        } elseif (! $connection->webhook_subscribed_at && ! $connection->last_webhook_at) {
+            $issues[] = 'Webhook not confirmed yet — use Meta app → Webhooks → leadgen → Send to server';
         }
 
         if ($issues !== []) {

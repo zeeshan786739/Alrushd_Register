@@ -11,7 +11,7 @@
                 <span>Facebook Page connected for this school</span>
             </li>
             <li class="d-flex align-items-start gap-8 mb-12">
-                <iconify-icon icon="{{ ($connection->webhook_subscribed_at ?? false) ? 'solar:check-circle-bold' : 'solar:close-circle-linear' }}" class="{{ ($connection->webhook_subscribed_at ?? false) ? 'text-success-main' : 'text-danger-main' }} mt-2"></iconify-icon>
+                <iconify-icon icon="{{ (($connection->webhook_subscribed_at ?? false) || ($connection->last_webhook_at ?? false)) ? 'solar:check-circle-bold' : 'solar:close-circle-linear' }}" class="{{ (($connection->webhook_subscribed_at ?? false) || ($connection->last_webhook_at ?? false)) ? 'text-success-main' : 'text-danger-main' }} mt-2"></iconify-icon>
                 <span>Webhook subscribed to <code>leadgen</code> in Meta Developer App</span>
             </li>
             <li class="d-flex align-items-start gap-8 mb-12">
