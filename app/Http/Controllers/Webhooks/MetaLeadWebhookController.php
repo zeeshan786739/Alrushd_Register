@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Integrations\Meta\MetaWebhookHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class MetaLeadWebhookController extends Controller
@@ -25,7 +26,16 @@ class MetaLeadWebhookController extends Controller
 
     public function handle(Request $request, MetaWebhookHandler $handler): Response
     {
-        $handler->handle($request->all());
+        try {
+            $handler->handle($request->all());
+        } catch (\Throwable $exception) {
+            Log::error('Meta lead webhook handler failed', [
+                'message' => $exception->getMessage(),
+                'payload' => $request->all(),
+            ]);
+
+            report($exception);
+        }
 
         return response('EVENT_RECEIVED', 200);
     }

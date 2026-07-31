@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/meta/*',
+        ]);
         $middleware->alias([
 
             'admin.has.role' => CheckAdminHasAnyRole::class,
