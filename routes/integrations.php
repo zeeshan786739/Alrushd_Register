@@ -16,6 +16,7 @@ Route::prefix('integrations')->name('integrations.')->group(function () {
         Route::post('/sync-forms', [FacebookIntegrationController::class, 'syncForms'])->name('sync-forms');
         Route::post('/register-form', [FacebookIntegrationController::class, 'registerForm'])->name('register-form');
         Route::put('/mappings/{mapping}', [FacebookIntegrationController::class, 'updateMapping'])->name('mappings.update');
+        Route::delete('/mappings/{mapping}', [FacebookIntegrationController::class, 'deleteMapping'])->name('mappings.destroy');
         Route::post('/reprocess-pending', [FacebookIntegrationController::class, 'reprocessPending'])->name('reprocess-pending');
         Route::post('/submissions/{submission}/reprocess', [FacebookIntegrationController::class, 'reprocessSubmission'])->name('submissions.reprocess');
         Route::post('/test-connection', [FacebookIntegrationController::class, 'testConnection'])->name('test-connection');

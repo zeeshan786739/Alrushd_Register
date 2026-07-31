@@ -104,29 +104,8 @@
                     @if($connection->formMappings->isEmpty())
                         <div class="text-center py-32 text-secondary-light">
                             <iconify-icon icon="solar:document-linear" width="40" class="mb-12"></iconify-icon>
-                            <p class="mb-0">No Lead Forms synced yet. Connect Facebook and click <strong>Sync Lead Forms</strong>.</p>
+                            <p class="mb-0">No Lead Forms synced yet. Connect Facebook and click <strong>Sync Lead Forms</strong>, or add a form by ID below.</p>
                         </div>
-                        @can('manage integrations')
-                        @if($connection->isConnected())
-                        <div class="border-top pt-20 mt-20">
-                            <p class="text-sm text-secondary-light mb-12">If sync fails, paste the Form ID from Meta → Lead ads forms (click a form → copy ID from URL).</p>
-                            <form method="POST" action="{{ route('admin.integrations.facebook.register-form') }}" class="row g-2 align-items-end">
-                                @csrf
-                                <div class="col-md-5">
-                                    <label class="form-label text-sm" for="external_form_id">Form ID</label>
-                                    <input type="text" name="external_form_id" id="external_form_id" class="form-control form-control-sm radius-8" placeholder="e.g. 1234567890" required>
-                                </div>
-                                <div class="col-md-5">
-                                    <label class="form-label text-sm" for="external_form_name">Form name (optional)</label>
-                                    <input type="text" name="external_form_name" id="external_form_name" class="form-control form-control-sm radius-8" placeholder="Fitraho Test Lead Form">
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8 w-100">Add form</button>
-                                </div>
-                            </form>
-                        </div>
-                        @endif
-                        @endcan
                     @else
                         <div class="table-responsive">
                             <table class="table align-middle mb-0">
@@ -184,12 +163,43 @@
                                             {{ $mapping->internal_label }}
                                             @endcan
                                         </td>
+                                        <td class="text-end">
+                                            @can('manage integrations')
+                                            <form method="POST" action="{{ route('admin.integrations.facebook.mappings.destroy', $mapping) }}" onsubmit="return confirm('Remove this form mapping?');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger-600 radius-8">Remove</button>
+                                            </form>
+                                            @endcan
+                                        </td>
                                     </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
                     @endif
+
+                    @can('manage integrations')
+                    @if($connection->isConnected())
+                    <div class="border-top pt-20 mt-20">
+                        <p class="text-sm fw-medium mb-12">Add another form</p>
+                        <p class="text-sm text-secondary-light mb-12">Copy Form ID from Meta → Lead ads forms → click a form.</p>
+                        <form method="POST" action="{{ route('admin.integrations.facebook.register-form') }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-md-5">
+                                <label class="form-label text-sm" for="external_form_id">Form ID</label>
+                                <input type="text" name="external_form_id" id="external_form_id" class="form-control form-control-sm radius-8" placeholder="e.g. 1953833178916110" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label text-sm" for="external_form_name">Form name (optional)</label>
+                                <input type="text" name="external_form_name" id="external_form_name" class="form-control form-control-sm radius-8" placeholder="FitRaho CRM Test">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8 w-100">Add form</button>
+                            </div>
+                        </form>
+                    </div>
+                    @endif
+                    @endcan
                 </div>
             </div>
 

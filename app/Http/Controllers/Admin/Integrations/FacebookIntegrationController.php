@@ -177,6 +177,17 @@ class FacebookIntegrationController extends Controller
             ->with('success', 'Lead Form added. Configure the mapping below.');
     }
 
+    public function deleteMapping(IntegrationFormMapping $mapping): RedirectResponse
+    {
+        abort_unless($mapping->organization_id === OrganizationContext::idOrFail(), 404);
+
+        $mapping->delete();
+
+        return redirect()
+            ->route('admin.integrations.facebook.show')
+            ->with('success', 'Lead Form mapping removed.');
+    }
+
     public function updateMapping(UpdateFacebookFormMappingRequest $request, IntegrationFormMapping $mapping): RedirectResponse
     {
         abort_unless($mapping->organization_id === OrganizationContext::idOrFail(), 404);
