@@ -43,11 +43,7 @@ class MetaWebhookHandler
             return;
         }
 
-        $connection = IntegrationConnection::query()
-            ->where('platform', IntegrationPlatform::Facebook)
-            ->where('external_account_id', $pageId)
-            ->where('status', IntegrationConnectionStatus::Connected)
-            ->first();
+        $connection = $this->resolveConnection($pageId);
 
         if (! $connection) {
             Log::warning('No connected Facebook integration for page', ['page_id' => $pageId]);
@@ -55,7 +51,10 @@ class MetaWebhookHandler
             return;
         }
 
-        $connection->update(['last_webhook_at' => now()]);
+        $connection->update([
+            'last_webhook_at' => now(),
+            'webhook_subscribed_at' => $connection->webhook_subscribed_at ?? now(),
+        ]);
 
         $submission = MetaLeadSubmission::firstOrCreate(
             ['meta_leadgen_id' => $leadgenId],
@@ -65,7 +64,7 @@ class MetaWebhookHandler
                 'meta_form_id' => isset($value['form_id']) ? (string) $value['form_id'] : null,
                 'meta_ad_id' => isset($value['ad_id']) ? (string) $value['ad_id'] : null,
                 'meta_campaign_id' => isset($value['campaign_id']) ? (string) $value['campaign_id'] : null,
-                'meta_page_id' => $pageId,
+                'meta_page_id' => $connection->external_account_id,
                 'raw_payload' => $value,
                 'status' => MetaLeadSubmissionStatus::Pending,
             ]
@@ -76,5 +75,37 @@ class MetaWebhookHandler
         }
 
         ProcessMetaLeadJob::dispatch($submission->id);
+    }
+
+    private function resolveConnection(string $pageId): ?IntegrationConnection
+    {
+        $connection = IntegrationConnection::query()
+            ->where('platform', IntegrationPlatform::Facebook)
+            ->where('external_account_id', $pageId)
+            ->where('status', IntegrationConnectionStatus::Connected)
+            ->first();
+
+        if ($connection) {
+            return $connection;
+        }
+
+        // Meta dashboard "Send to server" uses sample page IDs (e.g. 444444444444)
+        // that do not match a real Page. If only one school is connected, accept it.
+        $connected = IntegrationConnection::query()
+            ->where('platform', IntegrationPlatform::Facebook)
+            ->where('status', IntegrationConnectionStatus::Connected)
+            ->whereNotNull('external_account_id')
+            ->get();
+
+        if ($connected->count() === 1) {
+            Log::info('Meta leadgen webhook used sole connected integration for unmatched page_id', [
+                'webhook_page_id' => $pageId,
+                'resolved_page_id' => $connected->first()->external_account_id,
+            ]);
+
+            return $connected->first();
+        }
+
+        return null;
     }
 }

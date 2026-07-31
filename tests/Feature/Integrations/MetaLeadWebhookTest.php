@@ -90,4 +90,45 @@ class MetaLeadWebhookTest extends TestCase
         $submission = MetaLeadSubmission::where('meta_leadgen_id', 'lead-999')->first();
         Queue::assertPushed(ProcessMetaLeadJob::class, fn ($job) => $job->metaLeadSubmissionId === $submission->id);
     }
+
+    public function test_leadgen_webhook_accepts_meta_dashboard_sample_page_id_when_one_connection(): void
+    {
+        Queue::fake();
+
+        $organization = \App\Models\Organization::create([
+            'name' => 'Test School',
+            'slug' => 'test-school-2',
+            'is_active' => true,
+        ]);
+
+        IntegrationConnection::create([
+            'organization_id' => $organization->id,
+            'platform' => IntegrationPlatform::Facebook,
+            'status' => IntegrationConnectionStatus::Connected,
+            'external_account_id' => '972351985971203',
+            'external_account_name' => 'Fitraho',
+            'access_token' => 'page-token',
+        ]);
+
+        $this->postJson('/webhooks/meta/leads', [
+            'object' => 'page',
+            'entry' => [[
+                'id' => '444444444444444',
+                'changes' => [[
+                    'field' => 'leadgen',
+                    'value' => [
+                        'leadgen_id' => '4444444444444444',
+                        'page_id' => '444444444444444',
+                        'form_id' => '4444444444444444',
+                    ],
+                ]],
+            ]],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('meta_lead_submissions', [
+            'meta_leadgen_id' => '4444444444444444',
+            'organization_id' => $organization->id,
+            'meta_page_id' => '972351985971203',
+        ]);
+    }
 }
