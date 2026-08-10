@@ -24,11 +24,18 @@ class Admin extends Authenticatable
         'password',
         'image',
         'organization_id',
+        'is_platform_admin',
+        'last_login_at',
     ];
 
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function isPlatformAdmin(): bool
+    {
+        return (bool) $this->is_platform_admin;
     }
 
     public function scopeForCurrentOrganization($query)
@@ -62,6 +69,8 @@ class Admin extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_platform_admin' => 'boolean',
+            'last_login_at' => 'datetime',
         ];
     }
 }

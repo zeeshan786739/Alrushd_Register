@@ -265,6 +265,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(CrmOrganizationSeeder::class);
+        $this->call(SaasPlatformSeeder::class);
         $this->call(CrmPermissionsSeeder::class);
         $this->call(EmailMarketingPermissionsSeeder::class);
         $this->call(IntegrationPermissionsSeeder::class);

@@ -1,0 +1,36 @@
+---
+description: Multi-tenant SaaS conventions for the Enrolliq platform (organizations, platform panel, billing)
+alwaysApply: true
+---
+
+# Enrolliq SaaS Conventions
+
+This app is a multi-tenant SaaS. **Tenant = `Organization`** (UI label: "School").
+The legacy `schools` table is a campus lookup inside a tenant — never use it as the tenant.
+
+## Tenancy
+- Every new tenant-owned table gets `organization_id` (FK, indexed) and the model uses
+  `App\Traits\BelongsToOrganization`. Query via `Model::forCurrentOrganization()`.
+- Unique constraints on tenant data must be composite with `organization_id`.
+- Resolve the current tenant with `App\Support\OrganizationContext::id()` — never `Organization::first()`.
+
+## Panels & routes
+- Tenant admin panel: `/admin/*`, route names `admin.*`, middleware `['auth:admin','admin.only','admin.has.role','org.active']`.
+- Platform (SaaS owner) panel: `/superadmin/*`, route names `platform.*`, middleware `['auth:admin','platform.admin']`, routes in `routes/platform.php`.
+- Public marketing site: `/platform/*`, route names `saas.*`, routes in `routes/saas.php`.
+- Platform admins have `admins.is_platform_admin = true` and `organization_id = NULL`. They never
+  appear in tenant user lists and never access `/admin/*` (except via impersonation).
+
+## Billing
+- SaaS billing tables are `saas_plans` / `saas_subscriptions` (the plain `plans` table belongs to
+  legacy admissions — do not touch it for billing).
+- Stripe calls go through `App\Services\Platform\StripeBillingService`; keys come from
+  `PlatformSetting` (DB) with `config('saas.stripe.*')` env fallback. Code must degrade gracefully
+  when Stripe keys are not configured.
+- Organization lifecycle statuses: trial | active | past_due | suspended | inactive | cancelled.
+  Keep `organizations.is_active` in sync (true only for trial/active).
+
+## Style
+- Money columns are `decimal(10,2)`, never float. New enums get a PHP backed Enum in `app/Enums`.
+- Log every platform-admin action on a tenant via `PlatformActivityLogger` (`platform_activity_logs`).
+- See `docs/SAAS_TRANSFORMATION_PLAN.md` and `docs/DATABASE_REDESIGN.md` before schema changes.

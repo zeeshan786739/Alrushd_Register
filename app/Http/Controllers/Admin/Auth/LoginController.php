@@ -28,6 +28,13 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
+        $admin = Auth::guard('admin')->user();
+        $admin?->forceFill(['last_login_at' => now()])->save();
+
+        if ($admin?->isPlatformAdmin()) {
+            return redirect()->intended(route('platform.dashboard', absolute: false))->with('success', 'Welcome back!');
+        }
+
         return redirect()->intended(route('admin.dashboard', absolute: false))->with('success', 'Login Successfully !!!');
     }
 

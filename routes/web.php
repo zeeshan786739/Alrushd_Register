@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\Schema;
 
       
  
+// SaaS marketing site + platform billing (registered first so the optional
+// SAAS_DOMAIN root route wins over the tenant school site's "/").
+require __DIR__.'/saas.php';
+
 Route::get('/cmd',function(){
     Artisan::call('storage:link');
     Artisan::call('config:clear');
@@ -218,6 +222,7 @@ Route::prefix('webhooks/meta')->group(function () {
 });
 
 require __DIR__.'/admin-auth.php';
+require __DIR__.'/platform.php';
 
 
 

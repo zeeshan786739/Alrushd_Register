@@ -112,6 +112,18 @@
     <span class="crm-loader-text">Loading…</span>
 </div>
 
+@if(session()->has('platform_impersonator_id'))
+<div style="position: sticky; top: 0; z-index: 1080; background: linear-gradient(90deg, #7c3aed, #2563eb); color: #fff; padding: 8px 16px; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 13px; font-weight: 500;">
+    <span>You are impersonating <strong>{{ auth()->guard('admin')->user()?->name }}</strong> ({{ auth()->guard('admin')->user()?->organization?->name }}) as the platform Super Admin.</span>
+    <form method="POST" action="{{ route('admin.impersonation.leave') }}" style="margin: 0;">
+        @csrf
+        <button type="submit" style="background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.45); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            Return to Super Admin
+        </button>
+    </form>
+</div>
+@endif
+
 <aside class="sidebar">
     <button type="button" class="sidebar-close-btn">
         <iconify-icon icon="radix-icons:cross-2"></iconify-icon>

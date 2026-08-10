@@ -665,4 +665,15 @@
     </li>
     @endcan
 
+    {{-- ================= BILLING (SaaS subscription) ================= --}}
+    <li class="sidebar-menu-group-title" role="presentation">Account</li>
+    <li>
+        <a href="{{ route('admin.billing.index') }}"
+           class="{{ AdminNav::linkClass('admin.billing.*') }}"
+           title="Billing & Subscription">
+            <iconify-icon icon="solar:card-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Billing &amp; Subscription</span>
+        </a>
+    </li>
+
 </ul>

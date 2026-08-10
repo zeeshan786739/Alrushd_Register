@@ -61,7 +61,7 @@ Route::prefix('admin')->middleware('guest:admin')->group(function () {
 
 Route::prefix('admin')->name('admin.')
 // ->middleware('auth:admin')
-->middleware(['auth:admin', 'admin.only', 'admin.has.role'])
+->middleware(['auth:admin', 'admin.only', 'admin.has.role', 'org.active'])
 ->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -72,6 +72,10 @@ Route::prefix('admin')->name('admin.')
 
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
+
+    // SaaS subscription billing for this school
+    Route::get('/billing', [\App\Http\Controllers\Admin\BillingController::class, 'index'])->name('billing.index');
+    Route::post('/billing/checkout', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('billing.checkout');
 
     Route::get('/profile/settings', [AdminProfileController::class, 'settings'])->name('profile.settings');
     Route::put('/profile/settings', [AdminProfileController::class, 'updateSettings'])->name('profile.settings.update');

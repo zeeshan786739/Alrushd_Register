@@ -4,6 +4,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\CheckAdminHasAnyRole;
+use App\Http\Middleware\EnsureOrganizationIsActive;
+use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\RedirectIfNotAdmin;
 use App\Http\Middleware\RedirectIfAdmin;
 
@@ -18,12 +20,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
         $middleware->validateCsrfTokens(except: [
             'webhooks/meta/*',
+            'webhooks/stripe/*',
         ]);
         $middleware->alias([
 
             'admin.has.role' => CheckAdminHasAnyRole::class,
             'admin.only' => RedirectIfNotAdmin::class,
             'no.admin' => RedirectIfAdmin::class,
+            'platform.admin' => EnsurePlatformAdmin::class,
+            'org.active' => EnsureOrganizationIsActive::class,
 
 
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
