@@ -26,6 +26,7 @@ class IntegrationHubController extends Controller
             ->keyBy(fn (IntegrationConnection $connection) => $connection->platform->value);
 
         $facebookConnection = $connections->get(IntegrationPlatform::Facebook->value);
+        $tiktokConnection = $connections->get(IntegrationPlatform::TikTok->value);
         $recentFacebookLeads = MetaLeadSubmission::query()
             ->where('organization_id', $organizationId)
             ->latest()
@@ -45,6 +46,7 @@ class IntegrationHubController extends Controller
 
         return view('admin.integrations.hub', compact(
             'facebookConnection',
+            'tiktokConnection',
             'recentFacebookLeads',
             'stats'
         ));

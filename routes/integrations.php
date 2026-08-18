@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\Integrations\FacebookIntegrationController;
 use App\Http\Controllers\Admin\Integrations\IntegrationHubController;
+use App\Http\Controllers\Admin\Integrations\TikTokIntegrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('integrations')->name('integrations.')->group(function () {
@@ -22,5 +23,16 @@ Route::prefix('integrations')->name('integrations.')->group(function () {
         Route::post('/test-connection', [FacebookIntegrationController::class, 'testConnection'])->name('test-connection');
     });
 
-    Route::get('tiktok', [\App\Http\Controllers\Admin\Integrations\TikTokIntegrationController::class, 'show'])->name('tiktok.show');
+    Route::prefix('tiktok')->name('tiktok.')->group(function () {
+        Route::get('/', [TikTokIntegrationController::class, 'show'])->name('show');
+        Route::get('/connect', [TikTokIntegrationController::class, 'connect'])->name('connect');
+        Route::get('/callback', [TikTokIntegrationController::class, 'callback'])->name('callback');
+        Route::post('/select-advertiser', [TikTokIntegrationController::class, 'selectAdvertiser'])->name('select-advertiser');
+        Route::post('/sync-forms', [TikTokIntegrationController::class, 'syncForms'])->name('sync-forms');
+        Route::get('/forms/{tiktokForm}', [TikTokIntegrationController::class, 'configure'])->name('forms.configure');
+        Route::put('/forms/{tiktokForm}', [TikTokIntegrationController::class, 'updateMapping'])->name('forms.update');
+        Route::post('/register-webhook', [TikTokIntegrationController::class, 'registerWebhook'])->name('register-webhook');
+        Route::post('/reprocess-pending', [TikTokIntegrationController::class, 'reprocessPending'])->name('reprocess-pending');
+        Route::post('/submissions/{tiktokSubmission}/reprocess', [TikTokIntegrationController::class, 'reprocessSubmission'])->name('submissions.reprocess');
+    });
 });

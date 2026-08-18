@@ -70,13 +70,12 @@
             <a href="{{ route('admin.integrations.facebook.show') }}" class="btn btn-primary-600 radius-8">
                 {{ $facebookConnection?->isConnected() ? 'Manage Facebook' : 'Connect Facebook' }}
             </a>
-            <a href="{{ route('admin.integrations.tiktok.show') }}" class="btn btn-outline-neutral-500 radius-8 ms-8">TikTok (soon)</a>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-6">
-            <div class="card radius-12 shadow-2 border-0 h-100 opacity-75">
+            <div class="card radius-12 shadow-2 border-0 h-100">
                 <div class="card-body p-24">
                     <div class="d-flex align-items-start justify-content-between gap-12 mb-16">
                         <div class="d-flex align-items-center gap-12">
@@ -84,14 +83,19 @@
                                 <iconify-icon icon="logos:tiktok-icon" width="28"></iconify-icon>
                             </span>
                             <div>
-                                <h6 class="mb-4">TikTok Lead Generation</h6>
-                                <p class="text-sm text-secondary-light mb-0">Coming soon — same workflow as Facebook.</p>
+                                <h6 class="mb-4">TikTok Lead Ads</h6>
+                                <p class="text-sm text-secondary-light mb-0">Import leads from TikTok Lead Generation Instant Forms into CRM.</p>
                             </div>
                         </div>
-                        <span class="badge bg-neutral-200 text-secondary-light radius-8">Coming soon</span>
+                        @if($tiktokConnection?->isConnected())
+                            <span class="badge {{ $tiktokConnection->status->badgeClass() }} radius-8">{{ $tiktokConnection->status->label() }}</span>
+                        @else
+                            <span class="badge bg-neutral-200 text-secondary-light radius-8">Not connected</span>
+                        @endif
                     </div>
-                    <button type="button" class="btn btn-outline-neutral-500 radius-8" disabled>Not available yet</button>
-                    <a href="{{ route('admin.integrations.tiktok.show') }}" class="btn btn-outline-primary-600 radius-8 ms-8">Learn more</a>
+                    <a href="{{ route('admin.integrations.tiktok.show') }}" class="btn btn-primary-600 radius-8">
+                        {{ $tiktokConnection?->isConnected() ? 'Manage TikTok' : 'Set up TikTok' }}
+                    </a>
                 </div>
             </div>
         </div>

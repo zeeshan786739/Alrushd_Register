@@ -9,6 +9,7 @@ final class LeadSourceOptions
     {
         return [
             'facebook_lead_ads' => 'Facebook Lead Ads',
+            'tiktok_lead_ads' => 'TikTok Lead Ads',
             'student_admission' => 'Student Admission',
             'form_submission' => 'Form Submission',
             'manual' => 'Manual',
@@ -28,6 +29,7 @@ final class LeadSourceOptions
     {
         return match ($source) {
             'facebook_lead_ads' => 'logos:facebook',
+            'tiktok_lead_ads' => 'logos:tiktok-icon',
             'student_admission' => 'solar:square-academic-cap-linear',
             'form_submission' => 'solar:inbox-in-linear',
             'manual' => 'solar:pen-linear',
@@ -39,6 +41,7 @@ final class LeadSourceOptions
     {
         return match ($source) {
             'facebook_lead_ads' => 'bg-primary-50 text-primary-600',
+            'tiktok_lead_ads' => 'bg-neutral-900 text-white',
             'student_admission' => 'bg-success-focus text-success-main',
             'form_submission' => 'bg-info-focus text-info-main',
             'manual' => 'bg-neutral-200 text-secondary-light',

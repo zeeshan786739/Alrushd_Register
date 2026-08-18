@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
         $middleware->validateCsrfTokens(except: [
             'webhooks/meta/*',
+            'webhooks/tiktok/*',
             'webhooks/stripe/*',
         ]);
         $middleware->alias([

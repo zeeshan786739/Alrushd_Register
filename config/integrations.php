@@ -26,10 +26,21 @@ return [
             'available' => true,
         ],
         'tiktok' => [
-            'label' => 'TikTok Lead Generation',
+            'label' => 'TikTok Lead Ads',
             'icon' => 'logos:tiktok-icon',
-            'available' => false,
+            'available' => true,
         ],
+    ],
+
+    'tiktok' => [
+        'app_id' => env('TIKTOK_APP_ID'),
+        'app_secret' => env('TIKTOK_APP_SECRET'),
+        'redirect_uri' => env('TIKTOK_REDIRECT_URI'),
+        // Current TikTok API for Business portal authorization. Override if the
+        // Marketing API app was created under ads.tiktok.com/marketing_api/auth.
+        'auth_url' => env('TIKTOK_AUTH_URL', 'https://business-api.tiktok.com/portal/auth'),
+        'api_base' => env('TIKTOK_API_BASE', 'https://business-api.tiktok.com/open_api/v1.3'),
+        'timeout' => (int) env('TIKTOK_HTTP_TIMEOUT', 20),
     ],
 
 ];

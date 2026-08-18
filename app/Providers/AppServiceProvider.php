@@ -11,6 +11,8 @@ use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\Message;
 use App\Models\EmailMarketing\Template;
 use App\Models\FormEntry;
+use App\Models\Integrations\TikTokFormMapping;
+use App\Models\Integrations\TikTokLeadSubmission;
 use App\Models\Setting;
 use App\Policies\Crm\CustomerPolicy;
 use App\Policies\Crm\FormEntryPolicy;
@@ -94,5 +96,7 @@ class AppServiceProvider extends ServiceProvider
         Route::bind('emMessage', fn (string $value) => Message::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('emCampaign', fn (string $value) => Campaign::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('emTemplate', fn (string $value) => Template::forCurrentOrganization()->whereKey($value)->firstOrFail());
+        Route::bind('tiktokForm', fn (string $value) => TikTokFormMapping::forCurrentOrganization()->whereKey($value)->firstOrFail());
+        Route::bind('tiktokSubmission', fn (string $value) => TikTokLeadSubmission::forCurrentOrganization()->whereKey($value)->firstOrFail());
     }
 }

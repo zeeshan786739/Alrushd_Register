@@ -221,6 +221,10 @@ Route::prefix('webhooks/meta')->group(function () {
     Route::post('leads', [\App\Http\Controllers\Webhooks\MetaLeadWebhookController::class, 'handle']);
 });
 
+Route::prefix('webhooks/tiktok')->group(function () {
+    Route::post('leads', [\App\Http\Controllers\Webhooks\TikTokLeadWebhookController::class, 'handle']);
+});
+
 require __DIR__.'/admin-auth.php';
 require __DIR__.'/platform.php';
 
