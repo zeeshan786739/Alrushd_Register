@@ -11,6 +11,13 @@ class UpdateProjectRequest extends FormRequest
         return $this->user('admin')?->can('update projects') ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('assigned_to') === '') {
+            $this->merge(['assigned_to' => null]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

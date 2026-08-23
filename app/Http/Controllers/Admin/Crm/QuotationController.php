@@ -5,18 +5,19 @@ namespace App\Http\Controllers\Admin\Crm;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Crm\StoreQuotationRequest;
 use App\Http\Requests\Crm\UpdateQuotationRequest;
-use App\Mail\Crm\QuotationMail;
 use App\Models\Crm\Customer;
 use App\Models\Crm\Project;
 use App\Models\Crm\Quotation;
 use App\Models\Crm\QuotationItem;
+use App\Services\Crm\CrmTransactionalMailService;
 use App\Services\Crm\FinancialCalculator;
 use App\Services\Crm\QuotationConversionService;
+use App\Support\CrmDocument;
+use App\Support\CrmEmailDeliverySummary;
 use App\Support\OrganizationContext;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -25,12 +26,13 @@ class QuotationController extends Controller
     public function __construct(
         private FinancialCalculator $calculator,
         private QuotationConversionService $conversionService,
+        private CrmTransactionalMailService $crmMail,
     ) {
         $this->middleware('permission:view quotations')->only(['index', 'show', 'downloadPdf']);
         $this->middleware('permission:create quotations')->only(['create', 'store']);
         $this->middleware('permission:update quotations')->only(['edit', 'update']);
         $this->middleware('permission:delete quotations')->only(['destroy']);
-        $this->middleware('permission:send quotations')->only(['send']);
+        $this->middleware('permission:send quotations')->only(['send', 'markSent']);
         $this->middleware('permission:convert quotations')->only(['accept', 'convert']);
     }
 
@@ -59,10 +61,24 @@ class QuotationController extends Controller
 
     public function create(Request $request): View
     {
-        $customers = Customer::forCurrentOrganization()->orderBy('name')->get();
-        $projects = Project::forCurrentOrganization()->orderBy('name')->get();
         $selectedCustomer = $request->customer_id;
         $selectedProject = $request->project_id;
+
+        if ($selectedProject && ! $selectedCustomer) {
+            $selectedCustomer = Project::forCurrentOrganization()
+                ->whereKey($selectedProject)
+                ->value('customer_id');
+        }
+
+        $customers = Customer::forCurrentOrganization()->orderBy('name')->get();
+        $projects = Project::forCurrentOrganization()
+            ->when($selectedCustomer, fn ($q) => $q->where('customer_id', $selectedCustomer))
+            ->orderBy('name')
+            ->get();
+
+        if ($selectedProject && ! $projects->contains(fn ($p) => (int) $p->id === (int) $selectedProject)) {
+            $selectedProject = null;
+        }
 
         return view('admin.crm.quotations.create', compact('customers', 'projects', 'selectedCustomer', 'selectedProject'));
     }
@@ -70,6 +86,10 @@ class QuotationController extends Controller
     public function store(StoreQuotationRequest $request): RedirectResponse
     {
         Customer::forCurrentOrganization()->findOrFail($request->validated('customer_id'));
+        $this->assertProjectBelongsToCustomer(
+            $request->validated('project_id'),
+            (int) $request->validated('customer_id')
+        );
 
         $normalizedItems = $this->calculator->normalizeLineItems($request->validated('items'));
         $financials = $this->calculator->calculate(
@@ -106,13 +126,22 @@ class QuotationController extends Controller
     {
         $this->authorize('view', $quotation);
         $quotation->load(['customer', 'project', 'items', 'convertedInvoice']);
+        $emailDelivery = CrmEmailDeliverySummary::latestForQuotation(
+            (int) $quotation->organization_id,
+            (int) $quotation->id
+        );
 
-        return view('admin.crm.quotations.show', compact('quotation'));
+        return view('admin.crm.quotations.show', compact('quotation', 'emailDelivery'));
     }
 
     public function edit(Quotation $quotation): View
     {
         $this->authorize('update', $quotation);
+
+        if ($this->isCommerciallyLocked($quotation)) {
+            abort(403, 'Accepted or converted quotations cannot be edited.');
+        }
+
         $customers = Customer::forCurrentOrganization()->orderBy('name')->get();
         $projects = Project::forCurrentOrganization()->orderBy('name')->get();
         $quotation->load('items');
@@ -123,7 +152,17 @@ class QuotationController extends Controller
     public function update(UpdateQuotationRequest $request, Quotation $quotation): RedirectResponse
     {
         $this->authorize('update', $quotation);
+
+        if ($this->isCommerciallyLocked($quotation)) {
+            return redirect()->route('admin.crm.quotations.show', $quotation)
+                ->with('error', 'Accepted or converted quotations cannot be edited.');
+        }
+
         Customer::forCurrentOrganization()->findOrFail($request->validated('customer_id'));
+        $this->assertProjectBelongsToCustomer(
+            $request->validated('project_id'),
+            (int) $request->validated('customer_id')
+        );
 
         $normalizedItems = $this->calculator->normalizeLineItems($request->validated('items'));
         $financials = $this->calculator->calculate(
@@ -167,15 +206,18 @@ class QuotationController extends Controller
     public function send(Quotation $quotation): RedirectResponse
     {
         $this->authorize('send', $quotation);
-        $quotation->update(['status' => 'sent', 'sent_at' => now()]);
+        // Existing safe semantics: mark Sent first, then attempt delivery.
+        $this->transitionToSent($quotation);
 
         $customerEmail = $quotation->customer?->email;
         $message = 'Quotation marked as sent.';
 
-        if ($customerEmail && config('mail.default') && config('mail.from.address')) {
+        if ($customerEmail && config('mail.from.address')) {
             try {
-                Mail::to($customerEmail)->send(new QuotationMail($quotation));
-                $message = 'Quotation sent and email delivered to '.$customerEmail.'.';
+                $result = $this->crmMail->sendQuotation($quotation, auth('admin')->id());
+                $message = $result->accepted
+                    ? 'Quotation sent and email delivered to '.$customerEmail.'.'
+                    : 'Quotation marked as sent, but email could not be delivered: '.($result->error ?: 'Send failed');
             } catch (\Throwable $e) {
                 $message = 'Quotation marked as sent, but email could not be delivered: '.$e->getMessage();
             }
@@ -186,9 +228,30 @@ class QuotationController extends Controller
         return back()->with('success', $message);
     }
 
+    /**
+     * Mark a draft quotation as sent without sending email
+     * (e.g. WhatsApp, external email, hand delivery).
+     */
+    public function markSent(Quotation $quotation): RedirectResponse
+    {
+        $this->authorize('send', $quotation);
+
+        if ($this->isCommerciallyLocked($quotation)) {
+            return back()->with('error', 'Accepted or converted quotations cannot be marked as sent.');
+        }
+
+        if ($quotation->status !== 'draft') {
+            return back()->with('error', 'Only draft quotations can be marked as sent.');
+        }
+
+        $this->transitionToSent($quotation);
+
+        return back()->with('success', 'Quotation marked as sent. No email was sent.');
+    }
+
     public function accept(Quotation $quotation): RedirectResponse
     {
-        $this->authorize('update', $quotation);
+        $this->authorize('convert', $quotation);
         $quotation->update(['status' => 'accepted', 'accepted_at' => now()]);
 
         return back()->with('success', 'Quotation accepted.');
@@ -216,14 +279,51 @@ class QuotationController extends Controller
             ->with('success', 'Quotation converted to invoice successfully.');
     }
 
-    public function downloadPdf(Quotation $quotation): Response
+    public function downloadPdf(Request $request, Quotation $quotation): Response
     {
         $this->authorize('download', $quotation);
         $quotation->load(['customer', 'items', 'project']);
+        $organization = CrmDocument::organizationFor($quotation->organization_id);
+        $doc = CrmDocument::quotationViewData($quotation, 'pdf');
 
-        $pdf = Pdf::loadView('admin.crm.pdf.quotation', compact('quotation'))
-            ->setOptions(['isRemoteEnabled' => true]);
+        $html = view('admin.crm.pdf.quotation', compact('quotation', 'organization', 'doc'))->render();
+        $html = CrmDocument::prepareHtmlForPdf($html);
 
-        return $pdf->download($quotation->quotation_number.'.pdf');
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper('a4')
+            ->setOptions(CrmDocument::pdfOptions());
+
+        $filename = $quotation->quotation_number.'.pdf';
+
+        if ($request->boolean('inline')) {
+            return $pdf->stream($filename);
+        }
+
+        return $pdf->download($filename);
+    }
+
+    private function transitionToSent(Quotation $quotation): void
+    {
+        $quotation->update([
+            'status' => 'sent',
+            'sent_at' => now(),
+        ]);
+    }
+
+    private function isCommerciallyLocked(Quotation $quotation): bool
+    {
+        return $quotation->status === 'accepted' || (bool) $quotation->converted_invoice_id;
+    }
+
+    private function assertProjectBelongsToCustomer(mixed $projectId, int $customerId): void
+    {
+        if ($projectId === null || $projectId === '') {
+            return;
+        }
+
+        Project::forCurrentOrganization()
+            ->whereKey($projectId)
+            ->where('customer_id', $customerId)
+            ->firstOrFail();
     }
 }

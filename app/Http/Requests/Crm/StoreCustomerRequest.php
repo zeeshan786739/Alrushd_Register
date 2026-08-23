@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Crm;
 
+use App\Support\CrmOrgRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCustomerRequest extends FormRequest
@@ -9,6 +10,13 @@ class StoreCustomerRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user('admin')?->can('create customers') ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('assigned_to') === '') {
+            $this->merge(['assigned_to' => null]);
+        }
     }
 
     /** @return array<string, mixed> */
@@ -28,7 +36,7 @@ class StoreCustomerRequest extends FormRequest
             'status' => ['required', 'in:active,inactive,prospect'],
             'source' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string'],
-            'assigned_to' => ['nullable', 'exists:admins,id'],
+            'assigned_to' => ['nullable', 'integer', CrmOrgRules::adminId()],
         ];
     }
 }

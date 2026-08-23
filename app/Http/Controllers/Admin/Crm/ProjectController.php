@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Admin\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Crm\InlineUpdateProjectRequest;
 use App\Http\Requests\Crm\StoreProjectRequest;
 use App\Http\Requests\Crm\UpdateProjectRequest;
 use App\Models\Admin;
 use App\Models\Crm\Customer;
 use App\Models\Crm\Project;
+use App\Support\CrmOrgRules;
+use App\Support\CrmStatusTone;
 use App\Support\OrganizationContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,7 +23,7 @@ class ProjectController extends Controller
     {
         $this->middleware('permission:view projects')->only(['index', 'show']);
         $this->middleware('permission:create projects')->only(['create', 'store']);
-        $this->middleware('permission:update projects')->only(['edit', 'update', 'storeTask', 'updateTask', 'destroyTask']);
+        $this->middleware('permission:update projects')->only(['edit', 'update', 'inlineUpdate', 'storeTask', 'updateTask', 'destroyTask']);
         $this->middleware('permission:delete projects')->only(['destroy']);
     }
 
@@ -41,8 +45,9 @@ class ProjectController extends Controller
         ];
 
         $customers = Customer::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
+        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
 
-        return view('admin.crm.projects.index', compact('projects', 'stats', 'customers'));
+        return view('admin.crm.projects.index', compact('projects', 'stats', 'customers', 'admins'));
     }
 
     public function create(Request $request): View
@@ -57,6 +62,7 @@ class ProjectController extends Controller
     public function store(StoreProjectRequest $request): RedirectResponse
     {
         Customer::forCurrentOrganization()->findOrFail($request->validated('customer_id'));
+        $this->assertAssigneeBelongsToOrganization($request->validated('assigned_to'));
 
         $project = Project::create(array_merge($request->validated(), [
             'organization_id' => OrganizationContext::idOrFail(),
@@ -90,10 +96,72 @@ class ProjectController extends Controller
     {
         $this->authorize('update', $project);
         Customer::forCurrentOrganization()->findOrFail($request->validated('customer_id'));
+        $this->assertAssigneeBelongsToOrganization($request->validated('assigned_to'));
         $project->update($request->validated());
 
         return redirect()->route('admin.crm.projects.show', $project)
             ->with('success', 'Project updated successfully.');
+    }
+
+    public function inlineUpdate(InlineUpdateProjectRequest $request, Project $project): JsonResponse
+    {
+        $this->authorize('update', $project);
+
+        $field = $request->validated('field');
+        $value = $request->input('value');
+        $progressBefore = (int) $project->progress;
+
+        if ($field === 'status') {
+            $project->update(['status' => $value]);
+
+            return response()->json([
+                'ok' => true,
+                'field' => $field,
+                'value' => $value,
+                'tone' => CrmStatusTone::for((string) $value),
+                'progress' => (int) $project->fresh()->progress,
+                'message' => 'Status updated.',
+            ]);
+        }
+
+        if ($field === 'priority') {
+            $project->update(['priority' => $value]);
+
+            return response()->json([
+                'ok' => true,
+                'field' => $field,
+                'value' => $value,
+                'tone' => CrmStatusTone::for((string) $value),
+                'progress' => $progressBefore,
+                'message' => 'Priority updated.',
+            ]);
+        }
+
+        if ($value === null || $value === '') {
+            $project->update(['assigned_to' => null]);
+
+            return response()->json([
+                'ok' => true,
+                'field' => $field,
+                'value' => null,
+                'tone' => 'neutral',
+                'progress' => $progressBefore,
+                'message' => 'Owner cleared.',
+            ]);
+        }
+
+        $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+        $project->update(['assigned_to' => $assignee->id]);
+
+        return response()->json([
+            'ok' => true,
+            'field' => $field,
+            'value' => $assignee->id,
+            'tone' => 'neutral',
+            'label' => $assignee->name,
+            'progress' => $progressBefore,
+            'message' => 'Owner updated.',
+        ]);
     }
 
     public function destroy(Project $project): RedirectResponse
@@ -109,10 +177,13 @@ class ProjectController extends Controller
     public function storeTask(Request $request, Project $project): RedirectResponse
     {
         $this->authorize('update', $project);
+        if ($request->input('assigned_to') === '') {
+            $request->merge(['assigned_to' => null]);
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'assigned_to' => 'nullable|exists:admins,id',
+            'assigned_to' => ['nullable', 'integer', CrmOrgRules::adminId()],
             'status' => 'required|in:pending,in_progress,completed,cancelled',
             'priority' => 'required|in:low,medium,high,urgent',
             'due_date' => 'nullable|date',
@@ -131,10 +202,13 @@ class ProjectController extends Controller
     public function updateTask(Request $request, Project $project, int $task): RedirectResponse
     {
         $this->authorize('update', $project);
+        if ($request->input('assigned_to') === '') {
+            $request->merge(['assigned_to' => null]);
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'assigned_to' => 'nullable|exists:admins,id',
+            'assigned_to' => ['nullable', 'integer', CrmOrgRules::adminId()],
             'status' => 'required|in:pending,in_progress,completed,cancelled',
             'priority' => 'required|in:low,medium,high,urgent',
             'due_date' => 'nullable|date',
@@ -146,6 +220,15 @@ class ProjectController extends Controller
         $project->recalculateProgress();
 
         return back()->with('success', 'Task updated successfully.');
+    }
+
+    private function assertAssigneeBelongsToOrganization(mixed $assignedTo): void
+    {
+        if ($assignedTo === null || $assignedTo === '') {
+            return;
+        }
+
+        Admin::forCurrentOrganization()->findOrFail((int) $assignedTo);
     }
 
     public function destroyTask(Project $project, int $task): RedirectResponse

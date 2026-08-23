@@ -224,7 +224,78 @@
         }
     }
 
-    /* Navigation loader — skip links handled by AdminPjax */
+    /* CRM line items: document-level delegation so Add Item works after PJAX swaps. */
+    function crmLineItemNextIndex(tbody) {
+        var max = -1;
+        tbody.querySelectorAll('input[name^="items["]').forEach(function (input) {
+            var match = String(input.name || '').match(/^items\[(\d+)\]/);
+            if (match) {
+                max = Math.max(max, parseInt(match[1], 10));
+            }
+        });
+        return max + 1;
+    }
+
+    function crmRecalcLineItemRow(row) {
+        if (!row) return;
+        var qty = parseFloat((row.querySelector('.item-qty') || {}).value);
+        var price = parseFloat((row.querySelector('.item-price') || {}).value);
+        if (!isFinite(qty) || qty < 0) qty = 0;
+        if (!isFinite(price) || price < 0) price = 0;
+        var totalCell = row.querySelector('.item-total');
+        if (totalCell) {
+            totalCell.textContent = (qty * price).toFixed(2);
+        }
+    }
+
+    function crmAppendLineItemRow(tbody) {
+        var index = crmLineItemNextIndex(tbody);
+        var row = document.createElement('tr');
+        row.className = 'line-item-row';
+        row.innerHTML =
+            '<td><input type="text" name="items[' + index + '][description]" class="form-control radius-8" required></td>' +
+            '<td><input type="number" name="items[' + index + '][quantity]" class="form-control radius-8 item-qty" min="1" value="1" required></td>' +
+            '<td><input type="number" step="0.01" name="items[' + index + '][unit_price]" class="form-control radius-8 item-price" min="0" value="0" required></td>' +
+            '<td class="item-total fw-semibold">0.00</td>' +
+            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line-item" data-crm-remove-line-item aria-label="Remove item">&times;</button></td>';
+        tbody.appendChild(row);
+        return row;
+    }
+
+    if (!window.__crmLineItemsDelegated) {
+        window.__crmLineItemsDelegated = true;
+
+        document.addEventListener('click', function (e) {
+            var addBtn = e.target.closest('[data-crm-add-line-item], #add-line-item');
+            if (addBtn) {
+                e.preventDefault();
+                var shell = addBtn.closest('[data-crm-line-items]') || document;
+                var table = shell.querySelector('#line-items-table') || document.getElementById('line-items-table');
+                var tbody = table ? table.querySelector('tbody') : null;
+                if (!tbody) return;
+                crmAppendLineItemRow(tbody);
+                return;
+            }
+
+            var removeBtn = e.target.closest('[data-crm-remove-line-item], .remove-line-item');
+            if (!removeBtn) return;
+            e.preventDefault();
+            var row = removeBtn.closest('tr.line-item-row');
+            var table = removeBtn.closest('#line-items-table') || document.getElementById('line-items-table');
+            var tbody = table ? table.querySelector('tbody') : null;
+            if (!row || !tbody) return;
+            if (tbody.querySelectorAll('tr.line-item-row').length <= 1) return;
+            row.remove();
+        });
+
+        document.addEventListener('input', function (e) {
+            if (!e.target || !e.target.classList) return;
+            if (!e.target.classList.contains('item-qty') && !e.target.classList.contains('item-price')) return;
+            crmRecalcLineItemRow(e.target.closest('tr.line-item-row'));
+        });
+    }
+
+    /* Navigation loader — skip PJAX-handled links and file-download links */
     document.addEventListener('click', function (e) {
         var link = e.target.closest('a[href]');
         if (!link) return;
@@ -235,6 +306,39 @@
         if (!href || href.charAt(0) === '#' || link.target === '_blank') return;
         if (link.hasAttribute('download')) return;
         if (href.indexOf('javascript:') === 0) return;
+
+        var isDownload = false;
+        if (window.AdminPjax && typeof window.AdminPjax.isDownloadLikeHref === 'function') {
+            isDownload = window.AdminPjax.isDownloadLikeHref(href);
+        } else {
+            try {
+                var probe = new URL(href, window.location.origin);
+                var path = (probe.pathname || '').toLowerCase();
+                isDownload = /\/export(\/|$)/i.test(path)
+                    || /\/(pdf|failed-rows)(\/|$)/i.test(path)
+                    || /\.(csv|xlsx|xls|pdf|zip)(\?|$)/i.test(path)
+                    || /[?&]export=/i.test(probe.search || '');
+            } catch (err) {
+                isDownload = false;
+            }
+        }
+
+        /* File downloads keep the current document mounted — never leave the full-screen loader on. */
+        if (isDownload) {
+            hideLoader();
+            if (link.dataset.crmDownloadLock === '1') {
+                e.preventDefault();
+                return;
+            }
+            link.dataset.crmDownloadLock = '1';
+            link.classList.add('is-loading');
+            window.setTimeout(function () {
+                link.dataset.crmDownloadLock = '0';
+                link.classList.remove('is-loading');
+            }, 1500);
+            return;
+        }
+
         try {
             var url = new URL(href, window.location.origin);
             if (url.origin === window.location.origin) showLoader();
@@ -270,7 +374,121 @@
                 }
             });
         });
+
+        initCrmConfirmModal();
     });
+
+    /**
+     * Reusable CRM confirm modal (Bootstrap).
+     * Forms opt in with [data-crm-confirm] + data-confirm-* attributes.
+     * Modal DOM lives outside PJAX-replaced regions; handler is document-delegated once.
+     */
+    function initCrmConfirmModal() {
+        if (window.__crmConfirmBound) return;
+        window.__crmConfirmBound = true;
+
+        var modalEl = document.getElementById('crmConfirmModal');
+        if (!modalEl || typeof bootstrap === 'undefined') return;
+
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, keyboard: true, focus: true });
+        var titleEl = modalEl.querySelector('[data-crm-confirm-title]');
+        var messageEl = modalEl.querySelector('[data-crm-confirm-message]');
+        var noteWrap = modalEl.querySelector('[data-crm-confirm-note-wrap]');
+        var noteEl = modalEl.querySelector('[data-crm-confirm-note]');
+        var iconWrap = modalEl.querySelector('[data-crm-confirm-icon-wrap]');
+        var iconEl = modalEl.querySelector('[data-crm-confirm-icon]');
+        var submitBtn = modalEl.querySelector('[data-crm-confirm-submit]');
+        var pendingForm = null;
+        var opener = null;
+
+        var toneBtnClass = {
+            info: 'btn-primary-600',
+            success: 'btn-success',
+            warning: 'btn-warning',
+            danger: 'btn-danger',
+            primary: 'btn-primary-600'
+        };
+
+        function resetSubmitButton() {
+            if (!submitBtn) return;
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('is-loading');
+        }
+
+        function applyTone(tone) {
+            tone = tone || 'info';
+            if (iconWrap) {
+                iconWrap.className = 'crm-confirm-icon is-' + (tone === 'primary' ? 'info' : tone);
+            }
+            if (submitBtn) {
+                submitBtn.className = 'btn radius-8 px-18 py-10 ' + (toneBtnClass[tone] || toneBtnClass.info);
+            }
+        }
+
+        function openForForm(form) {
+            pendingForm = form;
+            opener = document.activeElement;
+
+            var title = form.getAttribute('data-confirm-title') || 'Confirm action?';
+            var message = form.getAttribute('data-confirm-message') || '';
+            var note = form.getAttribute('data-confirm-note') || '';
+            var label = form.getAttribute('data-confirm-label') || 'Confirm';
+            var tone = form.getAttribute('data-confirm-tone') || 'info';
+            var icon = form.getAttribute('data-confirm-icon') || 'solar:info-circle-linear';
+
+            if (titleEl) titleEl.textContent = title;
+            if (messageEl) messageEl.textContent = message;
+            if (noteWrap && noteEl) {
+                if (note) {
+                    noteEl.textContent = note;
+                    noteWrap.classList.remove('d-none');
+                } else {
+                    noteEl.textContent = '';
+                    noteWrap.classList.add('d-none');
+                }
+            }
+            if (iconEl) iconEl.setAttribute('icon', icon);
+            if (submitBtn) submitBtn.textContent = label;
+            applyTone(tone);
+            resetSubmitButton();
+            modal.show();
+        }
+
+        document.addEventListener('submit', function (event) {
+            var form = event.target.closest('form[data-crm-confirm]');
+            if (!form) return;
+            if (form.getAttribute('data-crm-confirm-approved') === '1') {
+                form.removeAttribute('data-crm-confirm-approved');
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            openForForm(form);
+        }, true);
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function () {
+                if (!pendingForm || submitBtn.disabled) return;
+                submitBtn.disabled = true;
+                submitBtn.classList.add('is-loading');
+                var form = pendingForm;
+                pendingForm = null;
+                form.setAttribute('data-crm-confirm-approved', '1');
+                modal.hide();
+                // Native submit() does not re-fire the submit event — avoids confirm loop.
+                HTMLFormElement.prototype.submit.call(form);
+            });
+        }
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            pendingForm = null;
+            resetSubmitButton();
+            if (opener && typeof opener.focus === 'function') {
+                try { opener.focus(); } catch (err) { /* ignore */ }
+            }
+            opener = null;
+        });
+    }
 
     window.CrmUI = {
         showLoader: showLoader,

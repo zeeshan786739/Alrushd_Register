@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin\EmailMarketing;
 use App\Enums\EmailMarketing\CampaignStatus;
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\Campaign;
+use App\Models\EmailMarketing\MailboxSetting;
 use App\Models\EmailMarketing\Template;
 use App\Services\EmailMarketing\CampaignDispatchService;
+use App\Services\EmailMarketing\CampaignPreflightService;
 use App\Services\EmailMarketing\CampaignRecipientResolver;
 use App\Services\EmailMarketing\HtmlSanitizer;
+use App\Support\CampaignAnalyticsSummary;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +22,7 @@ class CampaignController extends Controller
     public function __construct(
         private CampaignDispatchService $dispatcher,
         private CampaignRecipientResolver $resolver,
+        private CampaignPreflightService $preflight,
         private HtmlSanitizer $sanitizer,
     ) {
         $this->middleware('permission:view campaigns')->only(['index', 'show']);
@@ -81,9 +85,38 @@ class CampaignController extends Controller
     public function show(Campaign $emCampaign): View
     {
         $this->authorize('view', $emCampaign);
-        $emCampaign->load(['recipients' => fn ($q) => $q->latest()->limit(100)]);
 
-        return view('admin.email-marketing.campaigns.show', ['campaign' => $emCampaign]);
+        $statusFilter = request('status');
+        $search = request('search');
+
+        $recipients = $emCampaign->recipients()
+            ->when($statusFilter, function ($q) use ($statusFilter) {
+                $q->where(function ($inner) use ($statusFilter) {
+                    $inner->where('status', $statusFilter)
+                        ->orWhere('provider_status', $statusFilter);
+                });
+            })
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('email', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(50)
+            ->withQueryString();
+
+        $analytics = CampaignAnalyticsSummary::forCampaign($emCampaign);
+        $mailbox = MailboxSetting::query()
+            ->where('organization_id', $emCampaign->organization_id)
+            ->first();
+
+        return view('admin.email-marketing.campaigns.show', [
+            'campaign' => $emCampaign,
+            'recipients' => $recipients,
+            'analytics' => $analytics,
+            'asmConfigured' => filled($mailbox?->sendgrid_asm_group_id),
+        ]);
     }
 
     public function edit(Campaign $emCampaign): View
@@ -185,11 +218,13 @@ class CampaignController extends Controller
             'lead_status' => $request->get('lead_status'),
         ];
 
-        $recipients = $this->resolver->resolve(OrganizationContext::idOrFail(), $options);
+        $orgId = OrganizationContext::idOrFail();
+        $summary = $this->preflight->summarize($orgId, $options);
 
         return view('admin.email-marketing.campaigns.preview-recipients', [
-            'recipients' => $recipients->take(100),
-            'total' => $recipients->count(),
+            'recipients' => $summary['eligible_rows']->take(100),
+            'total' => $summary['eligible'],
+            'preflight' => $summary,
         ]);
     }
 

@@ -7,7 +7,7 @@
     <form method="POST" action="{{ route('admin.crm.invoices.store') }}">@csrf
         <div class="card radius-12 shadow-2 border-0 mb-24"><div class="card-body p-24"><div class="row g-3">
             <div class="col-md-4"><label class="form-label">Customer *</label><select name="customer_id" class="form-select radius-8" required>@foreach($customers as $c)<option value="{{ $c->id }}" @selected(old('customer_id',$selectedCustomer)==$c->id)>{{ $c->name }}</option>@endforeach</select></div>
-            <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select radius-8"><option value="">None</option>@foreach($projects as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach</select></div>
+            <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select radius-8"><option value="">None</option>@foreach($projects as $p)<option value="{{ $p->id }}" @selected(old('project_id',$selectedProject ?? null)==$p->id)>{{ $p->name }}</option>@endforeach</select></div>
             <div class="col-md-4"><label class="form-label">Status</label><select name="status" class="form-select radius-8"><option value="draft">Draft</option><option value="sent">Sent</option></select></div>
             <div class="col-md-4"><label class="form-label">Invoice Date *</label><input type="date" name="invoice_date" class="form-control radius-8" value="{{ old('invoice_date', date('Y-m-d')) }}" required></div>
             <div class="col-md-4"><label class="form-label">Due Date *</label><input type="date" name="due_date" class="form-control radius-8" value="{{ old('due_date', date('Y-m-d', strtotime('+30 days'))) }}" required></div>

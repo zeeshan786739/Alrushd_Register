@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Crm;
 
+use App\Models\Crm\Project;
+use App\Support\CrmOrgRules;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateInvoiceRequest extends FormRequest
 {
@@ -11,9 +14,51 @@ class UpdateInvoiceRequest extends FormRequest
         return $this->user('admin')?->can('update invoices') ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('project_id') === '') {
+            $this->merge(['project_id' => null]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return (new StoreInvoiceRequest)->rules();
+        return [
+            'customer_id' => ['required', 'integer', CrmOrgRules::customerId()],
+            'project_id' => ['nullable', 'integer', CrmOrgRules::projectId()],
+            'invoice_date' => ['required', 'date'],
+            'due_date' => ['required', 'date', 'after_or_equal:invoice_date'],
+            'tax_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'discount_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'status' => ['required', 'in:draft,sent,partially_paid,paid,overdue,cancelled'],
+            'terms' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.description' => ['required', 'string', 'max:500'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $customerId = $this->input('customer_id');
+            $projectId = $this->input('project_id');
+
+            if (! $customerId || ! $projectId || $validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $belongsToCustomer = Project::forCurrentOrganization()
+                ->whereKey($projectId)
+                ->where('customer_id', $customerId)
+                ->exists();
+
+            if (! $belongsToCustomer) {
+                $validator->errors()->add('project_id', 'The selected project does not belong to the selected customer.');
+            }
+        });
     }
 }

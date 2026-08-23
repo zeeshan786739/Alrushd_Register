@@ -53,6 +53,7 @@ class InboxController extends Controller
     {
         $messages = Message::forCurrentOrganization()
             ->starred()
+            ->withCount('attachments')
             ->when($request->search, fn ($q, $s) => $q->where(function ($inner) use ($s) {
                 $inner->where('subject', 'like', "%{$s}%")
                     ->orWhere('from_email', 'like', "%{$s}%")
@@ -81,14 +82,31 @@ class InboxController extends Controller
             $emMessage->update(['is_read' => true]);
         }
 
-        $emMessage->load(['attachments', 'lead', 'customer', 'parent']);
+        $emMessage->load(['attachments', 'lead', 'customer', 'quotation', 'invoice', 'parent']);
         $counts = $this->folderCounts();
+
+        $replySubject = $emMessage->subject ?: '';
+        if ($replySubject !== '' && ! str_starts_with(strtolower($replySubject), 're:')) {
+            $replySubject = 'Re: '.$replySubject;
+        }
+
+        $providerEvents = \App\Models\EmailMarketing\ProviderEvent::query()
+            ->where('em_message_id', $emMessage->id)
+            ->where('organization_id', $emMessage->organization_id)
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->get();
 
         return view('admin.email-marketing.inbox.show', [
             'message' => $emMessage,
             'counts' => $counts,
             'folder' => $emMessage->folder,
             'sanitizedBody' => $this->sanitizer->sanitize($emMessage->body_html),
+            'replySubject' => $replySubject,
+            'replyTo' => $emMessage->direction === 'inbound'
+                ? ($emMessage->from_email ?: $emMessage->to)
+                : $emMessage->to,
+            'providerEvents' => $providerEvents,
         ]);
     }
 
@@ -156,7 +174,11 @@ class InboxController extends Controller
             return redirect()->route('admin.email.sent')
                 ->with('success', 'Email sent successfully.');
         } catch (\Throwable $e) {
-            return back()->withInput()->withErrors(['send' => 'Send failed: '.$e->getMessage()]);
+            report($e);
+
+            return back()->withInput()->withErrors([
+                'send' => 'Send failed. Please verify mailbox settings and try again.',
+            ]);
         }
     }
 
@@ -209,13 +231,17 @@ class InboxController extends Controller
         }
 
         try {
+            $threadId = $emMessage->thread_id ?: $emMessage->correlation_uuid;
             $this->compose->send(OrganizationContext::idOrFail(), [
                 'to' => $emMessage->from_email ?: $emMessage->to,
                 'subject' => $subject,
                 'body_html' => $validated['body_html'].'<hr>'.$this->sanitizer->sanitize($emMessage->body_html),
                 'parent_id' => $emMessage->id,
+                'thread_id' => $threadId,
                 'lead_id' => $emMessage->lead_id,
                 'customer_id' => $emMessage->customer_id,
+                'quotation_id' => $emMessage->quotation_id,
+                'invoice_id' => $emMessage->invoice_id,
                 'created_by' => auth('admin')->id(),
             ]);
 
@@ -273,12 +299,28 @@ class InboxController extends Controller
         return back()->with('success', $emMessage->is_starred ? 'Starred.' : 'Unstarred.');
     }
 
-    public function markRead(Message $emMessage): JsonResponse
+    public function markRead(Message $emMessage): JsonResponse|RedirectResponse
     {
         $this->authorize('view', $emMessage);
         $emMessage->update(['is_read' => true]);
 
-        return response()->json(['is_read' => true]);
+        if (request()->expectsJson()) {
+            return response()->json(['is_read' => true]);
+        }
+
+        return back()->with('success', 'Marked as read.');
+    }
+
+    public function markUnread(Message $emMessage): JsonResponse|RedirectResponse
+    {
+        $this->authorize('view', $emMessage);
+        $emMessage->update(['is_read' => false]);
+
+        if (request()->expectsJson()) {
+            return response()->json(['is_read' => false]);
+        }
+
+        return back()->with('success', 'Marked as unread.');
     }
 
     public function destroy(Message $emMessage): RedirectResponse
@@ -312,7 +354,11 @@ class InboxController extends Controller
     {
         $this->authorize('download', $emMessage);
         abort_unless($attachment->message_id === $emMessage->id, 404);
-        abort_unless($attachment->organization_id === $emMessage->organization_id, 403);
+        abort_unless(
+            (int) $attachment->organization_id === (int) $emMessage->organization_id
+            && (int) $emMessage->organization_id === (int) OrganizationContext::idOrFail(),
+            404
+        );
 
         return $this->attachments->download($attachment);
     }
@@ -321,6 +367,7 @@ class InboxController extends Controller
     {
         $messages = Message::forCurrentOrganization()
             ->where('folder', $folder)
+            ->withCount('attachments')
             ->when($request->search, function ($q, $s) {
                 $q->where(function ($inner) use ($s) {
                     $inner->where('subject', 'like', "%{$s}%")

@@ -90,6 +90,9 @@ class Invoice extends Model
             $this->paid_at = $this->paid_at ?? now();
         } elseif ((float) $this->paid_amount > 0) {
             $this->status = 'partially_paid';
+        } elseif (in_array($this->status, ['paid', 'partially_paid'], true)) {
+            $this->status = $this->sent_at ? 'sent' : 'draft';
+            $this->paid_at = null;
         } elseif ($this->due_date && $this->due_date->isPast() && ! in_array($this->status, ['paid', 'draft'], true)) {
             $this->status = 'overdue';
         }

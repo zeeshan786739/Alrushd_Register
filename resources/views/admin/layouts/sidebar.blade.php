@@ -71,17 +71,17 @@
     @endcanany
 
     {{-- ================= CRM ================= --}}
-    @canany(['view leads','view customers','view projects','view quotations','view invoices'])
+    @canany(['view leads','view customers','view projects','view quotations','view invoices','manage crm documents'])
     <li class="sidebar-menu-group-title" role="presentation">CRM</li>
     <li class="{{ AdminNav::dropdownClass([
-        'admin.crm.leads.*','admin.crm.customers.*','admin.crm.projects.*',
-        'admin.crm.quotations.*','admin.crm.invoices.*'
+        'admin.crm.overview','admin.crm.leads.*','admin.crm.customers.*','admin.crm.projects.*',
+        'admin.crm.quotations.*','admin.crm.invoices.*','admin.crm.settings.*'
     ]) }}">
         <a href="javascript:void(0)"
            role="button"
            aria-expanded="{{ AdminNav::expanded([
-               'admin.crm.leads.*','admin.crm.customers.*','admin.crm.projects.*',
-               'admin.crm.quotations.*','admin.crm.invoices.*'
+               'admin.crm.overview','admin.crm.leads.*','admin.crm.customers.*','admin.crm.projects.*',
+               'admin.crm.quotations.*','admin.crm.invoices.*','admin.crm.settings.*'
            ]) }}"
            aria-controls="nav-crm"
            title="CRM">
@@ -89,6 +89,14 @@
             <span>CRM</span>
         </a>
         <ul class="sidebar-submenu" id="nav-crm">
+            <li>
+                <a href="{{ route('admin.crm.overview') }}"
+                   class="{{ AdminNav::linkClass('admin.crm.overview') }}"
+                   title="Overview">
+                    <iconify-icon icon="solar:widget-2-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Overview</span>
+                </a>
+            </li>
             @can('view leads')
             <li>
                 <a href="{{ route('admin.crm.leads.index') }}"
@@ -136,6 +144,16 @@
                    title="Invoices">
                     <iconify-icon icon="solar:bill-list-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
                     <span>Invoices</span>
+                </a>
+            </li>
+            @endcan
+            @can('manage crm documents')
+            <li>
+                <a href="{{ route('admin.crm.settings.documents.edit') }}"
+                   class="{{ AdminNav::linkClass('admin.crm.settings.*') }}"
+                   title="Document Settings">
+                    <iconify-icon icon="solar:settings-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Document Settings</span>
                 </a>
             </li>
             @endcan

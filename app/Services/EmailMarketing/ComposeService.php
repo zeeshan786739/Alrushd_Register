@@ -6,10 +6,10 @@ use App\Enums\EmailMarketing\DeliveryStatus;
 use App\Models\Crm\Customer;
 use App\Models\Crm\Lead;
 use App\Models\EmailMarketing\Message;
-use App\Models\EmailMarketing\MessageAttachment;
+use App\Services\EmailMarketing\Delivery\EmailDeliveryService;
+use App\Services\EmailMarketing\Delivery\OutboundEmail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -19,20 +19,21 @@ class ComposeService
         private MailConfigResolver $mailConfig,
         private HtmlSanitizer $sanitizer,
         private AttachmentService $attachments,
+        private EmailDeliveryService $delivery,
     ) {
     }
 
     /**
      * @param  array{
      *   to:string,cc?:?string,bcc?:?string,subject:string,body_html?:?string,body_text?:?string,
-     *   lead_id?:?int,customer_id?:?int,parent_id?:?int,created_by?:?int
+     *   lead_id?:?int,customer_id?:?int,quotation_id?:?int,invoice_id?:?int,
+     *   parent_id?:?int,thread_id?:?string,created_by?:?int
      * }  $data
      * @param  array<int, UploadedFile>  $files
      */
     public function send(int $organizationId, array $data, array $files = []): Message
     {
         $settings = $this->mailConfig->resolveOrFail($organizationId);
-        $this->mailConfig->applyRuntimeConfig($settings);
 
         $to = $this->normalizeRecipients($data['to']);
         if ($to === []) {
@@ -41,13 +42,17 @@ class ComposeService
 
         $html = $this->sanitizer->sanitize($data['body_html'] ?? '');
         $text = $data['body_text'] ?? $this->sanitizer->toPlainText($html);
+        $correlationUuid = (string) Str::uuid();
+        $threadId = $data['thread_id'] ?? $correlationUuid;
 
-        return DB::transaction(function () use ($organizationId, $data, $files, $settings, $to, $html, $text) {
+        return DB::transaction(function () use ($organizationId, $data, $files, $settings, $to, $html, $text, $correlationUuid, $threadId) {
             $message = Message::create([
                 'organization_id' => $organizationId,
                 'folder' => 'sent',
                 'direction' => 'outbound',
                 'message_id' => 'local-'.Str::uuid(),
+                'correlation_uuid' => $correlationUuid,
+                'thread_id' => $threadId,
                 'parent_id' => $data['parent_id'] ?? null,
                 'from_email' => $settings->from_email,
                 'from_name' => $settings->from_name,
@@ -58,8 +63,11 @@ class ComposeService
                 'body_html' => $html,
                 'body_text' => $text,
                 'delivery_status' => DeliveryStatus::Sending->value,
+                'provider_status' => 'pending',
                 'lead_id' => $data['lead_id'] ?? null,
                 'customer_id' => $data['customer_id'] ?? null,
+                'quotation_id' => $data['quotation_id'] ?? null,
+                'invoice_id' => $data['invoice_id'] ?? null,
                 'created_by' => $data['created_by'] ?? null,
             ]);
 
@@ -67,44 +75,52 @@ class ComposeService
                 $this->attachments->storeUpload($message, $file);
             }
 
-            try {
-                Mail::html($html ?: nl2br(e($text)), function ($mail) use ($message, $to, $settings) {
-                    $mail->to($to)
-                        ->subject($message->subject)
-                        ->from($settings->from_email, $settings->from_name);
+            $message->load('attachments');
 
-                    if ($message->cc) {
-                        $mail->cc($message->parseAddressList($message->cc));
-                    }
-                    if ($message->bcc) {
-                        $mail->bcc($message->parseAddressList($message->bcc));
-                    }
-                    if ($settings->reply_to) {
-                        $mail->replyTo($settings->reply_to);
-                    }
-
-                    foreach ($message->attachments as $attachment) {
-                        $mail->attach(Storage::disk($attachment->disk)->path($attachment->path), [
-                            'as' => $attachment->original_name,
-                            'mime' => $attachment->mime_type,
-                        ]);
-                    }
-                });
-
-                $message->update([
-                    'delivery_status' => DeliveryStatus::Sent->value,
-                    'sent_at' => now(),
-                    'delivery_error' => null,
-                ]);
-
-                $this->logCrmActivity($message);
-            } catch (\Throwable $e) {
-                $message->update([
-                    'delivery_status' => DeliveryStatus::Failed->value,
-                    'delivery_error' => Str::limit($e->getMessage(), 500),
-                ]);
-                throw $e;
+            $attachmentPayload = [];
+            foreach ($message->attachments as $attachment) {
+                $attachmentPayload[] = [
+                    'path' => Storage::disk($attachment->disk)->path($attachment->path),
+                    'name' => $attachment->original_name,
+                    'mime' => $attachment->mime_type,
+                ];
             }
+
+            $replyTo = $this->resolveReplyTo($settings, $threadId);
+
+            $result = $this->delivery->send(new OutboundEmail(
+                fromEmail: (string) $settings->from_email,
+                fromName: $settings->from_name,
+                to: $to,
+                subject: (string) $message->subject,
+                html: $html ?: nl2br(e($text)),
+                text: $text,
+                cc: $message->parseAddressList($message->cc),
+                bcc: $message->parseAddressList($message->bcc),
+                replyTo: $replyTo,
+                attachments: $attachmentPayload,
+                customArgs: [
+                    'correlation_uuid' => $correlationUuid,
+                ],
+                category: 'transactional',
+                trackOpens: (bool) ($settings->open_tracking ?? $settings->tracking_enabled),
+                trackClicks: (bool) ($settings->click_tracking ?? false),
+            ), $settings);
+
+            if (! $result->accepted) {
+                throw new \RuntimeException($result->error ?: 'Send failed.');
+            }
+
+            $message->update([
+                'delivery_status' => DeliveryStatus::Sent->value,
+                'sent_at' => now(),
+                'delivery_error' => null,
+                'provider' => $result->provider,
+                'provider_message_id' => $result->providerMessageId,
+                'provider_status' => $result->providerStatus ?: 'processed',
+            ]);
+
+            $this->logCrmActivity($message);
 
             return $message->fresh(['attachments']);
         });
@@ -162,6 +178,16 @@ class ComposeService
         }
 
         return array_values($emails);
+    }
+
+    private function resolveReplyTo(object $settings, string $threadId): ?string
+    {
+        $domain = $settings->inbound_domain ?: config('sendgrid.inbound_domain');
+        if ($settings->inbound_enabled && filled($domain)) {
+            return 'reply+'.$threadId.'@'.$domain;
+        }
+
+        return $settings->reply_to ?: null;
     }
 
     private function logCrmActivity(Message $message): void

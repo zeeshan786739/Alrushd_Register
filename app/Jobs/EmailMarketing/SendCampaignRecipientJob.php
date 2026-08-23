@@ -6,16 +6,17 @@ use App\Enums\EmailMarketing\CampaignStatus;
 use App\Enums\EmailMarketing\RecipientStatus;
 use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\CampaignRecipient;
-use App\Models\EmailMarketing\Suppression;
+use App\Services\EmailMarketing\Delivery\EmailDeliveryService;
+use App\Services\EmailMarketing\Delivery\OutboundEmail;
 use App\Services\EmailMarketing\HtmlSanitizer;
 use App\Services\EmailMarketing\MailConfigResolver;
+use App\Services\EmailMarketing\SuppressionService;
 use App\Services\EmailMarketing\TemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class SendCampaignRecipientJob implements ShouldQueue
@@ -32,6 +33,8 @@ class SendCampaignRecipientJob implements ShouldQueue
         MailConfigResolver $mailConfig,
         TemplateRenderer $renderer,
         HtmlSanitizer $sanitizer,
+        EmailDeliveryService $delivery,
+        SuppressionService $suppressions,
     ): void {
         $recipient = CampaignRecipient::with('campaign')->find($this->recipientId);
 
@@ -40,6 +43,17 @@ class SendCampaignRecipientJob implements ShouldQueue
         }
 
         if ($recipient->status === RecipientStatus::Sent->value) {
+            return;
+        }
+
+        // Permanent provider failures — do not retry.
+        if (in_array($recipient->provider_status, ['bounce', 'dropped', 'spamreport', 'unsubscribe', 'group_unsubscribe'], true)) {
+            $recipient->update([
+                'status' => RecipientStatus::Skipped->value,
+                'error_message' => $recipient->error_message ?: 'Permanently suppressed by provider status',
+            ]);
+            $this->refreshCampaignCounters($recipient->campaign_id);
+
             return;
         }
 
@@ -54,14 +68,15 @@ class SendCampaignRecipientJob implements ShouldQueue
             return;
         }
 
-        if (Suppression::query()
-            ->where('organization_id', $recipient->organization_id)
-            ->where('email', strtolower($recipient->email))
-            ->whereNotNull('unsubscribed_at')
-            ->exists()) {
+        // Re-check suppression at send time (not only at preview/snapshot).
+        $blockReason = $suppressions->marketingBlockReason(
+            (int) $recipient->organization_id,
+            (string) $recipient->email
+        );
+        if ($blockReason) {
             $recipient->update([
                 'status' => RecipientStatus::Skipped->value,
-                'error_message' => 'Unsubscribed',
+                'error_message' => 'Suppressed: '.$blockReason,
             ]);
             $this->refreshCampaignCounters($campaign->id);
 
@@ -69,7 +84,6 @@ class SendCampaignRecipientJob implements ShouldQueue
         }
 
         $settings = $mailConfig->resolveOrFail($recipient->organization_id);
-        $mailConfig->applyRuntimeConfig($settings);
 
         $unsubscribeUrl = route('email-marketing.unsubscribe.show', [
             'token' => $recipient->tracking_token,
@@ -83,7 +97,8 @@ class SendCampaignRecipientJob implements ShouldQueue
         ]);
         $html = $sanitizer->sanitize($html);
 
-        if ($campaign->tracking_enabled && $settings->tracking_enabled) {
+        $track = $campaign->tracking_enabled && $settings->tracking_enabled;
+        if ($track) {
             $pixel = '<img src="'.e(route('email-marketing.track.open', ['token' => $recipient->tracking_token])).'" width="1" height="1" alt="" />';
             $html .= $pixel;
             $html = $this->wrapLinks($html, $recipient->tracking_token);
@@ -91,25 +106,44 @@ class SendCampaignRecipientJob implements ShouldQueue
 
         $html .= '<p style="font-size:12px;color:#666"><a href="'.e($unsubscribeUrl).'">Unsubscribe</a></p>';
 
-        try {
-            Mail::html($html, function ($mail) use ($recipient, $campaign, $settings) {
-                $mail->to($recipient->email, $recipient->name)
-                    ->subject($campaign->subject)
-                    ->from(
-                        $campaign->from_email ?: $settings->from_email,
-                        $campaign->from_name ?: $settings->from_name
-                    );
-            });
+        $correlationUuid = $recipient->correlation_uuid ?: (string) Str::uuid();
+        if (! $recipient->correlation_uuid) {
+            $recipient->update(['correlation_uuid' => $correlationUuid]);
+        }
 
+        $asmGroupId = $settings->sendgrid_asm_group_id ? (int) $settings->sendgrid_asm_group_id : null;
+
+        $result = $delivery->send(new OutboundEmail(
+            fromEmail: (string) ($campaign->from_email ?: $settings->from_email),
+            fromName: $campaign->from_name ?: $settings->from_name,
+            to: [strtolower($recipient->email)],
+            subject: (string) $campaign->subject,
+            html: $html,
+            text: $sanitizer->toPlainText($html),
+            customArgs: [
+                'correlation_uuid' => $correlationUuid,
+            ],
+            category: 'marketing',
+            trackOpens: (bool) ($settings->open_tracking ?? $track),
+            trackClicks: (bool) ($settings->click_tracking ?? false),
+            asmGroupId: $asmGroupId,
+        ), $settings);
+
+        if ($result->accepted) {
             $recipient->update([
                 'status' => RecipientStatus::Sent->value,
                 'sent_at' => now(),
                 'error_message' => null,
+                'provider' => $result->provider,
+                'provider_message_id' => $result->providerMessageId,
+                'provider_status' => $result->providerStatus ?: 'processed',
             ]);
-        } catch (\Throwable $e) {
+        } else {
             $recipient->update([
                 'status' => RecipientStatus::Failed->value,
-                'error_message' => Str::limit($e->getMessage(), 500),
+                'error_message' => Str::limit($result->error ?: 'Send failed', 500),
+                'provider' => $result->provider,
+                'provider_status' => 'failed',
             ]);
         }
 

@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/meta/*',
             'webhooks/tiktok/*',
             'webhooks/stripe/*',
+            'webhooks/sendgrid/*',
         ]);
         $middleware->alias([
 

@@ -20,10 +20,12 @@ class Message extends Model
     protected $table = 'em_messages';
 
     protected $fillable = [
-        'organization_id', 'folder', 'direction', 'message_id', 'imap_uid', 'thread_id', 'parent_id',
+        'organization_id', 'folder', 'direction', 'message_id', 'correlation_uuid', 'imap_uid', 'thread_id', 'parent_id',
         'from_email', 'from_name', 'to', 'cc', 'bcc', 'subject', 'body_html', 'body_text',
-        'delivery_status', 'delivery_error', 'is_read', 'is_starred',
-        'lead_id', 'customer_id', 'created_by', 'sent_at', 'received_at',
+        'delivery_status', 'delivery_error', 'provider', 'provider_message_id', 'provider_status',
+        'is_read', 'is_starred',
+        'lead_id', 'customer_id', 'quotation_id', 'invoice_id', 'created_by', 'sent_at', 'received_at',
+        'delivered_at', 'opened_at', 'clicked_at', 'bounced_at',
     ];
 
     protected function casts(): array
@@ -33,6 +35,10 @@ class Message extends Model
             'is_starred' => 'boolean',
             'sent_at' => 'datetime',
             'received_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'opened_at' => 'datetime',
+            'clicked_at' => 'datetime',
+            'bounced_at' => 'datetime',
         ];
     }
 
@@ -59,6 +65,16 @@ class Message extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Crm\Quotation::class, 'quotation_id');
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Crm\Invoice::class, 'invoice_id');
     }
 
     public function author(): BelongsTo

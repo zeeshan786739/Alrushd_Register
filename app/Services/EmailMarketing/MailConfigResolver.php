@@ -3,7 +3,7 @@
 namespace App\Services\EmailMarketing;
 
 use App\Models\EmailMarketing\MailboxSetting;
-use App\Models\Organization;
+use App\Services\EmailMarketing\Delivery\EmailDeliveryService;
 use Illuminate\Support\Facades\Config;
 
 class MailConfigResolver
@@ -13,9 +13,29 @@ class MailConfigResolver
         return MailboxSetting::query()->where('organization_id', $organizationId)->first();
     }
 
+    public function sendGridConfigured(): bool
+    {
+        return filled(config('sendgrid.api_key'));
+    }
+
+    public function canSend(?MailboxSetting $settings): bool
+    {
+        if (! $settings || ! $settings->is_enabled || ! filled($settings->from_email)) {
+            return false;
+        }
+
+        // SendGrid (global key) or classic per-org SMTP.
+        return $this->sendGridConfigured() || $settings->isSmtpConfigured();
+    }
+
     public function applyRuntimeConfig(MailboxSetting $settings): void
     {
         if (! $settings->isSmtpConfigured()) {
+            Config::set('mail.from', [
+                'address' => $settings->from_email,
+                'name' => $settings->from_name ?: $settings->from_email,
+            ]);
+
             return;
         }
 
@@ -49,10 +69,29 @@ class MailConfigResolver
     {
         $settings = $this->forOrganization($organizationId);
 
-        if (! $settings || ! $settings->is_enabled || ! $settings->isSmtpConfigured()) {
-            throw new \RuntimeException('Mailbox SMTP is not configured for this organization.');
+        if (! $this->canSend($settings)) {
+            throw new \RuntimeException(
+                $this->sendGridConfigured()
+                    ? 'Mailbox is not enabled or From email is missing for this organization.'
+                    : 'Mailbox SMTP is not configured for this organization.'
+            );
         }
 
         return $settings;
+    }
+
+    public function providerStatusLabel(MailboxSetting $settings): string
+    {
+        if ($this->sendGridConfigured()) {
+            return filled($settings->from_email) && $settings->is_enabled
+                ? 'SendGrid configured (org sender ready)'
+                : 'SendGrid API configured — enable mailbox and set From email';
+        }
+
+        if ($settings->isSmtpConfigured()) {
+            return 'Using organization SMTP';
+        }
+
+        return 'No delivery provider configured';
     }
 }

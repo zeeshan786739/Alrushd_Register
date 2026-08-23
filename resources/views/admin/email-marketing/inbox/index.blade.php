@@ -35,16 +35,39 @@
                 @forelse($messages as $msg)
                     <a href="{{ route('admin.email.show', $msg) }}" class="em-list-item {{ !$msg->is_read && $msg->folder==='inbox' ? 'unread' : '' }}">
                         <div class="d-flex justify-content-between gap-12">
-                            <div>
-                                <div>{{ $msg->folder==='sent' || $msg->folder==='draft' ? ($msg->to ?: 'No recipients') : ($msg->from_name ?: $msg->from_email ?: 'Unknown') }}</div>
+                            <div class="min-w-0 flex-grow-1">
+                                <div class="d-flex align-items-center gap-8 flex-wrap">
+                                    <span>{{ $msg->folder==='sent' || $msg->folder==='draft' ? ($msg->to ?: 'No recipients') : ($msg->from_name ?: $msg->from_email ?: 'Unknown') }}</span>
+                                    @if(($msg->attachments_count ?? 0) > 0)
+                                        <iconify-icon icon="solar:paperclip-linear" class="em-meta" title="Has attachments"></iconify-icon>
+                                    @endif
+                                    @if($msg->is_starred)
+                                        <iconify-icon icon="solar:star-bold" class="text-warning"></iconify-icon>
+                                    @endif
+                                </div>
                                 <div>{{ $msg->subject ?: '(no subject)' }}</div>
                                 <div class="em-meta text-truncate" style="max-width:520px">{{ \Illuminate\Support\Str::limit($msg->body_text ?: strip_tags((string)$msg->body_html), 100) }}</div>
+                                @if($msg->folder==='sent')
+                                    <div class="mt-4">
+                                        @if($msg->lead_id)<span class="em-crm-chip">Lead</span>@endif
+                                        @if($msg->customer_id)<span class="em-crm-chip">Customer</span>@endif
+                                        @if($msg->quotation_id)<span class="em-crm-chip">Quotation</span>@endif
+                                        @if($msg->invoice_id)<span class="em-crm-chip">Invoice</span>@endif
+                                    </div>
+                                @endif
                             </div>
-                            <div class="em-meta text-nowrap">
-                                @if($msg->is_starred)<iconify-icon icon="solar:star-bold" class="text-warning"></iconify-icon>@endif
+                            <div class="em-meta text-nowrap text-end">
                                 {{ optional($msg->sent_at ?: $msg->received_at ?: $msg->created_at)->diffForHumans() }}
-                                @if($msg->folder==='sent' && $msg->delivery_status)
-                                    <div><span class="badge bg-neutral-200">{{ $msg->delivery_status }}</span></div>
+                                @if($msg->folder==='sent')
+                                    <div class="mt-4">
+                                        @include('admin.email-marketing.partials.provider-status-pill', [
+                                            'status' => $msg->provider_status ?: $msg->delivery_status ?: 'pending',
+                                        ])
+                                    </div>
+                                    @if($msg->delivered_at)<div class="mt-4">Delivered {{ $msg->delivered_at->diffForHumans() }}</div>@endif
+                                    @if($msg->opened_at)<div>Opened {{ $msg->opened_at->diffForHumans() }}</div>@endif
+                                    @if($msg->clicked_at)<div>Clicked {{ $msg->clicked_at->diffForHumans() }}</div>@endif
+                                    @if($msg->bounced_at)<div class="text-danger">Bounced {{ $msg->bounced_at->diffForHumans() }}</div>@endif
                                 @endif
                             </div>
                         </div>

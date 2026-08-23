@@ -810,9 +810,16 @@ form.bg-primary .form-select {
 }
 .crm-filter-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 10px;
     align-items: center;
+    align-self: end;
+}
+.crm-filter-actions .btn,
+.crm-filter-actions .fc-btn {
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .fc-form-row { transition: background var(--crm-duration); }
@@ -1432,8 +1439,8 @@ form.bg-primary .form-select {
         max-width: 100%;
     }
     form.bg-primary .mt-24 { margin-top: 0 !important; }
-    .crm-filter-actions { width: 100%; }
-    .crm-filter-actions .btn { flex: 1; }
+    .crm-filter-actions { width: 100%; flex-wrap: nowrap; }
+    .crm-filter-actions .btn { flex: 1 1 0; }
     .card-header { flex-direction: column; align-items: flex-start !important; }
     .card-header .btn { width: 100%; justify-content: center; }
     .fc-wizard-nav { flex-direction: column-reverse; align-items: stretch; }

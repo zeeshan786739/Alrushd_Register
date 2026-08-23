@@ -13,12 +13,17 @@ class Suppression extends Model
     protected $table = 'em_suppressions';
 
     protected $fillable = [
-        'organization_id', 'email', 'reason', 'token', 'unsubscribed_at',
+        'organization_id', 'email', 'reason', 'source', 'provider', 'provider_group_id',
+        'token', 'unsubscribed_at', 'resubscribed_at',
     ];
 
     protected function casts(): array
     {
-        return ['unsubscribed_at' => 'datetime'];
+        return [
+            'unsubscribed_at' => 'datetime',
+            'resubscribed_at' => 'datetime',
+            'provider_group_id' => 'integer',
+        ];
     }
 
     protected static function booted(): void

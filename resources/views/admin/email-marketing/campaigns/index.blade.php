@@ -14,6 +14,9 @@
     ])
     @if(session('success'))<div class="alert alert-success radius-8">{{ session('success') }}</div>@endif
 
+    @php $folder = 'campaigns'; @endphp
+    @include('admin.email-marketing.partials.nav')
+
     <div class="card radius-12 shadow-2 border-0">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -24,7 +27,7 @@
                         <tr>
                             <td><a href="{{ route('admin.email.campaigns.show', $campaign) }}" class="fw-semibold">{{ $campaign->name }}</a></td>
                             <td>{{ $campaign->subject }}</td>
-                            <td><span class="badge bg-neutral-200">{{ $campaign->status }}</span></td>
+                            <td><span class="badge bg-neutral-200 text-capitalize">{{ $campaign->status }}</span></td>
                             <td>{{ $campaign->recipient_count }}</td>
                             <td>{{ $campaign->sent_count }}</td>
                             <td>{{ $campaign->opened_count }}</td>
@@ -40,5 +43,7 @@
         </div>
     </div>
     <div class="mt-16">{{ $campaigns->links() }}</div>
+    </div>
+</div>
 </div>
 @endsection

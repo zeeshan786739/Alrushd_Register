@@ -4,7 +4,6 @@ namespace App\Models\EmailMarketing;
 
 use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MailboxSetting extends Model
 {
@@ -14,9 +13,11 @@ class MailboxSetting extends Model
 
     protected $fillable = [
         'organization_id', 'from_name', 'from_email', 'reply_to',
+        'inbound_domain', 'inbound_enabled',
         'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password',
         'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_password',
-        'inbox_folder', 'sent_folder', 'validate_cert', 'tracking_enabled', 'is_enabled',
+        'inbox_folder', 'sent_folder', 'validate_cert', 'tracking_enabled',
+        'open_tracking', 'click_tracking', 'sendgrid_asm_group_id', 'is_enabled',
         'last_synced_at', 'last_sync_status', 'last_sync_error',
     ];
 
@@ -29,7 +30,11 @@ class MailboxSetting extends Model
             'imap_password' => 'encrypted',
             'validate_cert' => 'boolean',
             'tracking_enabled' => 'boolean',
+            'open_tracking' => 'boolean',
+            'click_tracking' => 'boolean',
+            'inbound_enabled' => 'boolean',
             'is_enabled' => 'boolean',
+            'sendgrid_asm_group_id' => 'integer',
             'last_synced_at' => 'datetime',
         ];
     }
@@ -42,5 +47,14 @@ class MailboxSetting extends Model
     public function isImapConfigured(): bool
     {
         return filled($this->imap_host) && filled($this->imap_username) && filled($this->imap_password);
+    }
+
+    public function isSendReady(): bool
+    {
+        if (! $this->is_enabled || ! filled($this->from_email)) {
+            return false;
+        }
+
+        return filled(config('sendgrid.api_key')) || $this->isSmtpConfigured();
     }
 }

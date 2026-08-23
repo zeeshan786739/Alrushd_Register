@@ -4,6 +4,7 @@ namespace App\Http\Requests\Crm;
 
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
+use App\Support\CrmOrgRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +13,13 @@ class UpdateLeadRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user('admin')?->can('update leads') ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('assigned_to') === '') {
+            $this->merge(['assigned_to' => null]);
+        }
     }
 
     /** @return array<string, mixed> */
@@ -27,7 +35,7 @@ class UpdateLeadRequest extends FormRequest
             'lead_source' => ['nullable', 'string', 'max:100'],
             'lead_status' => ['required', Rule::enum(LeadStatus::class)],
             'priority' => ['required', Rule::enum(LeadPriority::class)],
-            'assigned_to' => ['nullable', 'exists:admins,id'],
+            'assigned_to' => ['nullable', 'integer', CrmOrgRules::adminId()],
             'lead_description' => ['nullable', 'string'],
             'address' => ['nullable', 'string'],
             'city' => ['nullable', 'string', 'max:100'],

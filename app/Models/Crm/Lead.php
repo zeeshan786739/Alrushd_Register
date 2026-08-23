@@ -29,6 +29,8 @@ class Lead extends Model
         'estimated_value', 'probability', 'next_follow_up_date', 'next_follow_up_time',
         'next_follow_up_type', 'appointment_date', 'appointment_type', 'appointment_notes',
         'lead_description', 'address', 'city', 'province', 'postal_code',
+        'advertising_platform', 'campaign_name', 'adset_name', 'ad_name', 'form_name',
+        'source_submitted_at', 'custom_data', 'lead_import_id',
         'is_converted', 'converted_at', 'last_contacted_at', 'contact_count', 'created_by',
     ];
 
@@ -41,6 +43,8 @@ class Lead extends Model
             'is_converted' => 'boolean',
             'converted_at' => 'datetime',
             'last_contacted_at' => 'datetime',
+            'source_submitted_at' => 'datetime',
+            'custom_data' => 'array',
         ];
     }
 
@@ -72,6 +76,16 @@ class Lead extends Model
     public function isFromFacebook(): bool
     {
         return $this->source === 'facebook_lead_ads';
+    }
+
+    public function isFromImport(): bool
+    {
+        return $this->source === 'file_import' || $this->lead_import_id !== null;
+    }
+
+    public function leadImport(): BelongsTo
+    {
+        return $this->belongsTo(LeadImport::class, 'lead_import_id');
     }
 
     public function notes(): HasMany

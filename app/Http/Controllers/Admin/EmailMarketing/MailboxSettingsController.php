@@ -22,7 +22,11 @@ class MailboxSettingsController extends Controller
             'organization_id' => OrganizationContext::idOrFail(),
         ]);
 
-        return view('admin.email-marketing.settings.edit', compact('settings'));
+        $mailConfig = app(\App\Services\EmailMarketing\MailConfigResolver::class);
+        $providerLabel = $mailConfig->providerStatusLabel($settings);
+        $sendGridConfigured = $mailConfig->sendGridConfigured();
+
+        return view('admin.email-marketing.settings.edit', compact('settings', 'providerLabel', 'sendGridConfigured'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -31,6 +35,7 @@ class MailboxSettingsController extends Controller
             'from_name' => 'nullable|string|max:150',
             'from_email' => 'nullable|email',
             'reply_to' => 'nullable|email',
+            'inbound_domain' => 'nullable|string|max:255',
             'smtp_host' => 'nullable|string|max:255',
             'smtp_port' => 'nullable|integer|min:1|max:65535',
             'smtp_encryption' => 'nullable|in:tls,ssl,',
@@ -45,7 +50,11 @@ class MailboxSettingsController extends Controller
             'sent_folder' => 'nullable|string|max:100',
             'validate_cert' => 'nullable|boolean',
             'tracking_enabled' => 'nullable|boolean',
+            'open_tracking' => 'nullable|boolean',
+            'click_tracking' => 'nullable|boolean',
+            'inbound_enabled' => 'nullable|boolean',
             'is_enabled' => 'nullable|boolean',
+            'sendgrid_asm_group_id' => 'nullable|integer|min:1',
         ]);
 
         $settings = MailboxSetting::firstOrNew([
@@ -64,7 +73,13 @@ class MailboxSettingsController extends Controller
         $settings->fill($validated);
         $settings->validate_cert = $request->boolean('validate_cert', true);
         $settings->tracking_enabled = $request->boolean('tracking_enabled', true);
+        $settings->open_tracking = $request->boolean('open_tracking', true);
+        $settings->click_tracking = $request->boolean('click_tracking', true);
+        $settings->inbound_enabled = $request->boolean('inbound_enabled');
         $settings->is_enabled = $request->boolean('is_enabled');
+        $settings->sendgrid_asm_group_id = $request->filled('sendgrid_asm_group_id')
+            ? (int) $request->input('sendgrid_asm_group_id')
+            : null;
         $settings->organization_id = OrganizationContext::idOrFail();
         $settings->save();
 

@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Models\Crm\Customer;
 use App\Models\Crm\Invoice;
 use App\Models\Crm\Lead;
+use App\Models\Crm\LeadImport;
 use App\Models\Crm\Project;
 use App\Models\Crm\Quotation;
+use App\Models\Crm\SavedFilter;
 use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\Message;
 use App\Models\EmailMarketing\Template;
@@ -88,6 +90,11 @@ class AppServiceProvider extends ServiceProvider
     private function registerOrganizationScopedBindings(): void
     {
         Route::bind('lead', fn (string $value) => Lead::forCurrentOrganization()->whereKey($value)->firstOrFail());
+        Route::bind('leadImport', fn (string $value) => LeadImport::forCurrentOrganization()->whereKey($value)->firstOrFail());
+        Route::bind('savedFilter', fn (string $value) => SavedFilter::forCurrentOrganization()
+            ->where('admin_id', auth('admin')->id())
+            ->whereKey($value)
+            ->firstOrFail());
         Route::bind('customer', fn (string $value) => Customer::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('project', fn (string $value) => Project::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('quotation', fn (string $value) => Quotation::forCurrentOrganization()->whereKey($value)->firstOrFail());

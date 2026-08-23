@@ -58,4 +58,61 @@ class LeadCrudTest extends CrmTestCase
         $lead->refresh();
         $this->assertSame($this->adminA->id, $lead->assigned_to);
     }
+
+    public function test_cross_org_assigned_to_rejected_on_lead_create(): void
+    {
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.store'), [
+                'first_name' => 'Cross',
+                'email' => 'cross-create@example.com',
+                'lead_status' => 'new',
+                'priority' => 'medium',
+                'assigned_to' => $this->adminB->id,
+            ])
+            ->assertSessionHasErrors('assigned_to');
+
+        $this->assertSame(0, Lead::forOrganization($this->organizationA->id)->count());
+    }
+
+    public function test_cross_org_assigned_to_rejected_on_lead_update(): void
+    {
+        $lead = Lead::create([
+            'organization_id' => $this->organizationA->id,
+            'source' => 'manual',
+            'first_name' => 'Update',
+            'email' => 'cross-update@example.com',
+            'lead_status' => 'new',
+            'priority' => 'medium',
+            'assigned_to' => $this->adminA->id,
+        ]);
+
+        $this->actingAsCrmAdmin()
+            ->put(route('admin.crm.leads.update', $lead), [
+                'first_name' => 'Update',
+                'email' => 'cross-update@example.com',
+                'lead_status' => 'new',
+                'priority' => 'medium',
+                'assigned_to' => $this->adminB->id,
+            ])
+            ->assertSessionHasErrors('assigned_to');
+
+        $lead->refresh();
+        $this->assertSame($this->adminA->id, $lead->assigned_to);
+    }
+
+    public function test_same_org_assignee_works_on_lead_create(): void
+    {
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.store'), [
+                'first_name' => 'Assigned',
+                'email' => 'same-org-assignee@example.com',
+                'lead_status' => 'new',
+                'priority' => 'medium',
+                'assigned_to' => $this->adminA->id,
+            ])
+            ->assertRedirect();
+
+        $lead = Lead::forOrganization($this->organizationA->id)->firstOrFail();
+        $this->assertSame($this->adminA->id, $lead->assigned_to);
+    }
 }

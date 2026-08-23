@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Crm;
 
-use App\Mail\Crm\LeadEmail;
 use App\Models\Crm\Lead;
+use App\Models\EmailMarketing\Message;
 use Illuminate\Support\Facades\Mail;
 
 class LeadEmailTest extends CrmTestCase
@@ -29,9 +29,11 @@ class LeadEmailTest extends CrmTestCase
             ])
             ->assertRedirect(route('admin.crm.leads.show', $lead));
 
-        Mail::assertSent(LeadEmail::class, function (LeadEmail $mail) use ($lead) {
-            return $mail->hasTo('lead@example.com') && $mail->lead->is($lead);
-        });
+        $message = Message::query()->where('lead_id', $lead->id)->first();
+        $this->assertNotNull($message);
+        $this->assertSame('Hello there', $message->subject);
+        $this->assertSame('sent', $message->delivery_status);
+        $this->assertNotNull($message->correlation_uuid);
 
         $lead->refresh();
         $this->assertSame(1, $lead->contact_count);

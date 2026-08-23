@@ -18,8 +18,9 @@ class CampaignRecipient extends Model
 
     protected $fillable = [
         'organization_id', 'campaign_id', 'email', 'name', 'lead_id', 'customer_id', 'form_entry_id',
-        'status', 'tracking_token', 'is_opened', 'is_clicked', 'open_count', 'click_count',
-        'sent_at', 'opened_at', 'clicked_at', 'error_message',
+        'status', 'tracking_token', 'correlation_uuid', 'is_opened', 'is_clicked', 'open_count', 'click_count',
+        'sent_at', 'opened_at', 'clicked_at', 'delivered_at', 'bounced_at', 'error_message',
+        'provider', 'provider_message_id', 'provider_status',
     ];
 
     protected function casts(): array
@@ -30,6 +31,8 @@ class CampaignRecipient extends Model
             'sent_at' => 'datetime',
             'opened_at' => 'datetime',
             'clicked_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'bounced_at' => 'datetime',
         ];
     }
 

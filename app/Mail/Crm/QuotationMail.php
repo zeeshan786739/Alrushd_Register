@@ -3,6 +3,7 @@
 namespace App\Mail\Crm;
 
 use App\Models\Crm\Quotation;
+use App\Support\CrmDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -37,9 +38,14 @@ class QuotationMail extends Mailable
     /** @return array<int, Attachment> */
     public function attachments(): array
     {
-        $pdf = Pdf::loadView('admin.crm.pdf.quotation', [
-            'quotation' => $this->quotation->load(['customer', 'items', 'project']),
-        ])->setOptions(['isRemoteEnabled' => true]);
+        $quotation = $this->quotation->load(['customer', 'items', 'project']);
+        $organization = CrmDocument::organizationFor($quotation->organization_id);
+        $doc = CrmDocument::quotationViewData($quotation, 'pdf');
+        $html = CrmDocument::prepareHtmlForPdf(
+            view('admin.crm.pdf.quotation', compact('quotation', 'organization', 'doc'))->render()
+        );
+
+        $pdf = Pdf::loadHTML($html)->setPaper('a4')->setOptions(CrmDocument::pdfOptions());
 
         return [
             Attachment::fromData(fn () => $pdf->output(), $this->quotation->quotation_number.'.pdf')

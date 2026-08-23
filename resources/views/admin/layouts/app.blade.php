@@ -629,6 +629,8 @@
     @yield('modals')
 </div>
 
+@include('admin.crm.partials.confirm-modal')
+
 <!-- jQuery library js -->
 <script src="{{ asset('admin/') }}/assets/js/lib/jquery-3.7.1.min.js"></script>
 <!-- Bootstrap js -->

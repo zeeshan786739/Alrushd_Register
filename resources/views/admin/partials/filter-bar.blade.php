@@ -26,17 +26,17 @@
                 @endif
             </div>
         @endforeach
-        <div class="crm-filter-actions">
-            <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn">
-                <iconify-icon icon="solar:filter-linear"></iconify-icon>
-                <span>Apply</span>
-            </button>
-            @if(!empty($resetUrl))
-                <a href="{{ $resetUrl }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11 fc-btn">
-                    <iconify-icon icon="solar:restart-linear"></iconify-icon>
-                    <span>Reset</span>
-                </a>
-            @endif
-        </div>
+    </div>
+    <div class="crm-filter-actions mt-16">
+        <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn">
+            <iconify-icon icon="solar:filter-linear"></iconify-icon>
+            <span>Apply</span>
+        </button>
+        @if(!empty($resetUrl))
+            <a href="{{ $resetUrl }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11 fc-btn">
+                <iconify-icon icon="solar:restart-linear"></iconify-icon>
+                <span>Reset</span>
+            </a>
+        @endif
     </div>
 </form>

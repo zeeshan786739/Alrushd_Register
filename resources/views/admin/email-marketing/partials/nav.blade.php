@@ -1,6 +1,20 @@
 @php
+    use App\Models\EmailMarketing\Message;
     $folder = $folder ?? 'inbox';
-    $counts = $counts ?? ['inbox'=>0,'inbox_unread'=>0,'sent'=>0,'draft'=>0,'starred'=>0];
+    if (! isset($counts) || ! is_array($counts)) {
+        try {
+            $base = Message::forCurrentOrganization();
+            $counts = [
+                'inbox' => (clone $base)->inbox()->count(),
+                'inbox_unread' => (clone $base)->inbox()->unread()->count(),
+                'sent' => (clone $base)->sent()->count(),
+                'draft' => (clone $base)->draft()->count(),
+                'starred' => (clone $base)->starred()->count(),
+            ];
+        } catch (\Throwable $e) {
+            $counts = ['inbox'=>0,'inbox_unread'=>0,'sent'=>0,'draft'=>0,'starred'=>0];
+        }
+    }
 @endphp
 <style>
 .em-shell{display:grid;grid-template-columns:220px 1fr;gap:16px}
@@ -11,6 +25,7 @@
 .em-list-item:hover{background:rgba(15,39,74,.03)}
 .em-list-item.unread{font-weight:600}
 .em-meta{font-size:12px;opacity:.65}
+.em-crm-chip{display:inline-block;font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(15,39,74,.06);margin-right:4px}
 @media (max-width:991px){.em-shell{grid-template-columns:1fr}.em-nav{display:flex;flex-wrap:wrap;gap:4px}.em-nav a{padding:8px 10px}}
 </style>
 <div class="em-shell mb-24">
@@ -43,18 +58,18 @@
         </a>
         @endcan
         @can('view campaigns')
-        <a href="{{ route('admin.email.campaigns.index') }}">
+        <a href="{{ route('admin.email.campaigns.index') }}" class="{{ ($folder??'')==='campaigns'?'is-active':'' }}">
             <iconify-icon icon="solar:megaphone-linear"></iconify-icon> Campaigns
         </a>
         @endcan
         @can('view templates')
-        <a href="{{ route('admin.email.templates.index') }}">
+        <a href="{{ route('admin.email.templates.index') }}" class="{{ ($folder??'')==='templates'?'is-active':'' }}">
             <iconify-icon icon="solar:clipboard-list-linear"></iconify-icon> Templates
         </a>
         @endcan
         @can('manage mailbox settings')
-        <a href="{{ route('admin.email.mailbox.settings') }}">
-            <iconify-icon icon="solar:settings-linear"></iconify-icon> Settings
+        <a href="{{ route('admin.email.mailbox.settings') }}" class="{{ ($folder??'')==='settings'?'is-active':'' }}">
+            <iconify-icon icon="solar:settings-linear"></iconify-icon> Mailbox Settings
         </a>
         @endcan
     </aside>

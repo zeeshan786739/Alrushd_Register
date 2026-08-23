@@ -49,4 +49,9 @@ class LeadPolicy
     {
         return $admin->can('export leads');
     }
+
+    public function import(Admin $admin): bool
+    {
+        return $admin->can('import leads');
+    }
 }

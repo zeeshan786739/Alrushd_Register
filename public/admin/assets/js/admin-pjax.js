@@ -37,7 +37,18 @@
         if (/\/export(\/|$)/i.test(path) || /[?&]export=/i.test(url.search || '')) {
             return true;
         }
+        if (/\/(pdf|failed-rows)(\/|$)/i.test(path)) {
+            return true;
+        }
         return false;
+    }
+
+    function isDownloadLikeHref(href) {
+        try {
+            return isDownloadLike(new URL(href, window.location.origin));
+        } catch (err) {
+            return false;
+        }
     }
 
     function isLogoutUrl(url) {
@@ -398,5 +409,7 @@
         navigate: navigate,
         isEligibleAnchor: isEligibleAnchor,
         isEligibleGetForm: isEligibleGetForm,
+        isDownloadLike: isDownloadLike,
+        isDownloadLikeHref: isDownloadLikeHref,
     };
 })();

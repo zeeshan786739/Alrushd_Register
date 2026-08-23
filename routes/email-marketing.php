@@ -21,6 +21,7 @@ Route::prefix('email-marketing')->name('email.')->group(function () {
     Route::delete('message/{emMessage}', [InboxController::class, 'destroy'])->name('destroy');
     Route::post('message/{emMessage}/star', [InboxController::class, 'toggleStar'])->name('star');
     Route::post('message/{emMessage}/read', [InboxController::class, 'markRead'])->name('read');
+    Route::post('message/{emMessage}/unread', [InboxController::class, 'markUnread'])->name('unread');
     Route::post('message/{emMessage}/reply', [InboxController::class, 'reply'])->name('reply');
     Route::post('message/{emMessage}/forward', [InboxController::class, 'forward'])->name('forward');
     Route::get('message/{emMessage}/attachments/{attachment}', [InboxController::class, 'downloadAttachment'])->name('attachments.download');

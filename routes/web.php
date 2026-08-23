@@ -225,6 +225,11 @@ Route::prefix('webhooks/tiktok')->group(function () {
     Route::post('leads', [\App\Http\Controllers\Webhooks\TikTokLeadWebhookController::class, 'handle']);
 });
 
+Route::prefix('webhooks/sendgrid')->group(function () {
+    Route::post('events', [\App\Http\Controllers\Webhooks\SendGridWebhookController::class, 'events']);
+    Route::post('inbound', [\App\Http\Controllers\Webhooks\SendGridWebhookController::class, 'inbound']);
+});
+
 require __DIR__.'/admin-auth.php';
 require __DIR__.'/platform.php';
 

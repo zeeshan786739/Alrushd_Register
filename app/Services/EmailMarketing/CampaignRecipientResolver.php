@@ -4,40 +4,47 @@ namespace App\Services\EmailMarketing;
 
 use App\Models\Crm\Customer;
 use App\Models\Crm\Lead;
-use App\Models\EmailMarketing\Suppression;
 use App\Models\FormEntry;
 use Illuminate\Support\Collection;
 
 class CampaignRecipientResolver
 {
+    public function __construct(private SuppressionService $suppressions)
+    {
+    }
+
+    /**
+     * Raw audience candidates before suppression filtering (normalized emails).
+     *
+     * @param  array{source:string, lead_ids?:array<int>, customer_ids?:array<int>, form_entry_ids?:array<int>, manual_emails?:string, lead_status?:?string}  $options
+     * @return Collection<int, array{email:string,name:?string,lead_id:?int,customer_id:?int,form_entry_id:?int}>
+     */
+    public function rawCandidates(int $organizationId, array $options): Collection
+    {
+        $source = $options['source'] ?? 'manual';
+
+        return match ($source) {
+            'leads' => $this->fromLeads($organizationId, $options),
+            'customers' => $this->fromCustomers($organizationId, $options),
+            'form_entries' => $this->fromFormEntries($organizationId, $options),
+            'selected_leads' => $this->fromLeads($organizationId, $options, $options['lead_ids'] ?? []),
+            'selected_customers' => $this->fromCustomers($organizationId, $options, $options['customer_ids'] ?? []),
+            default => $this->fromManual($options['manual_emails'] ?? ''),
+        };
+    }
+
     /**
      * @param  array{source:string, lead_ids?:array<int>, customer_ids?:array<int>, form_entry_ids?:array<int>, manual_emails?:string, lead_status?:?string}  $options
      * @return Collection<int, array{email:string,name:?string,lead_id:?int,customer_id:?int,form_entry_id:?int}>
      */
     public function resolve(int $organizationId, array $options): Collection
     {
-        $source = $options['source'] ?? 'manual';
-        $rows = collect();
-
-        match ($source) {
-            'leads' => $rows = $this->fromLeads($organizationId, $options),
-            'customers' => $rows = $this->fromCustomers($organizationId, $options),
-            'form_entries' => $rows = $this->fromFormEntries($organizationId, $options),
-            'selected_leads' => $rows = $this->fromLeads($organizationId, $options, $options['lead_ids'] ?? []),
-            'selected_customers' => $rows = $this->fromCustomers($organizationId, $options, $options['customer_ids'] ?? []),
-            default => $rows = $this->fromManual($options['manual_emails'] ?? ''),
-        };
-
-        $suppressed = Suppression::query()
-            ->where('organization_id', $organizationId)
-            ->pluck('email')
-            ->map(fn ($e) => strtolower($e))
-            ->all();
+        $rows = $this->rawCandidates($organizationId, $options);
 
         return $rows
             ->filter(fn ($row) => filter_var($row['email'], FILTER_VALIDATE_EMAIL))
-            ->reject(fn ($row) => in_array(strtolower($row['email']), $suppressed, true))
-            ->unique(fn ($row) => strtolower($row['email']))
+            ->reject(fn ($row) => $this->suppressions->isMarketingBlocked($organizationId, $row['email']))
+            ->unique(fn ($row) => $this->suppressions->normalize($row['email']))
             ->values();
     }
 

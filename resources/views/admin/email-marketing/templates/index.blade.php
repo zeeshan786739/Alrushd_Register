@@ -13,6 +13,8 @@
         ]),
     ])
     @if(session('success'))<div class="alert alert-success radius-8">{{ session('success') }}</div>@endif
+    @php $folder = 'templates'; @endphp
+    @include('admin.email-marketing.partials.nav')
     <div class="card radius-12 shadow-2 border-0">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -41,5 +43,7 @@
         </div>
     </div>
     <div class="mt-16">{{ $templates->links() }}</div>
+    </div>
+</div>
 </div>
 @endsection

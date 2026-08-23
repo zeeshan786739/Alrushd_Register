@@ -3,6 +3,7 @@
 namespace App\Mail\Crm;
 
 use App\Models\Crm\Invoice;
+use App\Support\CrmDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -37,9 +38,14 @@ class InvoiceMail extends Mailable
     /** @return array<int, Attachment> */
     public function attachments(): array
     {
-        $pdf = Pdf::loadView('admin.crm.pdf.invoice', [
-            'invoice' => $this->invoice->load(['customer', 'items', 'project']),
-        ])->setOptions(['isRemoteEnabled' => true]);
+        $invoice = $this->invoice->load(['customer', 'items', 'project', 'quotation', 'payments']);
+        $organization = CrmDocument::organizationFor($invoice->organization_id);
+        $doc = CrmDocument::invoiceViewData($invoice, 'pdf');
+        $html = CrmDocument::prepareHtmlForPdf(
+            view('admin.crm.pdf.invoice', compact('invoice', 'organization', 'doc'))->render()
+        );
+
+        $pdf = Pdf::loadHTML($html)->setPaper('a4')->setOptions(CrmDocument::pdfOptions());
 
         return [
             Attachment::fromData(fn () => $pdf->output(), $this->invoice->invoice_number.'.pdf')

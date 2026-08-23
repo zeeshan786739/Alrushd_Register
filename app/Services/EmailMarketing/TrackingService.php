@@ -78,8 +78,10 @@ class TrackingService
             ],
             [
                 'reason' => 'campaign_unsubscribe',
+                'source' => 'local',
                 'token' => Str::random(48),
                 'unsubscribed_at' => now(),
+                'resubscribed_at' => null,
             ]
         );
     }
