@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Admin;
-use Spatie\Permission\Models\Role;
+use App\Support\OrganizationContext;
+use App\Support\UserManagementHelper;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -18,19 +20,35 @@ class UserController extends Controller
         $this->middleware('permission:delete user')->only('destroy');
     }
 
-
-    public function index()
+    public function index(Request $request)
     {
-        
-        $users = Admin::with('roles')->get();
+        $query = Admin::query()
+            ->forCurrentOrganization()
+            ->where('is_platform_admin', false)
+            ->with('roles')
+            ->orderBy('name');
 
-        return view('admin.role-permission.users.index', compact('users'));
+        if ($request->filled('role')) {
+            $query->role($request->role);
+        }
+
+        $users = $query->get();
+        $roles = Role::query()->where('guard_name', 'admin')->orderBy('name')->get();
+        $stats = UserManagementHelper::stats();
+
+        return view('admin.role-permission.users.index', compact('users', 'roles', 'stats'));
     }
 
     public function create()
     {
-        $roles = Role::where('guard_name', 'admin')->get();
-        return view('admin.role-permission.users.create', compact('roles'));
+        $roles = Role::query()
+            ->where('guard_name', 'admin')
+            ->with('permissions')
+            ->orderBy('name')
+            ->get();
+        $stats = UserManagementHelper::stats();
+
+        return view('admin.role-permission.users.create', compact('roles', 'stats'));
     }
 
     public function store(Request $request)
@@ -38,66 +56,77 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:admins,email',
-            'password' => 'required|string|min:6|confirmed',
-            'roles' => 'required|array'
+            'password' => 'required|string|min:8|confirmed',
+            'roles' => 'required|array|min:1',
         ]);
 
         $user = Admin::create([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name' => trim($request->name),
+            'email' => strtolower(trim($request->email)),
             'password' => Hash::make($request->password),
+            'organization_id' => OrganizationContext::idOrFail(),
         ]);
 
         $user->assignRole($request->roles);
 
-        return redirect()->route('admin.users.index')->with('success', 'User created successfully');
+        return redirect()->route('admin.users.index')->with('success', 'Team member invited successfully.');
     }
 
     public function edit($id)
     {
-        $user = Admin::findOrFail($id);
-        $roles = Role::where('guard_name', 'admin')->get();
+        $user = $this->findOrganizationUser($id);
+        $roles = Role::query()->where('guard_name', 'admin')->orderBy('name')->get();
         $userRoles = $user->roles->pluck('name')->toArray();
+        $stats = UserManagementHelper::stats();
 
-        return view('admin.role-permission.users.edit', compact('user', 'roles', 'userRoles'));
+        return view('admin.role-permission.users.edit', compact('user', 'roles', 'userRoles', 'stats'));
     }
 
     public function update(Request $request, $id)
     {
-        $user = Admin::findOrFail($id);
+        $user = $this->findOrganizationUser($id);
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:admins,email,' . $id,
-            'password' => 'nullable|min:6|confirmed',
-            'roles' => 'required|array'
+            'email' => 'required|email|unique:admins,email,'.$id,
+            'password' => 'nullable|min:8|confirmed',
+            'roles' => 'required|array|min:1',
         ]);
 
-        $user->name = $request->name;
-        $user->email = $request->email;
+        $user->name = trim($request->name);
+        $user->email = strtolower(trim($request->email));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
         }
 
         $user->save();
-
         $user->syncRoles($request->roles);
 
-        return redirect()->route('admin.users.index')->with('success', 'User updated successfully');
+        return redirect()->route('admin.users.index')->with('success', 'Team member updated successfully.');
     }
 
     public function destroy($id)
     {
-        $admin = Admin::findOrFail($id);
+        $user = $this->findOrganizationUser($id);
 
-        // Remove all assigned roles and permissions
-        $admin->syncRoles([]);
-        $admin->syncPermissions([]);
+        if ((int) $user->id === (int) auth('admin')->id()) {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'You cannot delete your own account while logged in.');
+        }
 
-        // Delete the admin user
-        $admin->delete();
+        $user->syncRoles([]);
+        $user->syncPermissions([]);
+        $user->delete();
 
-        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');
+        return redirect()->route('admin.users.index')->with('success', 'Team member removed successfully.');
+    }
+
+    protected function findOrganizationUser(int|string $id): Admin
+    {
+        return Admin::query()
+            ->forCurrentOrganization()
+            ->where('is_platform_admin', false)
+            ->findOrFail($id);
     }
 }

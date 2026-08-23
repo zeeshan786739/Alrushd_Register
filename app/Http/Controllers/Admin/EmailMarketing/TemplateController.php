@@ -7,6 +7,7 @@ use App\Models\EmailMarketing\Template;
 use App\Services\EmailMarketing\HtmlSanitizer;
 use App\Services\EmailMarketing\TemplateRenderer;
 use App\Support\OrganizationContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -96,6 +97,19 @@ class TemplateController extends Controller
         return view('admin.email-marketing.templates.preview', [
             'template' => $emTemplate,
             'html' => $this->sanitizer->sanitize($html),
+        ]);
+    }
+
+    public function body(Template $emTemplate): JsonResponse
+    {
+        $this->authorize('view', $emTemplate);
+
+        return response()->json([
+            'id' => $emTemplate->id,
+            'name' => $emTemplate->name,
+            'subject' => $emTemplate->subject,
+            'category' => $emTemplate->category,
+            'body_html' => $emTemplate->body_html,
         ]);
     }
 

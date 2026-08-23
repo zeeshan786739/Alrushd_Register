@@ -1,6 +1,9 @@
 @php
     use App\Models\EmailMarketing\Message;
     $folder = $folder ?? 'inbox';
+    $showInboxFolders = $showInboxFolders ?? in_array($folder, ['inbox', 'sent', 'draft', 'starred'], true);
+    $skipModuleNav = $skipModuleNav ?? false;
+
     if (! isset($counts) || ! is_array($counts)) {
         try {
             $base = Message::forCurrentOrganization();
@@ -15,62 +18,51 @@
             $counts = ['inbox'=>0,'inbox_unread'=>0,'sent'=>0,'draft'=>0,'starred'=>0];
         }
     }
+
+    $emActiveTab = $emActiveTab ?? (match ($folder) {
+        'campaigns' => 'campaigns',
+        'templates' => 'templates',
+        'settings' => 'settings',
+        default => 'inbox',
+    });
 @endphp
-<style>
-.em-shell{display:grid;grid-template-columns:220px 1fr;gap:16px}
-.em-nav a{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;color:inherit;text-decoration:none}
-.em-nav a.is-active,.em-nav a:hover{background:rgba(15,39,74,.06)}
-.em-nav .em-badge{margin-left:auto;font-size:12px;opacity:.7}
-.em-list-item{display:block;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,.06);text-decoration:none;color:inherit}
-.em-list-item:hover{background:rgba(15,39,74,.03)}
-.em-list-item.unread{font-weight:600}
-.em-meta{font-size:12px;opacity:.65}
-.em-crm-chip{display:inline-block;font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(15,39,74,.06);margin-right:4px}
-@media (max-width:991px){.em-shell{grid-template-columns:1fr}.em-nav{display:flex;flex-wrap:wrap;gap:4px}.em-nav a{padding:8px 10px}}
-</style>
+
+@if(! $skipModuleNav)
+    @include('admin.email-marketing.partials.module-nav', ['activeTab' => $emActiveTab])
+@endif
+
+@if($showInboxFolders)
 <div class="em-shell mb-24">
-    <aside class="card radius-12 shadow-2 border-0 em-nav p-12">
+    <aside class="em-folder-nav">
         @can('compose emails')
-        <a href="{{ route('admin.email.compose') }}" class="btn btn-primary-600 radius-8 w-100 mb-12 justify-content-center">Compose</a>
+        <a href="{{ route('admin.email.compose') }}" class="btn btn-primary-600 radius-8 w-100 mb-12 justify-content-center fc-btn">
+            <iconify-icon icon="solar:pen-new-square-linear"></iconify-icon> Compose
+        </a>
         @endcan
         @can('view inbox')
-        <a href="{{ route('admin.email.inbox') }}" class="{{ $folder==='inbox'?'is-active':'' }}">
+        <a href="{{ route('admin.email.inbox') }}" class="em-folder-nav__link {{ $folder==='inbox'?'is-active':'' }}">
             <iconify-icon icon="solar:inbox-linear"></iconify-icon> Inbox
-            <span class="em-badge">{{ $counts['inbox_unread'] ?? 0 }}</span>
+            <span class="em-folder-nav__badge">{{ $counts['inbox_unread'] ?? 0 }}</span>
         </a>
         @endcan
         @can('star emails')
-        <a href="{{ route('admin.email.starred') }}" class="{{ $folder==='starred'?'is-active':'' }}">
+        <a href="{{ route('admin.email.starred') }}" class="em-folder-nav__link {{ $folder==='starred'?'is-active':'' }}">
             <iconify-icon icon="solar:star-linear"></iconify-icon> Starred
-            <span class="em-badge">{{ $counts['starred'] ?? 0 }}</span>
+            <span class="em-folder-nav__badge">{{ $counts['starred'] ?? 0 }}</span>
         </a>
         @endcan
         @can('view sent emails')
-        <a href="{{ route('admin.email.sent') }}" class="{{ $folder==='sent'?'is-active':'' }}">
+        <a href="{{ route('admin.email.sent') }}" class="em-folder-nav__link {{ $folder==='sent'?'is-active':'' }}">
             <iconify-icon icon="solar:plain-linear"></iconify-icon> Sent
-            <span class="em-badge">{{ $counts['sent'] ?? 0 }}</span>
+            <span class="em-folder-nav__badge">{{ $counts['sent'] ?? 0 }}</span>
         </a>
         @endcan
         @can('manage drafts')
-        <a href="{{ route('admin.email.drafts') }}" class="{{ $folder==='draft'?'is-active':'' }}">
+        <a href="{{ route('admin.email.drafts') }}" class="em-folder-nav__link {{ $folder==='draft'?'is-active':'' }}">
             <iconify-icon icon="solar:document-linear"></iconify-icon> Drafts
-            <span class="em-badge">{{ $counts['draft'] ?? 0 }}</span>
-        </a>
-        @endcan
-        @can('view campaigns')
-        <a href="{{ route('admin.email.campaigns.index') }}" class="{{ ($folder??'')==='campaigns'?'is-active':'' }}">
-            <iconify-icon icon="solar:megaphone-linear"></iconify-icon> Campaigns
-        </a>
-        @endcan
-        @can('view templates')
-        <a href="{{ route('admin.email.templates.index') }}" class="{{ ($folder??'')==='templates'?'is-active':'' }}">
-            <iconify-icon icon="solar:clipboard-list-linear"></iconify-icon> Templates
-        </a>
-        @endcan
-        @can('manage mailbox settings')
-        <a href="{{ route('admin.email.mailbox.settings') }}" class="{{ ($folder??'')==='settings'?'is-active':'' }}">
-            <iconify-icon icon="solar:settings-linear"></iconify-icon> Mailbox Settings
+            <span class="em-folder-nav__badge">{{ $counts['draft'] ?? 0 }}</span>
         </a>
         @endcan
     </aside>
-    <div>
+    <div class="em-shell__content">
+@endif

@@ -20,53 +20,20 @@
     </li>
     @endcanany
 
-    {{-- ================= PEOPLE & ACCESS ================= --}}
+    {{-- ================= TEAM & ACCESS ================= --}}
     @canany([
         'create role','edit role','view role','delete role',
         'create permission','edit permission','view permission','delete permission',
         'create user','edit user','view user','delete user'
     ])
     <li class="sidebar-menu-group-title" role="presentation">People &amp; Access</li>
-    <li class="{{ AdminNav::dropdownClass([
-        'admin.roles.*','admin.permissions.*','admin.users.*'
-    ]) }}">
-        <a href="javascript:void(0)"
-           role="button"
-           aria-expanded="{{ AdminNav::expanded(['admin.roles.*','admin.permissions.*','admin.users.*']) }}"
-           aria-controls="nav-user-management"
-           title="User Management">
+    <li>
+        <a href="{{ route('admin.user-management.index') }}"
+           class="{{ AdminNav::linkClass(['admin.user-management.*','admin.roles.*','admin.permissions.*','admin.users.*']) }}"
+           title="Team &amp; Access">
             <iconify-icon icon="solar:users-group-two-rounded-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>User Management</span>
+            <span>Team &amp; Access</span>
         </a>
-        <ul class="sidebar-submenu" id="nav-user-management">
-            @canany(['create role','edit role','view role','delete role'])
-            <li>
-                <a href="{{ route('admin.roles.index') }}"
-                   class="{{ AdminNav::linkClass('admin.roles.*') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Roles
-                </a>
-            </li>
-            @endcanany
-            @canany(['create permission','edit permission','view permission','delete permission'])
-            <li>
-                <a href="{{ route('admin.permissions.index') }}"
-                   class="{{ AdminNav::linkClass('admin.permissions.*') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Permissions
-                </a>
-            </li>
-            @endcanany
-            @canany(['create user','edit user','view user','delete user'])
-            <li>
-                <a href="{{ route('admin.users.index') }}"
-                   class="{{ AdminNav::linkClass('admin.users.*') }}">
-                    <i class="ri-circle-fill circle-icon text-info-main" aria-hidden="true"></i>
-                    Users
-                </a>
-            </li>
-            @endcanany
-        </ul>
     </li>
     @endcanany
 
@@ -575,17 +542,12 @@
         'view inbox','view sent emails','manage drafts','star emails','compose emails','view campaigns','view templates','manage mailbox settings'
     ])
     <li class="sidebar-menu-group-title" role="presentation">Marketing</li>
-    <li class="{{ AdminNav::dropdownClass([
-        'admin.email.inbox','admin.email.compose','admin.email.sent','admin.email.drafts',
-        'admin.email.starred','admin.email.campaigns.*','admin.email.templates.*','admin.email.mailbox.*'
-    ]) }}">
-        <a href="javascript:void(0)"
-           role="button"
-           aria-expanded="{{ AdminNav::expanded([
-               'admin.email.inbox','admin.email.compose','admin.email.sent','admin.email.drafts',
+    <li>
+        <a href="{{ route('admin.email.dashboard') }}"
+           class="{{ AdminNav::linkClass([
+               'admin.email.dashboard','admin.email.inbox','admin.email.compose','admin.email.sent','admin.email.drafts',
                'admin.email.starred','admin.email.campaigns.*','admin.email.templates.*','admin.email.mailbox.*'
            ]) }}"
-           aria-controls="nav-email"
            title="Email Marketing">
             <iconify-icon icon="solar:letter-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
             <span>Email Marketing</span>
@@ -601,72 +563,6 @@
                 <span class="sidebar-badge" aria-label="{{ $emUnread }} unread">{{ $emUnread }}</span>
             @endif
         </a>
-        <ul class="sidebar-submenu" id="nav-email">
-            @can('view inbox')
-            <li>
-                <a href="{{ route('admin.email.inbox') }}" class="{{ AdminNav::linkClass('admin.email.inbox') }}" title="Inbox">
-                    <iconify-icon icon="solar:inbox-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Inbox</span>
-                </a>
-            </li>
-            @endcan
-            @can('compose emails')
-            <li>
-                <a href="{{ route('admin.email.compose') }}" class="{{ AdminNav::linkClass('admin.email.compose') }}" title="Compose">
-                    <iconify-icon icon="solar:pen-new-square-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Compose</span>
-                </a>
-            </li>
-            @endcan
-            @can('view sent emails')
-            <li>
-                <a href="{{ route('admin.email.sent') }}" class="{{ AdminNav::linkClass('admin.email.sent') }}" title="Sent">
-                    <iconify-icon icon="solar:plain-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Sent</span>
-                </a>
-            </li>
-            @endcan
-            @can('manage drafts')
-            <li>
-                <a href="{{ route('admin.email.drafts') }}" class="{{ AdminNav::linkClass('admin.email.drafts') }}" title="Drafts">
-                    <iconify-icon icon="solar:document-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Drafts</span>
-                </a>
-            </li>
-            @endcan
-            @can('star emails')
-            <li>
-                <a href="{{ route('admin.email.starred') }}" class="{{ AdminNav::linkClass('admin.email.starred') }}" title="Starred">
-                    <iconify-icon icon="solar:star-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Starred</span>
-                </a>
-            </li>
-            @endcan
-            @can('view campaigns')
-            <li>
-                <a href="{{ route('admin.email.campaigns.index') }}" class="{{ AdminNav::linkClass('admin.email.campaigns.*') }}" title="Campaigns">
-                    <iconify-icon icon="solar:flag-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Campaigns</span>
-                </a>
-            </li>
-            @endcan
-            @can('view templates')
-            <li>
-                <a href="{{ route('admin.email.templates.index') }}" class="{{ AdminNav::linkClass('admin.email.templates.*') }}" title="Templates">
-                    <iconify-icon icon="solar:clipboard-list-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Templates</span>
-                </a>
-            </li>
-            @endcan
-            @can('manage mailbox settings')
-            <li>
-                <a href="{{ route('admin.email.mailbox.settings') }}" class="{{ AdminNav::linkClass('admin.email.mailbox.*') }}" title="Mailbox Settings">
-                    <iconify-icon icon="solar:settings-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Mailbox Settings</span>
-                </a>
-            </li>
-            @endcan
-        </ul>
     </li>
     @endcanany
 

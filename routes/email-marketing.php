@@ -1,12 +1,19 @@
 <?php
 
+use App\Http\Controllers\Admin\EmailMarketing\AudienceController;
 use App\Http\Controllers\Admin\EmailMarketing\CampaignController;
+use App\Http\Controllers\Admin\EmailMarketing\DashboardController;
 use App\Http\Controllers\Admin\EmailMarketing\InboxController;
 use App\Http\Controllers\Admin\EmailMarketing\MailboxSettingsController;
 use App\Http\Controllers\Admin\EmailMarketing\TemplateController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('email-marketing')->name('email.')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('audience/search', [AudienceController::class, 'search'])->name('audience.search');
+    Route::get('audience/preflight', [AudienceController::class, 'preflight'])->name('audience.preflight');
+    Route::get('audience/forms', [AudienceController::class, 'forms'])->name('audience.forms');
+
     Route::get('inbox', [InboxController::class, 'inbox'])->name('inbox');
     Route::get('sent', [InboxController::class, 'sent'])->name('sent');
     Route::get('drafts', [InboxController::class, 'drafts'])->name('drafts');
@@ -34,6 +41,7 @@ Route::prefix('email-marketing')->name('email.')->group(function () {
 
     Route::post('templates/{emTemplate}/duplicate', [TemplateController::class, 'duplicate'])->name('templates.duplicate');
     Route::get('templates/{emTemplate}/preview', [TemplateController::class, 'preview'])->name('templates.preview');
+    Route::get('templates/{emTemplate}/body', [TemplateController::class, 'body'])->name('templates.body');
     Route::resource('templates', TemplateController::class)->except(['show'])->parameters(['templates' => 'emTemplate']);
 
     Route::get('mailbox-settings', [MailboxSettingsController::class, 'edit'])->name('mailbox.settings');

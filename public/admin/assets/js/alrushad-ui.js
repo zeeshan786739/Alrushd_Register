@@ -196,15 +196,29 @@
         scope.querySelectorAll('.um-table-search').forEach(function (input) {
             if (input.dataset.crmSearchBound === '1') return;
             input.dataset.crmSearchBound = '1';
-            var card = input.closest('.card');
-            var tbody = card ? card.querySelector('table tbody') : null;
-            if (!tbody) return;
-            input.addEventListener('input', function () {
-                var q = input.value.toLowerCase().trim();
-                tbody.querySelectorAll('tr').forEach(function (row) {
-                    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+            var container = input.closest('.um-search-scope, .um-panel, .card');
+            if (!container) return;
+
+            var tbody = container.querySelector('table tbody');
+            if (tbody) {
+                input.addEventListener('input', function () {
+                    var q = input.value.toLowerCase().trim();
+                    tbody.querySelectorAll('tr').forEach(function (row) {
+                        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+                    });
                 });
-            });
+                return;
+            }
+
+            var roleCards = container.querySelectorAll('.um-role-card');
+            if (roleCards.length) {
+                input.addEventListener('input', function () {
+                    var q = input.value.toLowerCase().trim();
+                    roleCards.forEach(function (card) {
+                        card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+                    });
+                });
+            }
         });
     }
 

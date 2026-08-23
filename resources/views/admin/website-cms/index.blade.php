@@ -2,8 +2,11 @@
 
 @section('title', 'Website CMS')
 
-@section('content')
+@section('css')
 <link href="{{ asset('admin/assets/css/website-cms.css') }}" rel="stylesheet">
+@endsection
+
+@section('content')
 
 <div class="wcm-app" id="websiteCmsApp">
     {{-- Top bar --}}
@@ -107,7 +110,9 @@
         </div>
     </footer>
 </div>
+@endsection
 
+@section('script')
 <script>
     window.__WCM = {
         data: @json($cmsData),

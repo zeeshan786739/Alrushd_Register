@@ -166,6 +166,39 @@
         return true;
     }
 
+    /** Re-execute <script> tags injected via innerHTML (they do not run automatically). */
+    function activateContentScripts(container) {
+        if (!container) return Promise.resolve();
+
+        var scripts = Array.prototype.slice.call(container.querySelectorAll('script'));
+        if (!scripts.length) return Promise.resolve();
+
+        var chain = Promise.resolve();
+        scripts.forEach(function (oldScript) {
+            chain = chain.then(function () {
+                return new Promise(function (resolve) {
+                    var script = document.createElement('script');
+                    Array.prototype.forEach.call(oldScript.attributes || [], function (attr) {
+                        script.setAttribute(attr.name, attr.value);
+                    });
+
+                    if (oldScript.src) {
+                        script.onload = function () { resolve(); };
+                        script.onerror = function () { resolve(); };
+                        oldScript.parentNode.replaceChild(script, oldScript);
+                        return;
+                    }
+
+                    script.text = oldScript.textContent || '';
+                    oldScript.parentNode.replaceChild(script, oldScript);
+                    resolve();
+                });
+            });
+        });
+
+        return chain;
+    }
+
     function runScripts(scriptContainer, source) {
         if (!scriptContainer) return Promise.resolve();
 
@@ -221,6 +254,12 @@
             window.CrmUI.syncSidebarActive();
         }
         closeMobileSidebar();
+
+        try {
+            document.dispatchEvent(new CustomEvent('admin:page-loaded', {
+                detail: { root: content || document.querySelector(CONTENT_SEL) || document },
+            }));
+        } catch (err) { /* ignore */ }
 
         try {
             var main = document.querySelector('.dashboard-main') || content;
@@ -349,7 +388,9 @@
                 }
 
                 var nextScripts = doc.querySelector(SCRIPTS_SEL);
-                return runScripts(currentScripts, nextScripts).then(function () {
+                return activateContentScripts(currentContent).then(function () {
+                    return runScripts(currentScripts, nextScripts);
+                }).then(function () {
                     afterSwap();
                     assertPersistentChrome(sidebarBefore, menuBefore, headerBefore);
                 });
@@ -362,6 +403,7 @@
                 navigating = false;
                 setBusy(false);
                 abortController = null;
+                suppressFullScreenLoader();
             });
     }
 

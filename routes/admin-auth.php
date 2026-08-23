@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\RelationShipController;
 use App\Http\Controllers\Admin\SchoolController;
 use App\Http\Controllers\Admin\TimeTableController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\StaffApplicationController;
 use App\Http\Controllers\Admin\StudentCourseController;
 use App\Http\Controllers\Admin\StudentFormController;
@@ -96,7 +97,8 @@ Route::prefix('admin')->name('admin.')
 
     Route::resource('settings', SettingController::class)->except(['index']);
 
-    // Role Management
+    // Team & access (roles, permissions, users)
+    Route::get('team', [UserManagementController::class, 'index'])->name('user-management.index');
     Route::resource('roles',RoleController::class);
     Route::resource('permissions',PermissionController::class);
     Route::resource('users',UserController::class);

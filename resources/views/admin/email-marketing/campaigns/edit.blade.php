@@ -1,23 +1,50 @@
 @extends('admin.layouts.app')
 @section('title', 'Edit Campaign')
 @section('content')
-<div class="dashboard-main-body">
-    @include('admin.partials.page-header', [
-        'title' => 'Edit Campaign',
-        'showBreadcrumb' => true,
-        'breadcrumbs' => [['label'=>'Email Marketing'],['label'=>'Campaigns','url'=>route('admin.email.campaigns.index')],['label'=>'Edit']],
-    ])
-    <div class="card radius-12 shadow-2 border-0">
-        <div class="card-body p-24">
-            <form method="POST" action="{{ route('admin.email.campaigns.update', $campaign) }}">
-                @csrf @method('PUT')
-                @include('admin.email-marketing.campaigns._form', ['campaign'=>$campaign,'templates'=>$templates])
-                <div class="d-flex gap-12 mt-24">
-                    <button class="btn btn-primary-600 radius-8">Update</button>
-                    <a href="{{ route('admin.email.campaigns.show', $campaign) }}" class="btn btn-outline-neutral-500 radius-8">Cancel</a>
-                </div>
-            </form>
-        </div>
+@include('admin.email-marketing.partials.shell', [
+    'activeTab' => 'campaigns',
+    'shellTitle' => 'Edit campaign',
+    'shellSubtitle' => 'Update each step — details, audience, design, then review.',
+    'shellActions' => [[
+        'label' => 'Back to campaign',
+        'url' => route('admin.email.campaigns.show', $campaign),
+        'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11',
+        'icon' => 'solar:alt-arrow-left-linear',
+    ]],
+])
+
+<form method="POST" action="{{ route('admin.email.campaigns.update', $campaign) }}" class="em-campaign-form" data-campaign-form>
+    @csrf
+    @method('PUT')
+    <div class="em-panel p-24">
+        @include('admin.email-marketing.campaigns._form', [
+            'campaign' => $campaign,
+            'templates' => $templates,
+            'leadStatuses' => $leadStatuses,
+            'leadPriorities' => $leadPriorities,
+        ])
     </div>
-</div>
+
+    <div class="em-wizard-alert" data-wizard-error hidden role="alert"></div>
+
+    <div class="em-wizard-actions" data-wizard-actions>
+        <button type="button" class="btn btn-outline-neutral-500 radius-8 fc-btn" data-wizard-back hidden style="display:none">
+            <iconify-icon icon="solar:alt-arrow-left-linear"></iconify-icon> Back
+        </button>
+        <div class="em-wizard-actions__spacer"></div>
+        <a href="{{ route('admin.email.campaigns.show', $campaign) }}" class="btn btn-outline-neutral-500 radius-8 fc-btn">Cancel</a>
+        <button type="button" class="btn btn-primary-600 radius-8 fc-btn" data-wizard-next>
+            Continue <iconify-icon icon="solar:alt-arrow-right-linear"></iconify-icon>
+        </button>
+        <button type="submit" class="btn btn-primary-600 radius-8 fc-btn" data-wizard-submit hidden style="display:none">
+            <iconify-icon icon="solar:diskette-linear"></iconify-icon> Update campaign
+        </button>
+    </div>
+</form>
+@endsection
+
+@section('script')
+@include('admin.email-marketing.partials.audience-picker-script')
+@include('admin.email-marketing.partials.template-studio-script')
+@include('admin.email-marketing.partials.campaign-wizard-script')
 @endsection

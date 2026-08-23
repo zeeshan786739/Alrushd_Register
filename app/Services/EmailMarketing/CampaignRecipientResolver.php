@@ -14,9 +14,7 @@ class CampaignRecipientResolver
     }
 
     /**
-     * Raw audience candidates before suppression filtering (normalized emails).
-     *
-     * @param  array{source:string, lead_ids?:array<int>, customer_ids?:array<int>, form_entry_ids?:array<int>, manual_emails?:string, lead_status?:?string}  $options
+     * @param  array{source:string, lead_ids?:array<int>, customer_ids?:array<int>, form_entry_ids?:array<int>, manual_emails?:string, lead_status?:?string, lead_source?:?string, form_id?:?int}  $options
      * @return Collection<int, array{email:string,name:?string,lead_id:?int,customer_id:?int,form_entry_id:?int}>
      */
     public function rawCandidates(int $organizationId, array $options): Collection
@@ -27,14 +25,16 @@ class CampaignRecipientResolver
             'leads' => $this->fromLeads($organizationId, $options),
             'customers' => $this->fromCustomers($organizationId, $options),
             'form_entries' => $this->fromFormEntries($organizationId, $options),
+            'integration_leads' => $this->fromLeads($organizationId, $options, [], true),
             'selected_leads' => $this->fromLeads($organizationId, $options, $options['lead_ids'] ?? []),
             'selected_customers' => $this->fromCustomers($organizationId, $options, $options['customer_ids'] ?? []),
+            'selected_form_entries' => $this->fromFormEntries($organizationId, $options, $options['form_entry_ids'] ?? []),
             default => $this->fromManual($options['manual_emails'] ?? ''),
         };
     }
 
     /**
-     * @param  array{source:string, lead_ids?:array<int>, customer_ids?:array<int>, form_entry_ids?:array<int>, manual_emails?:string, lead_status?:?string}  $options
+     * @param  array{source:string, lead_ids?:array<int>, customer_ids?:array<int>, form_entry_ids?:array<int>, manual_emails?:string, lead_status?:?string, lead_source?:?string, form_id?:?int}  $options
      * @return Collection<int, array{email:string,name:?string,lead_id:?int,customer_id:?int,form_entry_id:?int}>
      */
     public function resolve(int $organizationId, array $options): Collection
@@ -49,18 +49,38 @@ class CampaignRecipientResolver
     }
 
     /** @param  array<int, int>  $ids */
-    private function fromLeads(int $organizationId, array $options, array $ids = []): Collection
+    private function fromLeads(int $organizationId, array $options, array $ids = [], bool $integrationOnly = false): Collection
     {
         $query = Lead::query()
             ->where('organization_id', $organizationId)
-            ->whereNotNull('email');
+            ->whereNotNull('email')
+            ->where('email', '!=', '');
 
         if ($ids !== []) {
             $query->whereIn('id', $ids);
         }
 
-        if (! empty($options['lead_status'])) {
+        if ($integrationOnly && ! empty($options['lead_source'])) {
+            $query->where('source', $options['lead_source']);
+        } elseif ($integrationOnly) {
+            $query->whereIn('source', ['facebook_lead_ads', 'tiktok_lead_ads', 'file_import', 'form_submission']);
+        }
+
+        if (! empty($options['lead_statuses'])) {
+            $statuses = array_filter((array) $options['lead_statuses']);
+            if ($statuses !== []) {
+                $query->whereIn('lead_status', $statuses);
+            }
+        } elseif (! empty($options['lead_status'])) {
             $query->where('lead_status', $options['lead_status']);
+        }
+
+        if (! empty($options['lead_priority'])) {
+            $query->where('priority', $options['lead_priority']);
+        }
+
+        if (! empty($options['lead_source']) && ! $integrationOnly) {
+            $query->where('source', $options['lead_source']);
         }
 
         return $query->get()->map(fn (Lead $lead) => [
@@ -77,7 +97,8 @@ class CampaignRecipientResolver
     {
         $query = Customer::query()
             ->where('organization_id', $organizationId)
-            ->whereNotNull('email');
+            ->whereNotNull('email')
+            ->where('email', '!=', '');
 
         if ($ids !== []) {
             $query->whereIn('id', $ids);
@@ -92,13 +113,18 @@ class CampaignRecipientResolver
         ]);
     }
 
-    private function fromFormEntries(int $organizationId, array $options): Collection
+    /** @param  array<int, int>  $ids */
+    private function fromFormEntries(int $organizationId, array $options, array $ids = []): Collection
     {
-        return FormEntry::query()
-            ->where('organization_id', $organizationId)
-            ->latest('submitted_at')
-            ->limit(2000)
-            ->get()
+        $query = FormEntry::query()->where('organization_id', $organizationId);
+
+        if ($ids !== []) {
+            $query->whereIn('id', $ids);
+        } elseif (! empty($options['form_id'])) {
+            $query->where('form_id', $options['form_id']);
+        }
+
+        return $query->latest('submitted_at')->limit(5000)->get()
             ->map(function (FormEntry $entry) {
                 $data = is_array($entry->data) ? $entry->data : [];
                 $email = $data['email'] ?? null;

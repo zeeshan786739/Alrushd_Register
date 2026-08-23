@@ -7,6 +7,10 @@
     const W = window.__WCM;
     if (!W) return;
 
+    const appRoot = document.getElementById('websiteCmsApp');
+    if (!appRoot || appRoot.dataset.wcmReady === '1') return;
+    appRoot.dataset.wcmReady = '1';
+
     let cmsData = W.data;
     let currentModule = 'dashboard';
     let previewTimer = null;

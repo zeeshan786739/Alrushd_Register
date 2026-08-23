@@ -9,10 +9,12 @@ use App\Models\FormEntry;
 use App\Models\FormSubmission;
 use App\Models\Integrations\MetaLeadSubmission;
 use App\Traits\BelongsToOrganization;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Lead extends Model
@@ -80,7 +82,23 @@ class Lead extends Model
 
     public function isFromImport(): bool
     {
-        return $this->source === 'file_import' || $this->lead_import_id !== null;
+        if ($this->source === 'file_import') {
+            return true;
+        }
+
+        return Schema::hasColumn($this->getTable(), 'lead_import_id')
+            && $this->lead_import_id !== null;
+    }
+
+    public function scopeFromImport(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->where('source', 'file_import');
+
+            if (Schema::hasColumn($this->getTable(), 'lead_import_id')) {
+                $q->orWhereNotNull('lead_import_id');
+            }
+        });
     }
 
     public function leadImport(): BelongsTo

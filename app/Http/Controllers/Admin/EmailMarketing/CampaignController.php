@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Admin\EmailMarketing;
 
-use App\Enums\EmailMarketing\CampaignStatus;
+use App\Enums\LeadPriority;
+use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\MailboxSetting;
@@ -49,7 +50,11 @@ class CampaignController extends Controller
     {
         $templates = Template::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.email-marketing.campaigns.create', compact('templates'));
+        return view('admin.email-marketing.campaigns.create', [
+            'templates' => $templates,
+            'leadStatuses' => LeadStatus::options(),
+            'leadPriorities' => LeadPriority::options(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -61,12 +66,7 @@ class CampaignController extends Controller
             'body_html' => $this->sanitizer->sanitize($validated['body_html'] ?? ''),
             'status' => CampaignStatus::Draft->value,
             'created_by' => auth('admin')->id(),
-            'recipient_filters' => [
-                'lead_ids' => $request->input('lead_ids', []),
-                'customer_ids' => $request->input('customer_ids', []),
-                'manual_emails' => $request->input('manual_emails'),
-                'lead_status' => $request->input('lead_status'),
-            ],
+            'recipient_filters' => $this->recipientFilters($request),
         ]);
 
         $this->dispatcher->snapshotRecipients($campaign);
@@ -128,6 +128,8 @@ class CampaignController extends Controller
         return view('admin.email-marketing.campaigns.edit', [
             'campaign' => $emCampaign,
             'templates' => $templates,
+            'leadStatuses' => LeadStatus::options(),
+            'leadPriorities' => LeadPriority::options(),
         ]);
     }
 
@@ -140,12 +142,7 @@ class CampaignController extends Controller
         $emCampaign->update([
             ...$validated,
             'body_html' => $this->sanitizer->sanitize($validated['body_html'] ?? ''),
-            'recipient_filters' => [
-                'lead_ids' => $request->input('lead_ids', []),
-                'customer_ids' => $request->input('customer_ids', []),
-                'manual_emails' => $request->input('manual_emails'),
-                'lead_status' => $request->input('lead_status'),
-            ],
+            'recipient_filters' => $this->recipientFilters($request),
         ]);
 
         $this->dispatcher->snapshotRecipients($emCampaign->fresh());
@@ -213,9 +210,14 @@ class CampaignController extends Controller
         $options = [
             'source' => $request->get('recipient_source', 'manual'),
             'manual_emails' => $request->get('manual_emails'),
-            'lead_ids' => $request->input('lead_ids', []),
-            'customer_ids' => $request->input('customer_ids', []),
+            'lead_ids' => array_filter(array_map('intval', (array) $request->input('lead_ids', []))),
+            'customer_ids' => array_filter(array_map('intval', (array) $request->input('customer_ids', []))),
+            'form_entry_ids' => array_filter(array_map('intval', (array) $request->input('form_entry_ids', []))),
             'lead_status' => $request->get('lead_status'),
+            'lead_statuses' => array_filter((array) $request->input('lead_statuses', [])),
+            'lead_priority' => $request->get('lead_priority'),
+            'lead_source' => $request->get('lead_source'),
+            'form_id' => $request->integer('form_id') ?: null,
         ];
 
         $orgId = OrganizationContext::idOrFail();
@@ -229,6 +231,22 @@ class CampaignController extends Controller
     }
 
     /** @return array<string, mixed> */
+    private function recipientFilters(Request $request): array
+    {
+        return [
+            'lead_ids' => array_filter(array_map('intval', (array) $request->input('lead_ids', []))),
+            'customer_ids' => array_filter(array_map('intval', (array) $request->input('customer_ids', []))),
+            'form_entry_ids' => array_filter(array_map('intval', (array) $request->input('form_entry_ids', []))),
+            'manual_emails' => $request->input('manual_emails'),
+            'lead_status' => $request->input('lead_status'),
+            'lead_statuses' => array_values(array_filter((array) $request->input('lead_statuses', []))),
+            'lead_priority' => $request->input('lead_priority'),
+            'lead_source' => $request->input('lead_source'),
+            'form_id' => $request->integer('form_id') ?: null,
+        ];
+    }
+
+    /** @return array<string, mixed> */
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -238,7 +256,16 @@ class CampaignController extends Controller
             'from_email' => 'nullable|email',
             'body_html' => 'required|string',
             'template_id' => 'nullable|integer',
-            'recipient_source' => 'required|in:leads,customers,form_entries,manual,selected_leads,selected_customers',
+            'recipient_source' => 'required|in:leads,customers,form_entries,manual,selected_leads,selected_customers,selected_form_entries,integration_leads',
+            'lead_status' => 'nullable|string|max:80',
+            'lead_statuses' => 'nullable|array',
+            'lead_statuses.*' => 'string|max:80',
+            'lead_priority' => 'nullable|string|max:40',
+            'lead_source' => 'nullable|string|max:80',
+            'form_id' => 'nullable|integer',
+            'lead_ids' => 'nullable|array',
+            'customer_ids' => 'nullable|array',
+            'form_entry_ids' => 'nullable|array',
             'tracking_enabled' => 'nullable|boolean',
         ]);
     }
