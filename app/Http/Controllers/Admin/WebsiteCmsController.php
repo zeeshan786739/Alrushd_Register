@@ -28,6 +28,11 @@ class WebsiteCmsController extends Controller
         $draft = $this->cms->getDraft();
         $published = $cms->published ? $this->cms->merge($cms->published) : null;
         $hasUnpublished = $published && json_encode($draft) !== json_encode($published);
+        $organization = auth('admin')->user()?->organization;
+        $publicWebsiteUrl = $organization?->publicWebsiteUrl();
+        $previewUrl = $organization
+            ? \App\Support\OrganizationUrls::publicPath($organization, '/')
+            : url('/');
 
         return view('admin.website-cms.index', [
             'cmsData' => $draft,
@@ -35,6 +40,8 @@ class WebsiteCmsController extends Controller
             'hasUnpublished' => $hasUnpublished,
             'versionHistory' => $cms->version_history ?? [],
             'modules' => $this->modules(),
+            'publicWebsiteUrl' => $publicWebsiteUrl,
+            'previewUrl' => $previewUrl,
         ]);
     }
 

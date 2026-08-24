@@ -36,9 +36,14 @@
 
     <div class="next-steps">
         <strong style="display:block; margin-bottom: 14px; font-size: 16px;">Next steps</strong>
+        @if($organization)
+        <p style="font-size:14px; color:var(--ink-soft); margin-bottom:12px;">
+            Your public website: <a href="{{ $organization->publicWebsiteUrl() }}" target="_blank" rel="noopener"><strong>{{ $organization->publicWebsiteUrl() }}</strong></a>
+        </p>
+        @endif
         <ol style="padding-left: 20px;">
             <li>Log in to your admin panel with the email and password you just created.</li>
-            <li>Build your first admission or enquiry form in the Form Center.</li>
+            <li>Customize your website in Website CMS and add forms in Form Center.</li>
             <li>Invite your team and connect your lead channels.</li>
         </ol>
     </div>

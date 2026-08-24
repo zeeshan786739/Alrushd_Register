@@ -70,22 +70,32 @@ class StripeBillingService
         if ($plan->stripe_price_id) {
             try {
                 $existing = $stripe->prices->retrieve($plan->stripe_price_id);
+                $existingInterval = $existing->recurring->interval ?? null;
+                $expectedInterval = $plan->billingInterval()->stripeInterval();
+                $isOneTime = ($existing->type ?? null) === 'one_time' || $existingInterval === null;
                 $needsNewPrice = $existing->unit_amount !== (int) round($plan->price * 100)
                     || strtolower($existing->currency) !== strtolower($plan->currency)
-                    || ($existing->recurring->interval ?? null) !== $plan->billing_interval;
+                    || ($plan->isLifetime() ? ! $isOneTime : $existingInterval !== $expectedInterval);
             } catch (\Throwable) {
                 $needsNewPrice = true;
             }
         }
 
         if ($needsNewPrice) {
-            $price = $stripe->prices->create([
+            $pricePayload = [
                 'product' => $plan->stripe_product_id,
                 'unit_amount' => (int) round($plan->price * 100),
                 'currency' => strtolower($plan->currency),
-                'recurring' => ['interval' => $plan->billing_interval],
                 'metadata' => ['saas_plan_id' => $plan->id],
-            ]);
+            ];
+
+            if ($plan->isLifetime()) {
+                // One-time payment price — no recurring block.
+            } else {
+                $pricePayload['recurring'] = ['interval' => $plan->billingInterval()->stripeInterval()];
+            }
+
+            $price = $stripe->prices->create($pricePayload);
             $plan->stripe_price_id = $price->id;
         }
 
@@ -113,25 +123,106 @@ class StripeBillingService
 
     public function createCheckoutSession(Organization $organization, SaasPlan $plan, string $successUrl, string $cancelUrl): string
     {
-        $session = $this->client()->checkout->sessions->create([
-            'mode' => 'subscription',
+        $payload = [
             'customer' => $this->ensureCustomer($organization),
             'line_items' => [[
                 'price' => $plan->stripe_price_id,
                 'quantity' => 1,
             ]],
-            'subscription_data' => [
-                'metadata' => [
-                    'organization_id' => $organization->id,
-                    'saas_plan_id' => $plan->id,
-                ],
-            ],
             'metadata' => [
                 'organization_id' => $organization->id,
                 'saas_plan_id' => $plan->id,
             ],
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
+        ];
+
+        if ($plan->isLifetime()) {
+            $payload['mode'] = 'payment';
+        } else {
+            $payload['mode'] = 'subscription';
+            $payload['subscription_data'] = [
+                'metadata' => [
+                    'organization_id' => $organization->id,
+                    'saas_plan_id' => $plan->id,
+                ],
+            ];
+        }
+
+        $session = $this->client()->checkout->sessions->create($payload);
+
+        return $session->url;
+    }
+
+    /**
+     * Switch an organisation to a different plan — Stripe subscription swap when paid,
+     * local update for trial/complimentary/free plans.
+     */
+    public function switchPlan(Organization $organization, SaasPlan $plan): SaasSubscription
+    {
+        $current = $organization->currentSubscription()->first();
+
+        if ($current && $current->saas_plan_id === $plan->id && $current->status?->isCurrent()) {
+            return $current;
+        }
+
+        if ($this->isConfigured() && $plan->isSyncedToStripe() && $current?->stripe_subscription_id) {
+            return $this->switchStripeSubscription($organization, $plan, $current);
+        }
+
+        return $this->assignPlanLocally($organization, $plan, $current);
+    }
+
+    public function assignPlanLocally(
+        Organization $organization,
+        SaasPlan $plan,
+        ?SaasSubscription $current = null,
+        string $mode = 'auto',
+    ): SaasSubscription {
+        if ($current && $current->stripe_subscription_id && $this->isConfigured()) {
+            $this->cancelSubscription($current);
+            $current = null;
+        }
+
+        return app(SubscriptionProvisioner::class)->replacePlan($organization, $plan, $current, $mode);
+    }
+
+    private function switchStripeSubscription(
+        Organization $organization,
+        SaasPlan $plan,
+        SaasSubscription $current,
+    ): SaasSubscription {
+        $stripeSub = $this->client()->subscriptions->retrieve($current->stripe_subscription_id);
+        $itemId = $stripeSub->items->data[0]->id ?? null;
+
+        abort_unless($itemId, 422, 'Stripe subscription has no line item to update.');
+
+        $updated = $this->client()->subscriptions->update($current->stripe_subscription_id, [
+            'items' => [[
+                'id' => $itemId,
+                'price' => $plan->stripe_price_id,
+            ]],
+            'proration_behavior' => 'create_prorations',
+            'metadata' => [
+                'organization_id' => $organization->id,
+                'saas_plan_id' => $plan->id,
+            ],
+        ]);
+
+        $this->applyStripeSubscription($updated->id, $organization->id, $plan->id);
+
+        return $organization->currentSubscription()->firstOrFail();
+    }
+
+    public function createBillingPortalSession(Organization $organization, string $returnUrl): ?string
+    {
+        if (! $this->isConfigured() || ! $organization->stripe_customer_id) {
+            return null;
+        }
+
+        $session = $this->client()->billingPortal->sessions->create([
+            'customer' => $organization->stripe_customer_id,
+            'return_url' => $returnUrl,
         ]);
 
         return $session->url;

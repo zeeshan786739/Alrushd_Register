@@ -38,6 +38,7 @@
     @endcanany
 
     {{-- ================= CRM ================= --}}
+    @if(plan_module('crm'))
     @canany(['view leads','view customers','view projects','view quotations','view invoices','manage crm documents'])
     <li class="sidebar-menu-group-title" role="presentation">CRM</li>
     <li class="{{ AdminNav::dropdownClass([
@@ -127,8 +128,10 @@
         </ul>
     </li>
     @endcanany
+    @endif
 
     {{-- ================= INTEGRATIONS ================= --}}
+    @if(plan_module('integrations'))
     @canany(['view integrations', 'manage integrations'])
     <li class="sidebar-menu-group-title" role="presentation">Integrations</li>
     <li class="{{ AdminNav::dropdownClass([
@@ -172,10 +175,17 @@
         </ul>
     </li>
     @endcanany
+    @endif
 
     {{-- ================= FORMS & SUBMISSIONS ================= --}}
     @php
-        $canFormsSection = auth('admin')->check()
+        $canFormsSection = (
+            plan_module('form_center')
+            || plan_module('form_submissions')
+            || plan_module('admissions')
+            || plan_module('staff_applications')
+        ) && (
+            auth('admin')->check()
             || auth('admin')->user()?->can('view form submissions')
             || auth('admin')->user()?->canany([
                 'create nationality','edit nationality','view nationality','delete nationality',
@@ -193,13 +203,14 @@
                 'create admission_studetns','edit admission_studetns','view admission_studetns','delete admission_studetns',
                 'create staff_application_form','edit staff_application_form','view staff_application_form','delete staff_application_form',
                 'view job','view apply','view enquire','view referral','view subscribe',
-            ]);
+            ])
+        );
     @endphp
     @if($canFormsSection)
     <li class="sidebar-menu-group-title" role="presentation">Forms &amp; Submissions</li>
 
     {{-- Form Center (definitions) --}}
-    @if(auth('admin')->check())
+    @if(plan_module('form_center') && auth('admin')->check())
     <li>
         <a href="{{ route('admin.form-manager.index') }}"
            class="{{ AdminNav::linkClass('admin.form-manager.*') }}"
@@ -211,6 +222,7 @@
     @endif
 
     {{-- Unified Form Submissions (CRM form_entries) --}}
+    @if(plan_module('form_submissions'))
     @can('view form submissions')
     <li>
         <a href="{{ route('admin.crm.form-entries.index') }}"
@@ -221,8 +233,10 @@
         </a>
     </li>
     @endcan
+    @endif
 
     {{-- Admission setup & student submissions --}}
+    @if(plan_module('admissions'))
     @canany([
         'create nationality','edit nationality','view nationality','delete nationality',
         'create admission_date','edit admission_date','view admission_date','delete admission_date',
@@ -365,8 +379,10 @@
         </ul>
     </li>
     @endcanany
+    @endif
 
     {{-- Staff Applications --}}
+    @if(plan_module('staff_applications'))
     @canany([
         'create staff_application_form','edit staff_application_form','view staff_application_form','delete staff_application_form'
     ])
@@ -399,6 +415,7 @@
         </ul>
     </li>
     @endcanany
+    @endif
 
     {{-- API / intake applications --}}
     @canany(['view job','view apply','view enquire','view referral','view subscribe'])
@@ -480,6 +497,7 @@
     @endif
 
     {{-- ================= EVENTS ================= --}}
+    @if(plan_module('open_events'))
     @canany([
         'create open_event','edit open_event','view open_event','delete open_event',
         'create event_item','edit event_item','view event_item','delete event_item',
@@ -536,8 +554,10 @@
         </ul>
     </li>
     @endcanany
+    @endif
 
     {{-- ================= MARKETING ================= --}}
+    @if(plan_module('email_marketing'))
     @canany([
         'view inbox','view sent emails','manage drafts','star emails','compose emails','view campaigns','view templates','manage mailbox settings'
     ])
@@ -565,10 +585,13 @@
         </a>
     </li>
     @endcanany
+    @endif
 
     {{-- ================= CONTENT ================= --}}
+    @if(plan_module('website_cms'))
     @can('view setting')
     <li class="sidebar-menu-group-title" role="presentation">Content</li>
+    @php $orgPublicUrl = auth('admin')->user()?->organization?->publicWebsiteUrl(); @endphp
     <li>
         <a href="{{ route('admin.settings.index') }}"
            class="{{ AdminNav::linkClass('admin.settings.*') }}"
@@ -577,7 +600,17 @@
             <span>Website CMS</span>
         </a>
     </li>
+    @if($orgPublicUrl)
+    <li>
+        <a href="{{ $orgPublicUrl }}" target="_blank" rel="noopener"
+           title="Open your public website">
+            <iconify-icon icon="solar:globus-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Open my website</span>
+        </a>
+    </li>
+    @endif
     @endcan
+    @endif
 
     {{-- ================= ACCOUNT ================= --}}
     <li class="sidebar-menu-group-title" role="presentation">Account</li>
@@ -595,6 +628,14 @@
            title="Customer Payments">
             <iconify-icon icon="solar:wallet-money-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
             <span>Customer Payments</span>
+        </a>
+    </li>
+    <li>
+        <a href="{{ route('admin.account.website.edit') }}"
+           class="{{ AdminNav::linkClass('admin.account.website.*') }}"
+           title="Website URL &amp; custom domain">
+            <iconify-icon icon="solar:link-circle-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Website URL</span>
         </a>
     </li>
     <li>

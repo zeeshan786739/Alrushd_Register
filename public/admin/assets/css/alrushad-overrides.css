@@ -5844,3 +5844,58 @@ label.form-label {
 @media (max-width: 575px) {
     .acct-module-nav__link { flex: 1 1 calc(50% - 5px); justify-content: center; }
 }
+
+/* ── SaaS readability: fix low-contrast muted text ── */
+.text-secondary-light {
+    color: var(--crm-text-muted) !important;
+}
+
+.admin-panel .table thead th,
+.acct-table thead th,
+.fc-pro-table thead th {
+    color: var(--crm-text) !important;
+    font-weight: 600;
+}
+
+.fc-table-url,
+.form-manager .fc-table-url {
+    color: #475569 !important;
+    font-weight: 500;
+}
+
+.acct-muted {
+    color: var(--crm-text-muted);
+}
+
+.acct-url-box {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.acct-url-box .form-control {
+    flex: 1;
+    font-size: 13px;
+    color: var(--crm-text);
+}
+
+.acct-dns-steps code {
+    font-size: 12px;
+    color: #334155;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.platform-shell .text-secondary-light,
+.platform-shell .card .text-secondary-light {
+    color: #475569 !important;
+}
+
+.fc-pro-page-header-compact .crm-page-header p.text-secondary-light,
+.fc-v2-page-header .crm-page-header p.text-secondary-light {
+    display: block !important;
+    color: var(--crm-text-muted) !important;
+    font-size: 13px;
+    margin-top: 4px;
+}

@@ -691,7 +691,9 @@
     }
 
     function refreshPreview() {
-        if (previewFrame) previewFrame.src = previewFrame.src.split('?')[0] + '?cms_preview=1&t=' + Date.now();
+        if (!previewFrame) return;
+        const base = (W.previewUrl || previewFrame.src.split('?')[0]).replace(/\?$/, '');
+        previewFrame.src = base + (base.includes('?') ? '&' : '?') + 'cms_preview=1&t=' + Date.now();
     }
 
     function uploadImage(input) {

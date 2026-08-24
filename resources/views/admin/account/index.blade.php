@@ -41,6 +41,16 @@
                     </span>
                     <span class="acct-quick-card__status is-muted">{{ $stats['plan_name'] ?? 'View plan' }}</span>
                 </a>
+                <a href="{{ route('admin.account.website.edit') }}" class="acct-quick-card">
+                    <span class="acct-quick-card__icon acct-quick-card__icon--billing">
+                        <iconify-icon icon="solar:globus-linear"></iconify-icon>
+                    </span>
+                    <span class="acct-quick-card__text">
+                        <strong>Public website</strong>
+                        <small>Your live site URL and custom domain</small>
+                    </span>
+                    <span class="acct-quick-card__status is-muted">View link</span>
+                </a>
                 <a href="{{ route('admin.account.profile') }}" class="acct-quick-card">
                     <span class="acct-quick-card__icon acct-quick-card__icon--profile">
                         <iconify-icon icon="solar:user-linear"></iconify-icon>

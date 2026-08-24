@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::name('saas.')->group(function () {
 
+    // Enrolliq marketing homepage (tenant school sites use /w/{slug}/ or subdomains).
+    Route::get('/', [LandingController::class, 'index'])->name('home');
+
     if ($domain = config('saas.domain')) {
         Route::domain($domain)->group(function () {
             Route::get('/', [LandingController::class, 'index'])->name('landing.root');

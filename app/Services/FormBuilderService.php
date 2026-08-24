@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Form;
 use App\Models\FormField;
 use App\Models\FormStep;
-use App\Models\Organization;
+use App\Support\OrganizationContext;
 use Illuminate\Support\Facades\Schema;
 
 class FormBuilderService
@@ -44,7 +44,7 @@ class FormBuilderService
         ]);
 
         if (Schema::hasColumn('forms', 'organization_id') && empty($form->organization_id)) {
-            $form->organization_id = Organization::default()->id;
+            $form->organization_id = OrganizationContext::idOrFail();
         }
 
         if (array_key_exists('placements', $payload)) {

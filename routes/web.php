@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Schema;
 // SAAS_DOMAIN root route wins over the tenant school site's "/").
 require __DIR__.'/saas.php';
 
+require __DIR__.'/tenant-public.php';
+
 Route::get('/cmd',function(){
     Artisan::call('storage:link');
     Artisan::call('config:clear');
@@ -96,7 +98,7 @@ Route::post('/apply-coupon', [FrontendController::class, 'applyCoupon'])->name('
 
 
 
-Route::get('/',[FrontendController::class,'index'])->name('index');
+Route::middleware('tenant.public')->group(function () {
 Route::get('/privacy-policy', [FrontendController::class, 'privacyPolicy'])->name('privacy-policy');
 
 Route::get('/forms/{slug}', [FrontendController::class, 'dynamicForm'])->name('dynamic-form');
@@ -110,6 +112,7 @@ Route::get('/api/frontend/csrf', [FrontendFormDataController::class, 'csrf']);
 Route::get('/api/frontend/forms', [\App\Http\Controllers\Api\DynamicFormController::class, 'index']);
 Route::get('/api/frontend/forms/{slug}', [\App\Http\Controllers\Api\DynamicFormController::class, 'show']);
 Route::post('/api/frontend/forms/{slug}/submit', [\App\Http\Controllers\Api\DynamicFormController::class, 'submit']);
+});
 
 Route::get('/calendly-events', [FrontendController::class, 'fetchEvents']);
 

@@ -21,6 +21,12 @@
             </div>
         </div>
         <div class="wcm-topbar-right">
+            @if($publicWebsiteUrl ?? null)
+            <a href="{{ $publicWebsiteUrl }}" target="_blank" rel="noopener" class="btn btn-outline-primary-600 btn-sm radius-8 wcm-open-site" title="Open your live website">
+                <iconify-icon icon="solar:globus-linear"></iconify-icon>
+                Open my website
+            </a>
+            @endif
             <span class="wcm-status" id="wcmStatus">
                 <iconify-icon icon="solar:check-circle-linear"></iconify-icon>
                 <span id="wcmStatusText">All changes saved</span>
@@ -85,9 +91,14 @@
                 <button type="button" class="wcm-preview-refresh" id="wcmRefreshPreview" title="Refresh preview">
                     <iconify-icon icon="solar:refresh-linear"></iconify-icon>
                 </button>
+                @if($publicWebsiteUrl ?? null)
+                <a href="{{ $publicWebsiteUrl }}" target="_blank" rel="noopener" class="wcm-preview-open" title="Open website in new tab">
+                    <iconify-icon icon="solar:square-arrow-right-up-linear"></iconify-icon>
+                </a>
+                @endif
             </div>
             <div class="wcm-preview-frame-wrap">
-                <iframe id="wcmPreviewFrame" src="{{ url('/?cms_preview=1') }}" title="Website preview"></iframe>
+                <iframe id="wcmPreviewFrame" src="{{ ($previewUrl ?? url('/')).'?cms_preview=1' }}" title="Website preview"></iframe>
             </div>
         </aside>
     </div>
@@ -131,6 +142,8 @@
         hasUnpublished: @json((bool) $hasUnpublished),
         publishedAt: @json($publishedAt?->toIso8601String()),
         publishedAtHuman: @json($publishedAt?->diffForHumans()),
+        previewUrl: @json($previewUrl ?? url('/')),
+        publicWebsiteUrl: @json($publicWebsiteUrl ?? null),
         csrf: @json(csrf_token()),
     };
 </script>

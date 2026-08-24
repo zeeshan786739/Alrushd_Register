@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Support\OrganizationUrls;
+use App\Support\PublicOrganizationContext;
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Form extends Model
 {
+    use BelongsToOrganization;
     protected $fillable = [
         'organization_id',
         'name',
@@ -48,6 +52,18 @@ class Form extends Model
 
     public function routePath(): string
     {
+        $path = $this->internalRoutePath();
+        $org = $this->organization ?? PublicOrganizationContext::get();
+
+        if ($org) {
+            return OrganizationUrls::publicPath($org, $path);
+        }
+
+        return $path;
+    }
+
+    public function internalRoutePath(): string
+    {
         if ($this->handler === 'custom') {
             $legacy = ltrim((string) $this->legacy_route, '/');
 
@@ -62,15 +78,25 @@ class Form extends Model
         if ($this->handler === 'custom') {
             $success = ltrim((string) $this->success_route, '/');
 
-            return $success !== '' ? '/'.$success : '/forms/'.$this->slug.'/success';
+            $path = $success !== '' ? '/'.$success : '/forms/'.$this->slug.'/success';
+        } else {
+            $success = ltrim((string) $this->success_route, '/');
+            if ($success !== '' && str_starts_with($success, 'forms/')) {
+                $path = '/'.$success;
+            } else {
+                $path = '/forms/'.$this->slug.'/success';
+            }
         }
 
-        $success = ltrim((string) $this->success_route, '/');
-        if ($success !== '' && str_starts_with($success, 'forms/')) {
-            return '/'.$success;
+        if ($this->organization_id && ($org = $this->organization()->first())) {
+            return OrganizationUrls::publicPath($org, $path);
         }
 
-        return '/forms/'.$this->slug.'/success';
+        if ($org = PublicOrganizationContext::get()) {
+            return OrganizationUrls::publicPath($org, $path);
+        }
+
+        return $path;
     }
 
     public function usesDynamicRenderer(): bool
@@ -82,7 +108,7 @@ class Form extends Model
     {
         $path = ltrim($path, '/');
 
-        return static::query()
+        return static::scopedPublicQuery()
             ->where(function ($query) use ($path) {
                 $query->where('slug', $path)
                     ->orWhere('legacy_route', $path)
@@ -95,7 +121,7 @@ class Form extends Model
     {
         $path = ltrim($path, '/');
 
-        return static::query()
+        return static::scopedPublicQuery()
             ->where('is_active', true)
             ->where(function ($query) use ($path) {
                 $query->where('slug', $path)
@@ -103,6 +129,17 @@ class Form extends Model
                     ->orWhere('legacy_route', '/'.$path);
             })
             ->first();
+    }
+
+    public static function scopedPublicQuery()
+    {
+        $query = static::query();
+
+        if ($orgId = PublicOrganizationContext::id()) {
+            return $query->where('organization_id', $orgId);
+        }
+
+        return $query;
     }
 
     public static function placementKeys(): array
@@ -147,7 +184,7 @@ class Form extends Model
     {
         return [
             'label' => $this->displayLabel(),
-            'href' => $this->routePath(),
+            'href' => $this->internalRoutePath(),
             'slug' => $this->slug,
         ];
     }

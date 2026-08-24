@@ -30,6 +30,7 @@ Route::prefix('superadmin')->name('platform.')
         Route::get('schools/{organization}/edit', [SchoolController::class, 'edit'])->name('schools.edit');
         Route::put('schools/{organization}', [SchoolController::class, 'update'])->name('schools.update');
         Route::post('schools/{organization}/status', [SchoolController::class, 'updateStatus'])->name('schools.status');
+        Route::post('schools/{organization}/subscription', [SchoolController::class, 'updateSubscription'])->name('schools.subscription');
         Route::post('schools/{organization}/admins', [SchoolController::class, 'storeAdmin'])->name('schools.admins.store');
         Route::post('schools/{organization}/impersonate/{admin}', [ImpersonationController::class, 'start'])->name('schools.impersonate');
 
@@ -40,11 +41,13 @@ Route::prefix('superadmin')->name('platform.')
         Route::get('plans/{plan}/edit', [PlanController::class, 'edit'])->name('plans.edit');
         Route::put('plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
         Route::post('plans/{plan}/toggle', [PlanController::class, 'toggle'])->name('plans.toggle');
+        Route::post('plans/{plan}/set-default', [PlanController::class, 'setDefault'])->name('plans.set-default');
         Route::post('plans/{plan}/sync-stripe', [PlanController::class, 'syncStripe'])->name('plans.sync-stripe');
         Route::delete('plans/{plan}', [PlanController::class, 'destroy'])->name('plans.destroy');
 
         // Subscriptions
         Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
+        Route::post('subscriptions/normalize', [SubscriptionController::class, 'normalize'])->name('subscriptions.normalize');
         Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
 
         // Demo requests

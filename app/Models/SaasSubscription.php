@@ -41,4 +41,28 @@ class SaasSubscription extends Model
     {
         return $query->whereIn('status', ['trialing', 'active', 'past_due', 'complimentary']);
     }
+
+    public function isStripeManaged(): bool
+    {
+        return filled($this->stripe_subscription_id);
+    }
+
+    public function isFreeAccess(): bool
+    {
+        return $this->status === \App\Enums\Platform\SubscriptionStatus::Complimentary
+            || ($this->plan?->isFree() && $this->status?->isCurrent());
+    }
+
+    public function billingSourceLabel(): string
+    {
+        if ($this->isStripeManaged()) {
+            return 'Stripe';
+        }
+
+        if ($this->isFreeAccess()) {
+            return 'Free';
+        }
+
+        return 'Manual';
+    }
 }

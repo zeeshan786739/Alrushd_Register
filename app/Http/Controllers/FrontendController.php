@@ -88,14 +88,9 @@ class FrontendController extends Controller
 
     public function dynamicForm(string $slug)
     {
-        $form = Form::query()
-            ->where('is_active', true)
-            ->where(function ($query) use ($slug) {
-                $query->where('slug', $slug)
-                    ->orWhere('legacy_route', $slug)
-                    ->orWhere('legacy_route', '/'.$slug);
-            })
-            ->firstOrFail();
+        $form = Form::resolveForPublicPath($slug);
+
+        abort_unless($form, 404);
 
         if ($form->handler === 'custom') {
             $legacy = ltrim((string) $form->legacy_route, '/');
@@ -111,7 +106,7 @@ class FrontendController extends Controller
 
     public function dynamicFormSuccess(string $slug)
     {
-        $form = Form::query()
+        $form = Form::scopedPublicQuery()
             ->where('slug', $slug)
             ->first();
 
@@ -124,7 +119,7 @@ class FrontendController extends Controller
     private function resolveHeroButtons(): array
     {
         try {
-            $forms = Form::query()
+            $forms = Form::scopedPublicQuery()
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get()
@@ -133,7 +128,7 @@ class FrontendController extends Controller
             if ($forms->isNotEmpty()) {
                 $buttons = $forms->map(fn (Form $form) => [
                     'label' => \Illuminate\Support\Str::title($form->hero_label ?: $form->name),
-                    'href' => $form->routePath(),
+                    'href' => $form->internalRoutePath(),
                     'variant' => $form->hero_variant ?: 'outline',
                 ])->values()->all();
 
@@ -174,7 +169,7 @@ class FrontendController extends Controller
         ];
 
         try {
-            $forms = Form::query()
+            $forms = Form::scopedPublicQuery()
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get()
@@ -183,7 +178,7 @@ class FrontendController extends Controller
             if ($forms->isNotEmpty()) {
         $cards = $forms->map(fn (Form $form) => [
                     'label' => \Illuminate\Support\Str::title($form->displayLabel()),
-                    'href' => $form->routePath(),
+                    'href' => $form->internalRoutePath(),
                     'description' => $form->description ?: ($descMap[$form->slug] ?? 'Complete this form online in just a few minutes.'),
                     'icon' => $iconMap[$form->slug] ?? 'fa-file-alt',
                 ])->values()->all();

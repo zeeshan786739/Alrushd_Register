@@ -24,10 +24,10 @@ class DynamicFormController extends Controller
 
     public function index(): JsonResponse
     {
-        $forms = Form::query()
+        $forms = Form::scopedPublicQuery()
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'slug', 'legacy_route', 'hero_label', 'hero_variant', 'handler', 'sort_order']);
+            ->get(['id', 'name', 'slug', 'legacy_route', 'hero_label', 'hero_variant', 'handler', 'sort_order', 'organization_id']);
 
         return response()->json([
             'forms' => $forms->map(fn (Form $form) => [
@@ -35,7 +35,7 @@ class DynamicFormController extends Controller
                 'name' => $form->name,
                 'slug' => $form->slug,
                 'legacy_route' => $form->legacy_route,
-                'href' => $form->routePath(),
+                'href' => $form->internalRoutePath(),
                 'hero_label' => $form->hero_label ?: $form->name,
                 'hero_variant' => $form->hero_variant,
                 'handler' => $form->handler,
@@ -45,7 +45,7 @@ class DynamicFormController extends Controller
 
     public function landingButtons(): JsonResponse
     {
-        $forms = Form::query()
+        $forms = Form::scopedPublicQuery()
             ->where('is_active', true)
             ->where('show_on_landing', true)
             ->orderBy('sort_order')
@@ -54,7 +54,7 @@ class DynamicFormController extends Controller
         return response()->json([
             'hero_buttons' => $forms->map(fn (Form $form) => [
                 'label' => $form->hero_label ?: $form->name,
-                'href' => $form->routePath(),
+                'href' => $form->internalRoutePath(),
                 'variant' => $form->hero_variant ?: 'outline',
                 'slug' => $form->slug,
                 'handler' => $form->handler,
@@ -64,14 +64,9 @@ class DynamicFormController extends Controller
 
     public function show(string $slug): JsonResponse
     {
-        $form = Form::query()
-            ->where('is_active', true)
-            ->where(function ($query) use ($slug) {
-                $query->where('slug', $slug)
-                    ->orWhere('legacy_route', $slug)
-                    ->orWhere('legacy_route', ltrim($slug, '/'));
-            })
-            ->firstOrFail();
+        $form = Form::resolveForPublicPath($slug);
+
+        abort_unless($form, 404);
         $form->load(['steps.fields']);
 
         $schema = $this->builder->toSchema($form);

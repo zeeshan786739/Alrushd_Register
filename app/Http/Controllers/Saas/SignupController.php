@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Saas;
 
 use App\Enums\Platform\OrganizationStatus;
-use App\Enums\Platform\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\Organization;
 use App\Models\SaasPlan;
-use App\Models\SaasSubscription;
 use App\Services\Platform\PlatformActivityLogger;
 use App\Services\Platform\StripeBillingService;
+use App\Services\Platform\SubscriptionProvisioner;
+use App\Services\Tenant\TenantProvisioner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -25,7 +25,7 @@ class SignupController extends Controller
 
         $selected = $request->filled('plan')
             ? $plans->firstWhere('slug', $request->input('plan'))
-            : ($plans->firstWhere('is_featured', true) ?? $plans->first());
+            : (SaasPlan::defaultPlan() ?? $plans->firstWhere('is_featured', true) ?? $plans->first());
 
         return view('saas.signup', [
             'plans' => $plans,
@@ -33,7 +33,7 @@ class SignupController extends Controller
         ]);
     }
 
-    public function store(Request $request, StripeBillingService $billing)
+    public function store(Request $request, StripeBillingService $billing, TenantProvisioner $provisioner, SubscriptionProvisioner $subscriptions)
     {
         $data = $request->validate([
             'school_name' => ['required', 'string', 'max:255'],
@@ -47,7 +47,7 @@ class SignupController extends Controller
 
         $plan = SaasPlan::where('slug', $data['plan'])->where('is_active', true)->firstOrFail();
 
-        $organization = DB::transaction(function () use ($data, $plan) {
+        $organization = DB::transaction(function () use ($data, $plan, $provisioner, $subscriptions) {
             $organization = Organization::create([
                 'name' => $data['school_name'],
                 'slug' => $this->uniqueSlug($data['school_name']),
@@ -57,7 +57,6 @@ class SignupController extends Controller
                 'contact_name' => $data['admin_name'],
                 'status' => OrganizationStatus::Trial,
                 'is_active' => true,
-                'trial_ends_at' => now()->addDays($plan->trial_days ?: 14),
             ]);
 
             $admin = Admin::create([
@@ -69,12 +68,13 @@ class SignupController extends Controller
 
             $admin->assignRole(Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'admin']));
 
-            SaasSubscription::create([
-                'organization_id' => $organization->id,
-                'saas_plan_id' => $plan->id,
-                'status' => SubscriptionStatus::Trialing,
-                'trial_ends_at' => $organization->trial_ends_at,
-            ]);
+            $subscriptions->createForOrganization(
+                $organization,
+                $plan,
+                $plan->isFree() ? 'complimentary' : 'trial',
+            );
+
+            $provisioner->provision($organization);
 
             return $organization;
         });
@@ -83,7 +83,7 @@ class SignupController extends Controller
 
         // Hand off to Stripe Checkout when the plan is billable; otherwise the
         // trial starts immediately.
-        if ($plan->isSyncedToStripe() && $billing->isConfigured()) {
+        if (! $plan->isFree() && $plan->isSyncedToStripe() && $billing->isConfigured()) {
             try {
                 $url = $billing->createCheckoutSession(
                     $organization,

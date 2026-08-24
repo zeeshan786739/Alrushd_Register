@@ -7,6 +7,7 @@ use App\Models\Form;
 use App\Models\FormEntry;
 use App\Services\FormBuilderService;
 use App\Services\FormOptionsResolver;
+use App\Support\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class FormManagerController extends Controller
 
     public function index(): View
     {
-        $forms = Form::query()
+        $forms = Form::forCurrentOrganization()
             ->withCount(['entries', 'steps', 'fields'])
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -311,7 +312,9 @@ class FormManagerController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('forms', 'slug')->ignore($form?->id),
+                Rule::unique('forms', 'slug')
+                    ->where(fn ($query) => $query->where('organization_id', OrganizationContext::idOrFail()))
+                    ->ignore($form?->id),
             ],
             'description' => 'nullable|string',
             'legacy_route' => 'nullable|string|max:255',

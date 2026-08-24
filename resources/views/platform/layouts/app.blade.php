@@ -32,6 +32,7 @@
             display: flex; align-items: center; justify-content: center; font-size: 26px;
         }
     </style>
+    @yield('css')
 </head>
 
 <body>

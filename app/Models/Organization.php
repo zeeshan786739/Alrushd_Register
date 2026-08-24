@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Platform\OrganizationStatus;
+use App\Support\OrganizationUrls;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -11,6 +12,7 @@ class Organization extends Model
 {
     protected $fillable = [
         'name', 'slug', 'is_active', 'status', 'email', 'phone', 'website',
+        'custom_domain', 'custom_domain_verified_at', 'custom_domain_verification_token',
         'logo_path', 'contact_name', 'address', 'city', 'country', 'timezone',
         'notes', 'trial_ends_at', 'suspended_at', 'stripe_customer_id',
         'onboarded_by', 'metadata',
@@ -23,6 +25,7 @@ class Organization extends Model
             'status' => OrganizationStatus::class,
             'trial_ends_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'custom_domain_verified_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -75,6 +78,16 @@ class Organization extends Model
             : OrganizationStatus::tryFrom((string) $this->status);
 
         return $status?->allowsAccess() ?? (bool) $this->is_active;
+    }
+
+    public function publicWebsiteUrl(): string
+    {
+        return OrganizationUrls::publicBase($this);
+    }
+
+    public function hasVerifiedCustomDomain(): bool
+    {
+        return filled($this->custom_domain) && $this->custom_domain_verified_at !== null;
     }
 
     /**

@@ -12,6 +12,9 @@
     <a href="{{ route('admin.account.payments.edit') }}" class="acct-module-nav__link {{ $activeTab === 'payments' ? 'is-active' : '' }}">
         <iconify-icon icon="solar:wallet-money-linear"></iconify-icon> Payments
     </a>
+    <a href="{{ route('admin.account.website.edit') }}" class="acct-module-nav__link {{ $activeTab === 'website' ? 'is-active' : '' }}">
+        <iconify-icon icon="solar:globus-linear"></iconify-icon> Website
+    </a>
     <a href="{{ route('admin.billing.index') }}" class="acct-module-nav__link {{ $activeTab === 'billing' ? 'is-active' : '' }}">
         <iconify-icon icon="solar:card-linear"></iconify-icon> Billing
     </a>

@@ -16,7 +16,8 @@
         :root {
             --ink: #0f172a;
             --ink-soft: #475569;
-            --muted: #64748b;
+            --muted: #475569;
+            --muted-light: #64748b;
             --brand: #2563eb;
             --brand-dark: #1d4ed8;
             --violet: #7c3aed;
@@ -60,7 +61,7 @@
         .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); background: #eff6ff; padding: 6px 14px; border-radius: 999px; margin-bottom: 18px; }
         h1.display { font-size: clamp(38px, 5.4vw, 62px); line-height: 1.08; font-weight: 900; letter-spacing: -.03em; }
         h2.headline { font-size: clamp(28px, 3.6vw, 42px); line-height: 1.15; font-weight: 800; letter-spacing: -.02em; margin-bottom: 16px; }
-        .lede { font-size: 18px; color: var(--muted); max-width: 640px; }
+        .lede { font-size: 18px; color: var(--ink-soft); max-width: 640px; }
         .grad-text { background: linear-gradient(90deg, var(--brand), var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
         /* Cards */

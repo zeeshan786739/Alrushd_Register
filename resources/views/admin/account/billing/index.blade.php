@@ -24,9 +24,12 @@
                             <span class="badge px-12 py-6 radius-8 {{ $subscription->status?->badgeClass() }}">{{ $subscription->status?->label() }}</span>
                         </div>
                         @if($subscription->plan)
-                            <p class="acct-plan-current__price">{{ $subscription->plan->formattedPrice() }} <span>/ {{ $subscription->plan->billing_interval }}</span></p>
+                            <p class="acct-plan-current__price">{{ $subscription->plan->formattedPriceWithInterval() }}</p>
                         @endif
                         <ul class="acct-plan-current__meta">
+                            @if($subscription->isFreeAccess())
+                                <li><strong>Free plan</strong> — no payment required</li>
+                            @endif
                             @if($subscription->trial_ends_at)
                                 <li>Trial ends <strong>{{ $subscription->trial_ends_at->format('d M Y') }}</strong> ({{ $subscription->trial_ends_at->diffForHumans() }})</li>
                             @endif
@@ -35,6 +38,21 @@
                             @endif
                             <li>School status: <strong>{{ $organization->status?->label() }}</strong></li>
                         </ul>
+
+                        @if(!empty($moduleCatalog))
+                        <div class="acct-modules mt-20">
+                            <h4 class="acct-modules__title">Included in your plan</h4>
+                            <div class="acct-modules__grid">
+                                @foreach($moduleCatalog as $moduleKey => $definition)
+                                @php $included = in_array($moduleKey, $enabledModules, true); @endphp
+                                <div class="acct-module {{ $included ? 'is-included' : 'is-locked' }}">
+                                    <iconify-icon icon="{{ $included ? 'solar:check-circle-bold' : 'solar:lock-keyhole-linear' }}"></iconify-icon>
+                                    <span>{{ $definition['label'] }}</span>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
                     </div>
                 @else
                     <div class="em-inbox-empty em-empty-state em-empty-state--compact py-32">
@@ -87,22 +105,32 @@
                                 <span class="acct-plan-card__badge">Current</span>
                             @endif
                         </div>
-                        <p class="acct-plan-card__price">{{ $plan->formattedPrice() }}<small>/{{ $plan->billing_interval }}</small></p>
+                        <p class="acct-plan-card__price">{{ $plan->formattedPriceWithInterval() }}</p>
                         <ul class="acct-plan-card__features">
                             @foreach(array_slice($plan->features ?? [], 0, 5) as $feature)
                                 <li><iconify-icon icon="solar:check-circle-linear"></iconify-icon> {{ $feature }}</li>
                             @endforeach
                         </ul>
                         <div class="acct-plan-card__action">
-                            @if($subscription?->saas_plan_id === $plan->id && $subscription?->status?->value === 'active')
+                            @if($subscription?->saas_plan_id === $plan->id && $subscription?->status?->isCurrent())
                                 <button class="btn btn-outline-success radius-8 w-100" disabled>Current plan</button>
                             @else
                                 <form method="POST" action="{{ route('admin.billing.checkout') }}">
                                     @csrf
                                     <input type="hidden" name="plan" value="{{ $plan->slug }}">
+                                    @php
+                                        $needsStripe = (float) $plan->price > 0 && $plan->isSyncedToStripe();
+                                        $canSwitch = ! $needsStripe || $stripeReady;
+                                    @endphp
                                     <button type="submit" class="btn btn-primary-600 radius-8 w-100 fc-btn"
-                                        @unless($stripeReady && $plan->isSyncedToStripe()) disabled title="Online payment not available yet — contact support" @endunless>
-                                        {{ $subscription?->saas_plan_id === $plan->id ? 'Renew / Pay' : 'Switch to '.$plan->name }}
+                                        @unless($canSwitch) disabled title="Online payment not available yet — contact support" @endunless>
+                                        @if($subscription?->saas_plan_id === $plan->id)
+                                            Renew / Pay
+                                        @elseif($subscription && $needsStripe && $stripeReady)
+                                            Switch to {{ $plan->name }}
+                                        @else
+                                            Switch to {{ $plan->name }}
+                                        @endif
                                     </button>
                                 </form>
                             @endif
@@ -111,11 +139,17 @@
                     @endforeach
                 </div>
                 @unless($stripeReady)
-                <p class="text-secondary-light text-sm mt-16 mb-0">
-                    Online payments are being set up. To change your plan, contact
+                <p class="acct-muted text-sm mt-16 mb-0">
+                    Paid plan checkout requires platform Stripe keys. Free and trial plans can be switched instantly above.
+                    Need help? Contact
                     <a href="mailto:{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}">{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}</a>.
                 </p>
                 @endunless
+                @if($portalUrl ?? null)
+                <p class="acct-muted text-sm mt-12 mb-0">
+                    <a href="{{ $portalUrl }}" target="_blank" rel="noopener">Manage payment methods in Stripe</a>
+                </p>
+                @endif
             </div>
         </div>
     </div>

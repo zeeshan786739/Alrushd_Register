@@ -5,9 +5,11 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\CheckAdminHasAnyRole;
 use App\Http\Middleware\EnsureOrganizationIsActive;
+use App\Http\Middleware\EnsurePlanModule;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\RedirectIfNotAdmin;
 use App\Http\Middleware\RedirectIfAdmin;
+use App\Http\Middleware\ResolvePublicOrganization;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,6 +33,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'no.admin' => RedirectIfAdmin::class,
             'platform.admin' => EnsurePlatformAdmin::class,
             'org.active' => EnsureOrganizationIsActive::class,
+            'tenant.public' => ResolvePublicOrganization::class,
+            'plan.module' => EnsurePlanModule::class,
 
 
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

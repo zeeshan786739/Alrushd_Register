@@ -102,6 +102,7 @@ class AppServiceProvider extends ServiceProvider
         Route::bind('quotation', fn (string $value) => Quotation::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('invoice', fn (string $value) => Invoice::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('formEntry', fn (string $value) => FormEntry::forCurrentOrganization()->whereKey($value)->firstOrFail());
+        Route::bind('form', fn (string $value) => \App\Models\Form::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('emMessage', fn (string $value) => Message::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('emCampaign', fn (string $value) => Campaign::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('emTemplate', fn (string $value) => Template::forCurrentOrganization()->whereKey($value)->firstOrFail());

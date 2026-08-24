@@ -40,6 +40,14 @@
 .wcm-subtitle { font-size: 12px; color: #6b7280; margin: 2px 0 0; }
 
 .wcm-topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.wcm-open-site {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.wcm-open-site iconify-icon { font-size: 16px; --iconify-color: currentColor; }
 .wcm-status {
     display: flex; align-items: center; gap: 6px;
     font-size: 12px; color: #16a34a;
@@ -306,6 +314,16 @@
     cursor: pointer; border-radius: 8px;
 }
 .wcm-preview-refresh:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+.wcm-preview-open {
+    width: 30px; height: 30px;
+    border: none; background: transparent;
+    color: rgba(255,255,255,0.45);
+    cursor: pointer; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    text-decoration: none;
+}
+.wcm-preview-open:hover { color: #fff; background: rgba(255,255,255,0.1); }
 
 .wcm-preview-frame-wrap {
     flex: 1;

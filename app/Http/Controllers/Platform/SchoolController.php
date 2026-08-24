@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Enums\Platform\OrganizationStatus;
-use App\Enums\Platform\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\DemoRequest;
 use App\Models\Organization;
 use App\Models\SaasPlan;
-use App\Models\SaasSubscription;
 use App\Services\Platform\PlatformActivityLogger;
+use App\Services\Platform\StripeBillingService;
+use App\Services\Platform\SubscriptionProvisioner;
+use App\Services\Tenant\TenantProvisioner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -63,7 +64,7 @@ class SchoolController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, TenantProvisioner $provisioner, SubscriptionProvisioner $subscriptions)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -86,7 +87,7 @@ class SchoolController extends Controller
         $status = OrganizationStatus::from($data['status']);
         $plan = ! empty($data['saas_plan_id']) ? SaasPlan::find($data['saas_plan_id']) : null;
 
-        $organization = DB::transaction(function () use ($data, $status, $plan) {
+        $organization = DB::transaction(function () use ($data, $status, $plan, $provisioner, $subscriptions) {
             $organization = Organization::create([
                 'name' => $data['name'],
                 'slug' => $this->uniqueSlug($data['name']),
@@ -99,9 +100,6 @@ class SchoolController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'status' => $status,
                 'is_active' => $status->allowsAccess(),
-                'trial_ends_at' => $status === OrganizationStatus::Trial
-                    ? now()->addDays($plan?->trial_days ?? 14)
-                    : null,
                 'onboarded_by' => auth('admin')->id(),
             ]);
 
@@ -115,15 +113,12 @@ class SchoolController extends Controller
             $role = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'admin']);
             $admin->assignRole($role);
 
-            if ($data['subscription_type'] !== 'none') {
-                SaasSubscription::create([
-                    'organization_id' => $organization->id,
-                    'saas_plan_id' => $plan?->id,
-                    'status' => $data['subscription_type'] === 'complimentary'
-                        ? SubscriptionStatus::Complimentary
-                        : SubscriptionStatus::Trialing,
-                    'trial_ends_at' => $organization->trial_ends_at,
-                ]);
+            if ($data['subscription_type'] !== 'none' && $plan) {
+                $subscriptions->createForOrganization(
+                    $organization,
+                    $plan,
+                    $data['subscription_type'] === 'complimentary' ? 'complimentary' : 'trial',
+                );
             }
 
             if (! empty($data['demo_request_id'])) {
@@ -133,6 +128,8 @@ class SchoolController extends Controller
                     'handled_by' => auth('admin')->id(),
                 ]);
             }
+
+            $provisioner->provision($organization);
 
             return $organization;
         });
@@ -164,7 +161,36 @@ class SchoolController extends Controller
             'usage' => $usage,
             'activity' => $organization->activityLogs()->with('admin')->take(15)->get(),
             'statuses' => OrganizationStatus::cases(),
+            'plans' => SaasPlan::ordered()->get(),
+            'moduleCatalog' => \App\Support\PlanEntitlements::moduleCatalog(),
         ]);
+    }
+
+    public function updateSubscription(Request $request, Organization $organization, StripeBillingService $billing)
+    {
+        $data = $request->validate([
+            'saas_plan_id' => ['required', 'exists:saas_plans,id'],
+            'subscription_mode' => ['required', Rule::in(['auto', 'complimentary', 'trial'])],
+        ]);
+
+        $plan = SaasPlan::findOrFail($data['saas_plan_id']);
+        $current = $organization->currentSubscription()->first();
+
+        $billing->assignPlanLocally(
+            $organization,
+            $plan,
+            $current,
+            $data['subscription_mode'],
+        );
+
+        PlatformActivityLogger::log(
+            'school.plan_changed',
+            "School \"{$organization->name}\" assigned to plan \"{$plan->name}\" ({$data['subscription_mode']})",
+            $organization,
+            ['plan_id' => $plan->id, 'mode' => $data['subscription_mode']],
+        );
+
+        return back()->with('success', "{$organization->name} is now on {$plan->name}.");
     }
 
     public function edit(Organization $organization)

@@ -2,6 +2,10 @@
 
 @section('title', $organization->name)
 
+@section('css')
+<link rel="stylesheet" href="{{ asset('admin/assets/css/platform-plans.css') }}">
+@endsection
+
 @section('content')
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
     <div class="d-flex align-items-center gap-3">
@@ -106,8 +110,8 @@
 
     <div class="col-xxl-4">
         {{-- Subscription --}}
-        <div class="card radius-12 border-0 shadow-sm mb-24">
-            <div class="card-header bg-base py-16 px-24"><h6 class="text-lg fw-semibold mb-0">Subscription</h6></div>
+        <div class="card radius-12 border-0 shadow-sm mb-24" id="subscription">
+            <div class="card-header bg-base py-16 px-24"><h6 class="text-lg fw-semibold mb-0">Subscription &amp; plan</h6></div>
             <div class="card-body p-24">
                 @if($organization->currentSubscription)
                     @php $sub = $organization->currentSubscription; @endphp
@@ -116,16 +120,44 @@
                         <span class="badge platform-badge {{ $sub->status?->badgeClass() }}">{{ $sub->status?->label() }}</span>
                     </div>
                     @if($sub->plan)
-                        <p class="text-secondary-light mb-8">{{ $sub->plan->formattedPrice() }} / {{ $sub->plan->billing_interval }}</p>
+                        <p class="text-secondary-light mb-8">{{ $sub->plan->formattedPriceWithInterval() }} · {{ $sub->billingSourceLabel() }}</p>
+                        @if($sub->plan->enabledModuleCount() > 0)
+                        <div class="plan-card__modules mb-12">
+                            <span class="plan-module-chip">{{ $sub->plan->enabledModuleCount() }} modules</span>
+                            @if($sub->plan->isFree())<span class="plan-module-chip">Free forever</span>@endif
+                        </div>
+                        @endif
                     @endif
-                    <ul class="list-unstyled text-sm text-secondary-light mb-0">
+                    <ul class="list-unstyled text-sm text-secondary-light mb-16">
                         @if($sub->trial_ends_at)<li>Trial ends: {{ $sub->trial_ends_at->format('d M Y') }}</li>@endif
                         @if($sub->current_period_end)<li>Current period ends: {{ $sub->current_period_end->format('d M Y') }}</li>@endif
                         @if($sub->stripe_subscription_id)<li>Stripe: <code>{{ $sub->stripe_subscription_id }}</code></li>@endif
                     </ul>
                 @else
-                    <p class="text-secondary-light mb-0">No active subscription.</p>
+                    <p class="text-secondary-light mb-16">No active subscription.</p>
                 @endif
+
+                <hr class="my-16">
+
+                <form method="POST" action="{{ route('platform.schools.subscription', $organization) }}">
+                    @csrf
+                    <label class="form-label fw-semibold text-sm">Change plan</label>
+                    <select name="saas_plan_id" class="form-select mb-12" required>
+                        @foreach($plans as $planOption)
+                        <option value="{{ $planOption->id }}" @selected($organization->currentSubscription?->saas_plan_id === $planOption->id)>
+                            {{ $planOption->name }} — {{ $planOption->formattedPriceWithInterval() }}
+                            @unless($planOption->is_active) (hidden) @endunless
+                        </option>
+                        @endforeach
+                    </select>
+                    <label class="form-label fw-semibold text-sm">Access mode</label>
+                    <select name="subscription_mode" class="form-select mb-12">
+                        <option value="auto">Auto (free → complimentary, paid → trial)</option>
+                        <option value="complimentary">Complimentary / free forever</option>
+                        <option value="trial">Trial period</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary w-100">Apply plan</button>
+                </form>
             </div>
         </div>
 

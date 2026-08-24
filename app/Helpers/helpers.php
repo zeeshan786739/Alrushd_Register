@@ -1,6 +1,13 @@
 <?php
 
-if (!function_exists('numberToOrdinal')) {
+if (! function_exists('plan_module')) {
+    function plan_module(string $module): bool
+    {
+        return \App\Support\PlanEntitlements::allows($module);
+    }
+}
+
+if (! function_exists('numberToOrdinal')) {
     function numberToOrdinal($number)
     {
         $map = [
@@ -16,6 +23,6 @@ if (!function_exists('numberToOrdinal')) {
             10 => 'tenth',
         ];
 
-        return $map[$number] ?? $number . 'th';
+        return $map[$number] ?? $number.'th';
     }
 }

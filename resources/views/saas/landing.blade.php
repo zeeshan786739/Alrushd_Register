@@ -229,7 +229,7 @@
                 @if($plan->is_featured)<span class="pop">Most Popular</span>@endif
                 <h3 style="font-size:18px; font-weight:700;">{{ $plan->name }}</h3>
                 <p style="font-size:13.5px; color:var(--muted);">{{ $plan->tagline }}</p>
-                <div class="price">{{ $plan->formattedPrice() }}<small>/{{ $plan->billing_interval }}</small></div>
+                <div class="price">{{ $plan->formattedPriceWithInterval() }}</div>
                 <span style="font-size:13px; color:var(--muted);">{{ $plan->trial_days }}-day free trial</span>
                 <ul>
                     @foreach(($plan->features ?? []) as $feature)

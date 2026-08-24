@@ -156,7 +156,7 @@
                             data-toggle-url="{{ route('admin.form-manager.toggle', $form) }}"
                             data-toggle-placement-url="{{ route('admin.form-manager.toggle-placement', $form) }}"
                             data-placements="{{ implode(',', $form->placements()) }}"
-                            data-form-url="{{ url($form->routePath()) }}"
+                            data-form-url="{{ $form->routePath() }}"
                             data-destroy-url="{{ route('admin.form-manager.destroy', $form) }}">
                             <td class="ps-24">
                                 <div class="d-flex align-items-center gap-12">
@@ -165,9 +165,9 @@
                                     </span>
                                     <div>
                                         <h6 class="text-md fw-semibold mb-4">{{ $form->name }}</h6>
-                                        <span class="text-secondary-light text-sm">/{{ $form->slug }}</span>
+                                        <span class="fc-table-url text-sm">/{{ $form->slug }}</span>
                                         @if($form->legacy_route)
-                                        <span class="text-secondary-light text-xs d-block mt-2">{{ $form->legacy_route }}</span>
+                                        <span class="fc-table-url text-xs d-block mt-2">{{ $form->legacy_route }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -213,7 +213,7 @@
                             <td class="text-end pe-24" onclick="event.stopPropagation()">
                                 <div class="fc-table-actions">
                                     @if($form->usesDynamicRenderer())
-                                    <a href="{{ url($form->routePath()) }}"
+                                    <a href="{{ $form->routePath() }}"
                                        target="_blank"
                                        rel="noopener"
                                        class="fc-action-icon view"
@@ -242,7 +242,7 @@
                                             class="fc-action-icon link border-0"
                                             title="Copy form URL"
                                             aria-label="Copy form URL"
-                                            data-copy-form-url="{{ url($form->routePath()) }}">
+                                            data-copy-form-url="{{ $form->routePath() }}">
                                         <i class="ri-link-m" aria-hidden="true"></i>
                                     </button>
                                     <form action="{{ route('admin.form-manager.duplicate', $form) }}" method="POST" class="d-inline">
