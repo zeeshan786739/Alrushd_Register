@@ -104,7 +104,12 @@
     .crm-inline-select--owner{min-width:140px;max-width:190px;font-weight:600;text-align:left;text-align-last:left;padding-left:12px}
 
     /* Premium custom inline controls (Iconify-capable) */
-    .crm-inline-control{position:relative;display:inline-block;vertical-align:middle;max-width:100%}
+    .crm-inline-control{position:relative;display:inline-block;vertical-align:middle;max-width:100%;z-index:1}
+    .crm-inline-control.is-open{z-index:10060}
+    .crm-lead-row:has(.crm-inline-control.is-open),
+    .crm-clickable-row:has(.crm-inline-control.is-open){position:relative;z-index:10050}
+    .crm-list-only:has(.crm-inline-control.is-open) .table-responsive,
+    .crm-list-only:has(.crm-inline-control.is-open) .card-body{overflow:visible}
     .crm-inline-trigger{
         appearance:none;display:inline-flex;align-items:center;gap:6px;
         min-width:124px;max-width:190px;min-height:30px;height:30px;
@@ -132,9 +137,12 @@
     .crm-inline-control--owner .crm-inline-trigger{min-width:140px;max-width:200px}
     .crm-inline-control--owner .crm-inline-trigger__label{max-width:130px}
     .crm-inline-menu{
-        position:absolute;z-index:40;top:calc(100% + 6px);left:0;min-width:100%;width:max-content;max-width:240px;
+        position:absolute;z-index:10060;top:calc(100% + 6px);left:0;min-width:100%;width:max-content;max-width:240px;
         background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:6px;
         box-shadow:0 12px 28px rgba(15,39,74,.14);max-height:260px;overflow:auto;
+    }
+    .crm-inline-menu--fixed{
+        position:fixed;z-index:10070;top:0;left:0;min-width:160px;width:max-content;max-width:min(240px,calc(100vw - 24px));
     }
     .crm-inline-option{
         width:100%;display:flex;align-items:center;gap:8px;border:0;background:transparent;

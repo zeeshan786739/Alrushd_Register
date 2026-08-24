@@ -29,7 +29,7 @@
     }
 
     function isInteractiveTarget(target) {
-        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline]');
+        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option');
     }
 
     function inlineUrl(page, id) {
@@ -37,14 +37,100 @@
         return template.replace('__ID__', String(id));
     }
 
+    function positionFixedMenu(control, menu) {
+        var trigger = control.querySelector('.crm-inline-trigger');
+        if (!trigger || !menu) return;
+        var rect = trigger.getBoundingClientRect();
+        var gap = 6;
+        var maxHeight = 260;
+        var viewportPadding = 12;
+        var spaceBelow = window.innerHeight - rect.bottom - gap - viewportPadding;
+        var spaceAbove = rect.top - gap - viewportPadding;
+        var openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+        var maxVisible = Math.max(120, Math.min(maxHeight, openUp ? spaceAbove : spaceBelow));
+
+        menu.style.top = openUp
+            ? Math.max(viewportPadding, rect.top - gap - maxVisible) + 'px'
+            : Math.min(window.innerHeight - viewportPadding - maxVisible, rect.bottom + gap) + 'px';
+        menu.style.left = Math.min(
+            Math.max(viewportPadding, rect.left),
+            window.innerWidth - viewportPadding - 160
+        ) + 'px';
+        menu.style.minWidth = Math.max(rect.width, 160) + 'px';
+        menu.style.maxHeight = maxVisible + 'px';
+    }
+
+    function portalMenu(control, menu) {
+        menu.__crmOwner = control;
+        document.body.appendChild(menu);
+        menu.classList.add('crm-inline-menu--fixed');
+        positionFixedMenu(control, menu);
+    }
+
+    function restoreMenu(control, menu) {
+        if (!control || !menu) return;
+        menu.classList.remove('crm-inline-menu--fixed');
+        menu.style.top = '';
+        menu.style.left = '';
+        menu.style.minWidth = '';
+        menu.style.maxHeight = '';
+        control.appendChild(menu);
+        delete menu.__crmOwner;
+    }
+
+    function menuForControl(control) {
+        if (!control) return null;
+        var localMenu = control.querySelector('.crm-inline-menu');
+        if (localMenu) return localMenu;
+        return Array.prototype.find.call(
+            document.querySelectorAll('.crm-inline-menu'),
+            function (menu) { return menu.__crmOwner === control; }
+        ) || null;
+    }
+
+    function controlFromOption(option) {
+        if (!option) return null;
+        var menu = option.closest('.crm-inline-menu');
+        if (menu && menu.__crmOwner) return menu.__crmOwner;
+        return option.closest('[data-crm-inline].crm-inline-control');
+    }
+
+    function onMenuViewportChange() {
+        if (!openMenu) return;
+        var menu = menuForControl(openMenu);
+        if (!menu || menu.hidden) {
+            closeOpenMenu();
+            return;
+        }
+        positionFixedMenu(openMenu, menu);
+    }
+
+    function openMenuControl(control) {
+        var trigger = control.querySelector('.crm-inline-trigger');
+        var menu = control.querySelector('.crm-inline-menu');
+        if (!trigger || !menu) return;
+        menu.hidden = false;
+        control.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+        portalMenu(control, menu);
+        openMenu = control;
+        window.addEventListener('scroll', onMenuViewportChange, true);
+        window.addEventListener('resize', onMenuViewportChange);
+    }
+
     function closeOpenMenu() {
         if (!openMenu) return;
         openMenu.classList.remove('is-open');
         var trigger = openMenu.querySelector('.crm-inline-trigger');
-        var menu = openMenu.querySelector('.crm-inline-menu');
+        var menu = menuForControl(openMenu);
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
-        if (menu) menu.hidden = true;
+        if (menu) {
+            menu.hidden = true;
+            if (menu.__crmOwner) restoreMenu(openMenu, menu);
+        }
         openMenu = null;
+        window.removeEventListener('scroll', onMenuViewportChange, true);
+        window.removeEventListener('resize', onMenuViewportChange);
     }
 
     function applyControlVisual(control, tone, icon, label) {
@@ -145,20 +231,17 @@
                 var willOpen = menu && menu.hidden;
                 closeOpenMenu();
                 if (willOpen) {
-                    menu.hidden = false;
-                    control.classList.add('is-open');
-                    trigger.setAttribute('aria-expanded', 'true');
-                    openMenu = control;
+                    openMenuControl(control);
                 }
                 return;
             }
 
             var option = event.target.closest('.crm-inline-option');
-            if (option && page.contains(option)) {
+            if (option) {
                 event.preventDefault();
                 event.stopPropagation();
-                var dropdown = option.closest('[data-crm-inline].crm-inline-control');
-                if (!dropdown || dropdown.classList.contains('is-busy')) return;
+                var dropdown = controlFromOption(option);
+                if (!dropdown || !page.contains(dropdown) || dropdown.classList.contains('is-busy')) return;
 
                 var recordId = dropdown.getAttribute('data-record-id');
                 var field = dropdown.getAttribute('data-field');
@@ -237,7 +320,7 @@
     }
 
     document.addEventListener('click', function (event) {
-        if (openMenu && !event.target.closest('.crm-inline-control')) {
+        if (openMenu && !event.target.closest('.crm-inline-control') && !event.target.closest('.crm-inline-menu')) {
             closeOpenMenu();
         }
     });
