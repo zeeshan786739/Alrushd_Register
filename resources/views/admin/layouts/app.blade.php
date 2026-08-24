@@ -46,8 +46,8 @@
 
     <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/lib/audioplayer.css" />
     <!-- main css -->
-    <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/style.css" />
-    <link rel="stylesheet" href="{{ asset('admin/') }}/assets/css/alrushad-overrides.css" />
+    <link rel="stylesheet" href="{{ \App\Support\AdminAsset::url('admin/assets/css/style.css') }}" />
+    <link rel="stylesheet" href="{{ \App\Support\AdminAsset::url('admin/assets/css/alrushad-overrides.css') }}" />
     <style>
         .swal2-title {
             font-size: 16px !important;
@@ -664,7 +664,7 @@
 
 <!-- main js -->
 <script src="{{ asset('admin/') }}/assets/js/app.js"></script>
-<script src="{{ asset('admin/') }}/assets/js/alrushad-ui.js"></script>
+<script src="{{ \App\Support\AdminAsset::url('admin/assets/js/alrushad-ui.js') }}"></script>
 <script src="{{ asset('admin/') }}/assets/js/admin-pjax.js"></script>
 
 <script src="{{ asset('admin/') }}/assets/js/homeTwoChart.js"></script>

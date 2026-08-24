@@ -214,8 +214,12 @@
     .crm-category-choice[data-tone="danger"] .crm-category-choice__icon{background:#fef2f2;color:#b91c1c}
     .crm-category-choice[data-tone="indigo"] .crm-category-choice__icon{background:#eef2ff;color:#4338ca}
     .crm-category-choice__name{font-size:13px;font-weight:650;color:#0f172a;line-height:1.25}
+    .crm-category-choice__meta{display:block;font-size:11px;font-weight:600;color:#64748b;margin-top:2px}
     .crm-category-choice__check{margin-left:auto;color:#0F274A;opacity:0;font-size:18px}
     .crm-category-choice.is-selected .crm-category-choice__check{opacity:1}
+    .crm-category-search{position:relative;max-width:420px}
+    .crm-category-search iconify-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:16px;pointer-events:none}
+    .crm-category-search .form-control{padding-left:38px}
 
     .crm-icon-picker{display:flex;flex-wrap:wrap;gap:8px}
     .crm-icon-picker__tile{

@@ -1,5 +1,5 @@
 /**
- * Lead import category select + create UX (icon/color pickers, live preview).
+ * Lead import category select + create UX (icon/color pickers, live preview, search).
  * PJAX-safe: re-executed when the page script section is swapped in.
  */
 (function () {
@@ -96,7 +96,30 @@
         });
     }
 
+    function bindSearch(root) {
+        var input = root.querySelector('[data-crm-category-search]');
+        var empty = root.querySelector('[data-crm-category-empty-search]');
+        if (!input || input.getAttribute('data-search-bound') === '1') return;
+        input.setAttribute('data-search-bound', '1');
+
+        input.addEventListener('input', function () {
+            var q = (input.value || '').trim().toLowerCase();
+            var items = root.querySelectorAll('[data-crm-category-item]');
+            var visible = 0;
+            items.forEach(function (item) {
+                var name = item.getAttribute('data-name') || '';
+                var show = !q || name.indexOf(q) !== -1;
+                item.classList.toggle('d-none', !show);
+                if (show) visible++;
+            });
+            if (empty) {
+                empty.classList.toggle('d-none', visible > 0 || items.length === 0);
+            }
+        });
+    }
+
     bindCreateForm(page.querySelector('[data-crm-category-create]'));
     bindSubmitLocks(page);
     bindChoiceCards(page);
+    bindSearch(page);
 })();

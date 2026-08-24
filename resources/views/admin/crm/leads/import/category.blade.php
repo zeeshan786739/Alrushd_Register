@@ -28,28 +28,55 @@
         ],
     ])
 
+    <p class="text-secondary-light mb-20">
+        Choose one category for this import batch. New confirmed leads will be <strong>added</strong> to that category — existing leads in the category are never changed or removed.
+        Spreadsheet mapping stays dynamic; unknown columns are kept as additional lead information.
+    </p>
+
+    {{-- A. Select existing --}}
     <div class="card radius-12 shadow-2 border-0 mb-24">
         <div class="card-body p-24">
-            <p class="text-secondary-light mb-16">Choose the category for this entire import batch. Column mapping stays dynamic — unknown spreadsheet columns are preserved as additional lead information.</p>
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-12 mb-16">
+                <div>
+                    <h6 class="fw-semibold mb-4">1. Select Existing Category</h6>
+                    <p class="text-sm text-secondary-light mb-0">Active categories for this organization only.</p>
+                </div>
+            </div>
 
             <form method="POST" action="{{ route('admin.crm.leads.import.category.save', $import) }}" id="crm-category-select-form">
                 @csrf
-                <label class="form-label mb-12">Lead Category <span class="text-danger">*</span></label>
 
                 @if($categories->isEmpty())
                     <div class="crm-empty-state py-24">
                         <iconify-icon icon="solar:folder-with-files-linear"></iconify-icon>
-                        No categories yet. Create one below to continue.
+                        No categories yet. Create a new category below to continue.
                     </div>
                 @else
-                    <div class="crm-category-choice-grid" role="radiogroup" aria-label="Lead categories">
+                    <div class="mb-14">
+                        <label class="form-label" for="crm-category-search">Search categories</label>
+                        <div class="crm-category-search">
+                            <iconify-icon icon="solar:magnifer-linear"></iconify-icon>
+                            <input type="search"
+                                   id="crm-category-search"
+                                   class="form-control radius-8"
+                                   placeholder="Type a category name…"
+                                   autocomplete="off"
+                                   data-crm-category-search>
+                        </div>
+                    </div>
+
+                    <div class="crm-category-choice-grid" role="radiogroup" aria-label="Existing lead categories" data-crm-category-list>
                         @foreach($categories as $category)
                             @php
                                 $isSelected = $selectedCategoryId === (string) $category->id;
                                 $tone = $category->displayTone();
                                 $icon = $category->displayIcon();
+                                $leadCount = (int) ($category->leads_count ?? 0);
                             @endphp
-                            <label class="crm-category-choice {{ $isSelected ? 'is-selected' : '' }}" data-tone="{{ $tone }}">
+                            <label class="crm-category-choice {{ $isSelected ? 'is-selected' : '' }}"
+                                   data-tone="{{ $tone }}"
+                                   data-crm-category-item
+                                   data-name="{{ strtolower($category->name) }}">
                                 <input type="radio"
                                        name="lead_category_id"
                                        value="{{ $category->id }}"
@@ -61,6 +88,7 @@
                                 </span>
                                 <span class="crm-category-choice__body">
                                     <span class="crm-category-choice__name">{{ $category->name }}</span>
+                                    <span class="crm-category-choice__meta">{{ $leadCount }} {{ $leadCount === 1 ? 'lead' : 'leads' }}</span>
                                 </span>
                                 <span class="crm-category-choice__check" aria-hidden="true">
                                     <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
@@ -68,6 +96,7 @@
                             </label>
                         @endforeach
                     </div>
+                    <p class="text-sm text-secondary-light mt-12 mb-0 d-none" data-crm-category-empty-search>No categories match your search.</p>
                 @endif
 
                 @error('lead_category_id')<div class="invalid-feedback d-block mt-8">{{ $message }}</div>@enderror
@@ -82,11 +111,12 @@
         </div>
     </div>
 
+    {{-- B. Create new --}}
     @canany(['import leads', 'create leads', 'update leads'])
     <div class="card radius-12 shadow-2 border-0">
         <div class="card-body p-24">
-            <h6 class="fw-semibold mb-4">Create a category</h6>
-            <p class="text-sm text-secondary-light mb-20">Enter a name to create one. Icon and color are optional — defaults are applied automatically.</p>
+            <h6 class="fw-semibold mb-4">2. Create New Category</h6>
+            <p class="text-sm text-secondary-light mb-20">Enter a name to create one. Icon and color are optional — defaults are applied automatically. The new category is selected for this import.</p>
 
             <form method="POST"
                   action="{{ route('admin.crm.leads.import.categories.store', $import) }}"
@@ -158,7 +188,7 @@
                         </span>
                         <span class="crm-category-preview__body">
                             <span class="crm-category-preview__name" data-crm-preview-name-label>{{ $createName !== '' ? $createName : 'Category name' }}</span>
-                            <span class="crm-category-preview__meta">0 Leads</span>
+                            <span class="crm-category-preview__meta">0 leads</span>
                         </span>
                     </div>
                 </div>

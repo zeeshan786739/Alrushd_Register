@@ -258,11 +258,14 @@ class LeadCategoryTest extends CrmTestCase
         $this->actingAsCrmAdmin()
             ->get(route('admin.crm.leads.import.category', $import))
             ->assertOk()
+            ->assertSee('Select Existing Category', false)
+            ->assertSee('Create New Category', false)
             ->assertSee('Choose Icon', false)
             ->assertSee('Choose Color', false)
             ->assertDontSee('Iconify icon', false)
             ->assertSee('crm-icon-picker', false)
-            ->assertSee('crm-color-picker', false);
+            ->assertSee('crm-color-picker', false)
+            ->assertSee('No categories yet', false);
 
         $this->actingAsCrmAdmin()
             ->post(route('admin.crm.leads.import.categories.store', $import), [
@@ -297,5 +300,111 @@ class LeadCategoryTest extends CrmTestCase
                 'tone' => 'info',
             ])
             ->assertSessionHasErrors('icon');
+    }
+
+    public function test_import_appends_to_existing_category_without_changing_old_leads(): void
+    {
+        $category = LeadCategory::create([
+            'organization_id' => $this->organizationA->id,
+            'name' => 'Student Recruitment',
+            'icon' => 'solar:square-academic-cap-linear',
+            'tone' => 'info',
+            'is_active' => true,
+        ]);
+
+        $existingIds = [];
+        for ($i = 0; $i < 3; $i++) {
+            $lead = Lead::create([
+                'organization_id' => $this->organizationA->id,
+                'source' => 'manual',
+                'first_name' => 'Existing'.$i,
+                'email' => 'existing-'.$i.'@example.test',
+                'lead_status' => 'new',
+                'priority' => 'medium',
+                'lead_category_id' => $category->id,
+            ]);
+            $existingIds[] = $lead->id;
+        }
+
+        $before = Lead::forOrganization($this->organizationA->id)
+            ->whereIn('id', $existingIds)
+            ->get(['id', 'source', 'lead_category_id', 'first_name', 'email', 'updated_at'])
+            ->keyBy('id');
+
+        $path = $this->tmpDir.'/web.xls';
+        LeadImportFixtureFactory::webLeadsSpreadsheetMl($path);
+
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.import.store'), [
+                'file' => new UploadedFile($path, 'web.xls', null, null, true),
+            ])
+            ->assertRedirect();
+
+        $import = LeadImport::forOrganization($this->organizationA->id)->latest('id')->firstOrFail();
+
+        $this->actingAsCrmAdmin()
+            ->get(route('admin.crm.leads.import.category', $import))
+            ->assertOk()
+            ->assertSee('Student Recruitment', false)
+            ->assertSee('3 leads', false)
+            ->assertSee('data-crm-category-search', false);
+
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.import.category.save', $import), [
+                'lead_category_id' => $category->id,
+            ])
+            ->assertRedirect(route('admin.crm.leads.import.map', $import));
+
+        $this->assertSame(3, Lead::forOrganization($this->organizationA->id)->where('lead_category_id', $category->id)->count());
+
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.import.map.save', $import), [
+                'selected_sheet' => $import->selected_sheet,
+                'header_row' => $import->header_row,
+                'mapping' => $import->mapping,
+                'options' => [
+                    'duplicate_behavior' => 'skip',
+                    'default_status' => 'new',
+                    'default_priority' => 'medium',
+                    'source_label' => 'Append import',
+                ],
+            ])
+            ->assertRedirect(route('admin.crm.leads.import.preview', $import));
+
+        $this->assertSame(3, Lead::forOrganization($this->organizationA->id)->where('lead_category_id', $category->id)->count());
+
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.import.confirm', $import), ['confirm' => '1'])
+            ->assertRedirect();
+
+        $imported = Lead::forOrganization($this->organizationA->id)
+            ->where('source', 'file_import')
+            ->where('lead_category_id', $category->id)
+            ->get();
+        $this->assertGreaterThan(0, $imported->count());
+
+        $afterCount = Lead::forOrganization($this->organizationA->id)
+            ->where('lead_category_id', $category->id)
+            ->count();
+        $this->assertSame(3 + $imported->count(), $afterCount);
+
+        foreach ($existingIds as $id) {
+            $fresh = Lead::forOrganization($this->organizationA->id)->findOrFail($id);
+            $snapshot = $before[$id];
+            $this->assertSame('manual', $fresh->source);
+            $this->assertSame($category->id, (int) $fresh->lead_category_id);
+            $this->assertSame($snapshot->first_name, $fresh->first_name);
+            $this->assertSame($snapshot->email, $fresh->email);
+        }
+    }
+
+    public function test_admin_layout_cache_busts_core_assets(): void
+    {
+        $this->actingAsCrmAdmin()
+            ->get(route('admin.crm.leads.index'))
+            ->assertOk()
+            ->assertSee('admin/assets/css/style.css?v=', false)
+            ->assertSee('admin/assets/css/alrushad-overrides.css?v=', false)
+            ->assertSee('admin/assets/js/alrushad-ui.js?v=', false);
     }
 }

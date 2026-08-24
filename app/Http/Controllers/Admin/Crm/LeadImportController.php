@@ -89,6 +89,7 @@ class LeadImportController extends Controller
 
         $categories = LeadCategory::forCurrentOrganization()
             ->active()
+            ->withCount('leads')
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
