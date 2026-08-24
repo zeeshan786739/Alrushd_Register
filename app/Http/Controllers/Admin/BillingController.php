@@ -16,7 +16,7 @@ class BillingController extends Controller
 
         abort_unless($organization, 404);
 
-        return view('admin.billing.index', [
+        return view('admin.account.billing.index', [
             'organization' => $organization,
             'subscription' => $organization->currentSubscription()->with('plan')->first(),
             'history' => $organization->subscriptions()->with('plan')->take(10)->get(),

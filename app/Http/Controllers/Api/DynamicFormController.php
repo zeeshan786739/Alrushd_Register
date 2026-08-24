@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\FormEntry;
 use App\Models\Country;
-use App\Models\Setting;
 use App\Services\FormBuilderService;
 use App\Services\FormOptionsResolver;
+use App\Services\Tenant\TenantStripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -76,10 +76,10 @@ class DynamicFormController extends Controller
 
         $schema = $this->builder->toSchema($form);
         $schema['success_route'] = $form->successPath();
-        $settings = Setting::first();
+        $stripe = TenantStripeService::forOrganization($form->organization_id);
         $schema['payment_config'] = [
-            'stripe_key' => $settings?->stripe_key,
-            'online_enabled' => (bool) ($settings?->payment_method_status ?? true),
+            'stripe_key' => $stripe->publishableKey(),
+            'online_enabled' => $stripe->onlinePaymentsEnabled(),
             'countries' => Country::query()->orderBy('name')->pluck('name')->values()->all(),
         ];
         $fieldModels = $form->fields->keyBy('key');
@@ -249,12 +249,12 @@ class DynamicFormController extends Controller
                 throw new \InvalidArgumentException('Card payment could not be processed. Please check your card details.');
             }
 
-            $siteSettings = Setting::first();
-            if (! $siteSettings?->stripe_secret) {
+            $stripe = TenantStripeService::forOrganization($field->form?->organization_id);
+            if (! $stripe->secret()) {
                 throw new \InvalidArgumentException('Stripe is not configured. Please contact the school.');
             }
 
-            Stripe::setApiKey($siteSettings->stripe_secret);
+            Stripe::setApiKey($stripe->secret());
 
             $charge = \Stripe\Charge::create([
                 'amount' => (int) round($payment['amount'] * 100),

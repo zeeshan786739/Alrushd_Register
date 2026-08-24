@@ -32,34 +32,39 @@
 @endif
 
 @if($showInboxFolders)
-<div class="em-shell mb-24">
+<div class="em-shell em-shell--inbox">
     <aside class="em-folder-nav">
+        <p class="em-folder-nav__label">Folders</p>
         @can('compose emails')
-        <a href="{{ route('admin.email.compose') }}" class="btn btn-primary-600 radius-8 w-100 mb-12 justify-content-center fc-btn">
+        <a href="{{ route('admin.email.compose') }}" class="btn btn-primary-600 radius-8 w-100 mb-16 justify-content-center fc-btn em-folder-nav__compose">
             <iconify-icon icon="solar:pen-new-square-linear"></iconify-icon> Compose
         </a>
         @endcan
         @can('view inbox')
         <a href="{{ route('admin.email.inbox') }}" class="em-folder-nav__link {{ $folder==='inbox'?'is-active':'' }}">
-            <iconify-icon icon="solar:inbox-linear"></iconify-icon> Inbox
+            <iconify-icon icon="solar:inbox-linear"></iconify-icon>
+            <span>Inbox</span>
             <span class="em-folder-nav__badge">{{ $counts['inbox_unread'] ?? 0 }}</span>
         </a>
         @endcan
         @can('star emails')
         <a href="{{ route('admin.email.starred') }}" class="em-folder-nav__link {{ $folder==='starred'?'is-active':'' }}">
-            <iconify-icon icon="solar:star-linear"></iconify-icon> Starred
+            <iconify-icon icon="solar:star-linear"></iconify-icon>
+            <span>Starred</span>
             <span class="em-folder-nav__badge">{{ $counts['starred'] ?? 0 }}</span>
         </a>
         @endcan
         @can('view sent emails')
         <a href="{{ route('admin.email.sent') }}" class="em-folder-nav__link {{ $folder==='sent'?'is-active':'' }}">
-            <iconify-icon icon="solar:plain-linear"></iconify-icon> Sent
+            <iconify-icon icon="solar:plain-linear"></iconify-icon>
+            <span>Sent</span>
             <span class="em-folder-nav__badge">{{ $counts['sent'] ?? 0 }}</span>
         </a>
         @endcan
         @can('manage drafts')
         <a href="{{ route('admin.email.drafts') }}" class="em-folder-nav__link {{ $folder==='draft'?'is-active':'' }}">
-            <iconify-icon icon="solar:document-linear"></iconify-icon> Drafts
+            <iconify-icon icon="solar:document-linear"></iconify-icon>
+            <span>Drafts</span>
             <span class="em-folder-nav__badge">{{ $counts['draft'] ?? 0 }}</span>
         </a>
         @endcan

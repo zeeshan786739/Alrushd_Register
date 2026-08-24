@@ -70,6 +70,7 @@ Route::prefix('admin')->name('admin.')
     require __DIR__.'/crm.php';
     require __DIR__.'/email-marketing.php';
     require __DIR__.'/integrations.php';
+    require __DIR__.'/account.php';
 
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 

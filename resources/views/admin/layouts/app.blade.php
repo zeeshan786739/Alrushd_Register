@@ -195,14 +195,14 @@
                             <ul class="to-top-list">
                                 <li>
                                     <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-primary d-flex align-items-center gap-3"
-                                        href="{{ route('admin.profile.settings') }}">
+                                        href="{{ route('admin.account.profile') }}">
                                         <iconify-icon icon="solar:user-linear" class="icon text-xl"></iconify-icon> My
                                         Profile</a>
                                 </li>
 
                                 <li>
                                     <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-primary d-flex align-items-center gap-3"
-                                        href="{{ route('admin.change.password') }}">
+                                        href="{{ route('admin.account.security') }}">
                                         <iconify-icon icon="icon-park-outline:setting-two"
                                             class="icon text-xl"></iconify-icon> Password Change</a>
                                 </li>

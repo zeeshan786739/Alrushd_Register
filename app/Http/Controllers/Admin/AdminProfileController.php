@@ -13,11 +13,12 @@ class AdminProfileController extends Controller
 {
     public function settings()
     {
-        return view('admin.auth.settings');
+        return view('admin.account.profile.edit');
     }
+
     public function changePassword()
     {
-        return view('admin.auth.change-password');
+        return view('admin.account.security.edit');
     }
     public function updateSettings(Request $request)
     {
@@ -40,7 +41,9 @@ class AdminProfileController extends Controller
             'image' =>  $image,
         ]);
 
-        return back()->with('success', 'Profile updated successfully.');
+        return redirect()
+            ->route('admin.account.profile')
+            ->with('success', 'Profile updated successfully.');
     }
 
     public function updatePassword(Request $request)
@@ -60,6 +63,8 @@ class AdminProfileController extends Controller
             'password' => \Hash::make($request->new_password),
         ]);
 
-        return back()->with('success', 'Password changed successfully.');
+        return redirect()
+            ->route('admin.account.security')
+            ->with('success', 'Password changed successfully.');
     }
 }

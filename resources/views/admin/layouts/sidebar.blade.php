@@ -579,8 +579,24 @@
     </li>
     @endcan
 
-    {{-- ================= BILLING (SaaS subscription) ================= --}}
+    {{-- ================= ACCOUNT ================= --}}
     <li class="sidebar-menu-group-title" role="presentation">Account</li>
+    <li>
+        <a href="{{ route('admin.account.index') }}"
+           class="{{ AdminNav::linkClass('admin.account.*') }}"
+           title="Account">
+            <iconify-icon icon="solar:user-id-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Account</span>
+        </a>
+    </li>
+    <li>
+        <a href="{{ route('admin.account.payments.edit') }}"
+           class="{{ AdminNav::linkClass('admin.account.payments.*') }}"
+           title="Customer Payments">
+            <iconify-icon icon="solar:wallet-money-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Customer Payments</span>
+        </a>
+    </li>
     <li>
         <a href="{{ route('admin.billing.index') }}"
            class="{{ AdminNav::linkClass('admin.billing.*') }}"

@@ -20,7 +20,7 @@
                      <div class="col-md-12">
                         <label class="form-label">Staff Terms Description</label>
                         <div class="has-validation">
-                            <textarea name="staff_terms_condition" id="staff_terms_condition" class=" summernote  form-control @error('staff_terms_condition') is-invalid @enderror" rows="4">{{$data->staff_terms_condition}}</textarea>
+                            <textarea name="staff_terms_condition" id="staff_terms_condition" class=" summernote  form-control @error('staff_terms_condition') is-invalid @enderror" rows="4">{{ old('staff_terms_condition', $data->staff_terms_condition) }}</textarea>
                             @error('staff_terms_condition')
                             <span class="text-danger">{{$message}}</span>
                             @enderror
