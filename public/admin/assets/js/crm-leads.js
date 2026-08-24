@@ -8,6 +8,7 @@
     var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     var toastSlot = page.querySelector('[data-crm-toast-slot]');
     var pending = {};
+    var openMenu = null;
 
     var toggle = page.querySelector('[data-crm-view-toggle]');
     var buttons = toggle ? toggle.querySelectorAll('button[data-view]') : [];
@@ -73,11 +74,147 @@
         return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline]');
     }
 
+    function closeOpenMenu() {
+        if (!openMenu) return;
+        openMenu.classList.remove('is-open');
+        var trigger = openMenu.querySelector('.crm-inline-trigger');
+        var menu = openMenu.querySelector('.crm-inline-menu');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        if (menu) menu.hidden = true;
+        openMenu = null;
+    }
+
+    function applyControlVisual(control, tone, icon, label) {
+        if (tone) control.setAttribute('data-tone', tone);
+        if (icon) control.setAttribute('data-icon', icon);
+        var iconEl = control.querySelector('.crm-inline-trigger__icon');
+        var labelEl = control.querySelector('.crm-inline-trigger__label');
+        if (iconEl && icon) iconEl.setAttribute('icon', icon);
+        if (labelEl && label != null) labelEl.textContent = label;
+    }
+
+    function markSelected(control, value) {
+        control.querySelectorAll('.crm-inline-option').forEach(function (opt) {
+            var selected = String(opt.getAttribute('data-value') || '') === String(value || '');
+            opt.classList.toggle('is-selected', selected);
+            opt.setAttribute('aria-selected', selected ? 'true' : 'false');
+            var check = opt.querySelector('.crm-inline-option__check');
+            if (selected && !check) {
+                var icon = document.createElement('iconify-icon');
+                icon.className = 'crm-inline-option__check';
+                icon.setAttribute('icon', 'solar:check-circle-bold');
+                opt.appendChild(icon);
+            } else if (!selected && check) {
+                check.remove();
+            }
+        });
+    }
+
+    function inlineUrl(leadId) {
+        var template = page.getAttribute('data-inline-url-template') || '';
+        return template.replace('__ID__', String(leadId));
+    }
+
     page.addEventListener('click', function (event) {
         var row = event.target.closest('tr.crm-lead-row[data-href]');
-        if (!row || !page.contains(row)) return;
-        if (isInteractiveTarget(event.target)) return;
-        window.location.href = row.getAttribute('data-href');
+        if (row && page.contains(row) && !isInteractiveTarget(event.target)) {
+            window.location.href = row.getAttribute('data-href');
+            return;
+        }
+
+        var trigger = event.target.closest('.crm-inline-trigger');
+        if (trigger && page.contains(trigger)) {
+            event.preventDefault();
+            event.stopPropagation();
+            var control = trigger.closest('[data-crm-inline].crm-inline-control');
+            if (!control || control.classList.contains('is-busy')) return;
+            var menu = control.querySelector('.crm-inline-menu');
+            var willOpen = menu && menu.hidden;
+            closeOpenMenu();
+            if (willOpen) {
+                menu.hidden = false;
+                control.classList.add('is-open');
+                trigger.setAttribute('aria-expanded', 'true');
+                openMenu = control;
+            }
+            return;
+        }
+
+        var option = event.target.closest('.crm-inline-option');
+        if (option && page.contains(option)) {
+            event.preventDefault();
+            event.stopPropagation();
+            var dropdown = option.closest('[data-crm-inline].crm-inline-control');
+            if (!dropdown || dropdown.classList.contains('is-busy')) return;
+
+            var leadId = dropdown.getAttribute('data-lead-id');
+            var field = dropdown.getAttribute('data-field');
+            var previous = dropdown.getAttribute('data-previous');
+            var previousTone = dropdown.getAttribute('data-tone') || 'neutral';
+            var previousIcon = dropdown.getAttribute('data-icon') || '';
+            var previousLabel = dropdown.querySelector('.crm-inline-trigger__label')?.textContent || '';
+            var value = option.getAttribute('data-value') || '';
+            var tone = option.getAttribute('data-tone') || 'neutral';
+            var icon = option.getAttribute('data-icon') || previousIcon;
+            var label = option.getAttribute('data-label') || option.textContent.trim();
+            var key = leadId + ':' + field;
+
+            closeOpenMenu();
+            if (String(value) === String(previous || '')) return;
+            if (pending[key]) return;
+
+            pending[key] = true;
+            dropdown.classList.add('is-busy');
+            applyControlVisual(dropdown, tone, icon, label);
+            markSelected(dropdown, value);
+
+            fetch(inlineUrl(leadId), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ field: field, value: value === '' ? null : value }),
+                credentials: 'same-origin'
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                }).catch(function () {
+                    return { ok: response.ok, data: {} };
+                });
+            }).then(function (result) {
+                if (!result.ok) {
+                    applyControlVisual(dropdown, previousTone, previousIcon, previousLabel);
+                    markSelected(dropdown, previous || '');
+                    showToast((result.data && (result.data.message || result.data.error)) || 'Update failed.', true);
+                    return;
+                }
+                dropdown.setAttribute('data-previous', value);
+                applyControlVisual(
+                    dropdown,
+                    (result.data && result.data.tone) || tone,
+                    (result.data && result.data.icon) || icon,
+                    (result.data && result.data.label) || label
+                );
+                markSelected(dropdown, value);
+                showToast((result.data && result.data.message) || 'Updated.', false);
+            }).catch(function () {
+                applyControlVisual(dropdown, previousTone, previousIcon, previousLabel);
+                markSelected(dropdown, previous || '');
+                showToast('Update failed. Please try again.', true);
+            }).finally(function () {
+                pending[key] = false;
+                dropdown.classList.remove('is-busy');
+            });
+        }
+    });
+
+    document.addEventListener('click', function (event) {
+        if (openMenu && !event.target.closest('.crm-inline-control')) {
+            closeOpenMenu();
+        }
     });
 
     page.addEventListener('keydown', function (event) {
@@ -88,21 +225,7 @@
         window.location.href = row.getAttribute('data-href');
     });
 
-    function inlineUrl(leadId) {
-        var template = page.getAttribute('data-inline-url-template') || '';
-        return template.replace('__ID__', String(leadId));
-    }
-
-    function applyTone(select, tone) {
-        if (!select) return;
-        select.setAttribute('data-tone', tone || 'neutral');
-    }
-
-    function selectedOptionTone(select) {
-        var opt = select.options[select.selectedIndex];
-        return (opt && opt.getAttribute('data-tone')) || select.getAttribute('data-tone') || 'neutral';
-    }
-
+    // Legacy native select support (if any remain)
     page.addEventListener('change', function (event) {
         var select = event.target.closest('select[data-crm-inline]');
         if (!select || !page.contains(select)) return;
@@ -121,7 +244,10 @@
 
         pending[key] = true;
         select.disabled = true;
-        applyTone(select, selectedOptionTone(select));
+        var opt = select.options[select.selectedIndex];
+        if (opt && opt.getAttribute('data-tone')) {
+            select.setAttribute('data-tone', opt.getAttribute('data-tone'));
+        }
 
         fetch(inlineUrl(leadId), {
             method: 'PATCH',
@@ -135,23 +261,23 @@
             credentials: 'same-origin'
         }).then(function (response) {
             return response.json().then(function (data) {
-                return { ok: response.ok, status: response.status, data: data };
+                return { ok: response.ok, data: data };
             }).catch(function () {
-                return { ok: response.ok, status: response.status, data: {} };
+                return { ok: response.ok, data: {} };
             });
         }).then(function (result) {
             if (!result.ok) {
                 select.value = previous || '';
-                applyTone(select, previousTone);
+                select.setAttribute('data-tone', previousTone);
                 showToast((result.data && (result.data.message || result.data.error)) || 'Update failed.', true);
                 return;
             }
             select.setAttribute('data-previous', value);
-            applyTone(select, selectedOptionTone(select));
+            select.setAttribute('data-tone', (result.data && result.data.tone) || previousTone);
             showToast((result.data && result.data.message) || 'Updated.', false);
         }).catch(function () {
             select.value = previous || '';
-            applyTone(select, previousTone);
+            select.setAttribute('data-tone', previousTone);
             showToast('Update failed. Please try again.', true);
         }).finally(function () {
             pending[key] = false;
@@ -233,7 +359,6 @@
             if (!clearUrl || !filtersContainer || clearBtn.disabled) return;
 
             clearBtn.disabled = true;
-            var snapshot = filtersContainer.cloneNode(true);
 
             fetch(clearUrl, {
                 method: 'DELETE',
@@ -259,12 +384,6 @@
                 showToast((result.data && result.data.message) || 'All saved filters cleared.', false);
             }).catch(function () {
                 clearBtn.disabled = false;
-                if (!page.querySelector('[data-saved-filters]') && snapshot) {
-                    var toggleWrap = page.querySelector('[data-crm-view-toggle]');
-                    if (toggleWrap && toggleWrap.parentNode) {
-                        toggleWrap.parentNode.insertAdjacentElement('afterend', snapshot);
-                    }
-                }
                 showToast('Could not clear filters.', true);
             });
         }

@@ -17,6 +17,7 @@ class LeadImport extends Model
 
     protected $fillable = [
         'organization_id',
+        'lead_category_id',
         'uploaded_by',
         'original_filename',
         'stored_path',
@@ -53,6 +54,11 @@ class LeadImport extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'uploaded_by');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(LeadCategory::class, 'lead_category_id');
     }
 
     public function rows(): HasMany

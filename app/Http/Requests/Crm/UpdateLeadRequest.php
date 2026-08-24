@@ -5,6 +5,7 @@ namespace App\Http\Requests\Crm;
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Support\CrmOrgRules;
+use App\Support\LeadCategorySchema;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,12 +21,15 @@ class UpdateLeadRequest extends FormRequest
         if ($this->input('assigned_to') === '') {
             $this->merge(['assigned_to' => null]);
         }
+        if ($this->input('lead_category_id') === '') {
+            $this->merge(['lead_category_id' => null]);
+        }
     }
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return [
+        $rules = [
             'title' => ['nullable', 'string', 'max:50'],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['nullable', 'string', 'max:255'],
@@ -47,5 +51,11 @@ class UpdateLeadRequest extends FormRequest
             'estimated_value' => ['nullable', 'numeric', 'min:0'],
             'probability' => ['nullable', 'integer', 'min:0', 'max:100'],
         ];
+
+        if (LeadCategorySchema::ready()) {
+            $rules['lead_category_id'] = ['nullable', 'integer', CrmOrgRules::leadCategoryId()];
+        }
+
+        return $rules;
     }
 }

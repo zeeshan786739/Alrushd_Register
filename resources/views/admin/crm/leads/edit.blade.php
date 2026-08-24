@@ -25,6 +25,16 @@
                     <div class="col-md-4"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control radius-8" value="{{ old('phone', $lead->phone) }}"></div>
                     <div class="col-md-4"><label class="form-label">Company</label><input type="text" name="company" class="form-control radius-8" value="{{ old('company', $lead->company) }}"></div>
                     <div class="col-md-4"><label class="form-label">Source</label><input type="text" name="lead_source" class="form-control radius-8" value="{{ old('lead_source', $lead->lead_source) }}"></div>
+                    @if(($categories ?? collect())->isNotEmpty())
+                    <div class="col-md-4"><label class="form-label">Category</label>
+                        <select name="lead_category_id" class="form-select radius-8">
+                            <option value="">Uncategorized</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @selected((string) old('lead_category_id', $lead->lead_category_id) === (string) $category->id)>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                     <div class="col-md-4"><label class="form-label">Status</label><select name="lead_status" class="form-select radius-8">@foreach(\App\Enums\LeadStatus::cases() as $status)<option value="{{ $status->value }}" @selected(old('lead_status',$lead->lead_status)==$status->value)>{{ str_replace('_',' ',$status->value) }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Priority</label><select name="priority" class="form-select radius-8">@foreach(\App\Enums\LeadPriority::cases() as $priority)<option value="{{ $priority->value }}" @selected(old('priority',$lead->priority)==$priority->value)>{{ ucfirst($priority->value) }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Assigned To</label><select name="assigned_to" class="form-select radius-8"><option value="">Unassigned</option>@foreach($admins as $admin)<option value="{{ $admin->id }}" @selected(old('assigned_to',$lead->assigned_to)==$admin->id)>{{ $admin->name }}</option>@endforeach</select></div>

@@ -44,6 +44,12 @@
                     @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
                     @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
                     @include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])
+                    @if($lead->category)
+                        <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}">
+                            <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
+                            {{ $lead->category->name }}
+                        </span>
+                    @endif
                     @if($lead->is_converted)<span class="crm-status-pill crm-status-pill--accepted">Converted</span>@endif
                     @if($followUp->hasFollowUp())
                         <span class="{{ $followUp->badgeClass }}">
@@ -126,6 +132,7 @@
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Phone</strong>{{ $lead->phone ?? '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Company</strong>{{ $lead->company ?? '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Source</strong>{{ $lead->lead_source ?? $lead->source ?? '—' }}</div>
+                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Category</strong>{{ $lead->category?->name ?? '—' }}</div>
                         @if($lead->formEntry)
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Form Submission</strong><a href="{{ route('admin.crm.form-entries.show', $lead->formEntry) }}">View submission #{{ $lead->formEntry->id }}</a></div>
                         @endif

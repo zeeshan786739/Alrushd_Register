@@ -2,6 +2,36 @@
 @section('title', 'Leads')
 @section('content')
 @include('admin.crm.partials.styles')
+@php
+    $categoryFilterOptions = collect($categories ?? [])->pluck('name', 'id')->all();
+    if ((($segments['uncategorized']['total'] ?? 0) > 0) || request('lead_category_id') === 'uncategorized') {
+        $categoryFilterOptions = ['uncategorized' => 'Uncategorized'] + $categoryFilterOptions;
+    }
+    $statusInlineOptions = [];
+    foreach (\App\Enums\LeadStatus::cases() as $status) {
+        $statusInlineOptions[$status->value] = [
+            'label' => $status->label(),
+            'tone' => \App\Support\CrmStatusTone::for($status->value),
+            'icon' => \App\Support\CrmStatusTone::icon($status->value),
+        ];
+    }
+    $priorityInlineOptions = [];
+    foreach (\App\Enums\LeadPriority::cases() as $priority) {
+        $priorityInlineOptions[$priority->value] = [
+            'label' => $priority->label(),
+            'tone' => \App\Support\CrmStatusTone::for($priority->value),
+            'icon' => \App\Support\CrmStatusTone::icon($priority->value),
+        ];
+    }
+    $assigneeInlineOptions = ['' => ['label' => 'Unassigned', 'tone' => 'neutral', 'icon' => 'solar:user-linear']];
+    foreach ($admins as $admin) {
+        $assigneeInlineOptions[(string) $admin->id] = [
+            'label' => $admin->name,
+            'tone' => 'neutral',
+            'icon' => 'solar:user-linear',
+        ];
+    }
+@endphp
 <div class="dashboard-main-body crm-list-view" id="crm-leads-page"
      data-inline-url-template="{{ url('admin/crm/leads') }}/__ID__/inline"
      data-filter-clear-url="{{ route('admin.crm.leads.filters.clear') }}"
@@ -28,18 +58,21 @@
         <div class="col">@include('admin.partials.dashboard-stat-card', ['label'=>'Follow-up Today','value'=>$stats['follow_up_today'],'icon'=>'solar:calendar-linear','tone'=>'amber','badge'=>($stats['monthly_change']>=0?'+':'').$stats['monthly_change'].'%','badgeClass'=>$stats['monthly_change']>=0?'crm-stat-badge--up':'crm-stat-badge--down','footer'=>'vs last month'])</div>
     </div>
 
+    @include('admin.crm.leads.partials.segments', ['categories' => $categories ?? collect(), 'segments' => $segments ?? []])
+
     @include('admin.partials.filter-bar', [
         'action' => route('admin.crm.leads.index'),
         'resetUrl' => route('admin.crm.leads.index'),
-        'fields' => [
+        'fields' => array_values(array_filter([
             ['name'=>'search','label'=>'Search','placeholder'=>'Name, email, phone'],
+            \App\Support\LeadCategorySchema::ready() ? ['name'=>'lead_category_id','label'=>'Category','type'=>'select','options'=>$categoryFilterOptions] : null,
             ['name'=>'source','label'=>'Source','type'=>'select','options'=>$sourceOptions ?? []],
             ['name'=>'advertising_platform','label'=>'Platform','type'=>'select','options'=>$platformOptions ?? []],
             ['name'=>'campaign_name','label'=>'Campaign','placeholder'=>'Campaign name'],
             ['name'=>'lead_status','label'=>'Status','type'=>'select','options'=>\App\Enums\LeadStatus::options()],
             ['name'=>'priority','label'=>'Priority','type'=>'select','options'=>\App\Enums\LeadPriority::options()],
             ['name'=>'assigned_to','label'=>'Assigned To','type'=>'select','options'=>$admins->pluck('name','id')->all()],
-        ],
+        ])),
     ])
 
     <div class="d-flex justify-content-end mb-16">
@@ -103,56 +136,53 @@
                             <td>
                                 <div class="crm-lead-name text-truncate" style="max-width:220px" title="{{ $lead->full_name }}">{{ $lead->full_name }}</div>
                                 <div class="crm-lead-meta text-truncate" style="max-width:220px" title="{{ $lead->email ?? $lead->phone }}">{{ $lead->email ?? $lead->phone ?? '—' }}</div>
+                                @if($lead->category)
+                                    <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}" title="{{ $lead->category->name }}">
+                                        <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
+                                        {{ $lead->category->name }}
+                                    </span>
+                                @endif
                             </td>
                             <td>@include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])</td>
                             <td>
                                 @can('update leads')
-                                    <select class="form-select form-select-sm crm-inline-select"
-                                            data-crm-inline
-                                            data-field="lead_status"
-                                            data-lead-id="{{ $lead->id }}"
-                                            data-previous="{{ $lead->lead_status }}"
-                                            data-tone="{{ \App\Support\CrmStatusTone::for($lead->lead_status) }}"
-                                            aria-label="Status for {{ $lead->full_name }}">
-                                        @foreach(\App\Enums\LeadStatus::cases() as $status)
-                                            <option value="{{ $status->value }}" data-tone="{{ \App\Support\CrmStatusTone::for($status->value) }}" @selected($lead->lead_status === $status->value)>{{ $status->label() }}</option>
-                                        @endforeach
-                                    </select>
+                                    @include('admin.crm.partials.inline-control', [
+                                        'field' => 'lead_status',
+                                        'value' => $lead->lead_status,
+                                        'recordId' => $lead->id,
+                                        'idAttr' => 'data-lead-id',
+                                        'options' => $statusInlineOptions,
+                                        'ariaLabel' => 'Status for '.$lead->full_name,
+                                    ])
                                 @else
                                     @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
                                 @endcan
                             </td>
                             <td>
                                 @can('update leads')
-                                    <select class="form-select form-select-sm crm-inline-select"
-                                            data-crm-inline
-                                            data-field="priority"
-                                            data-lead-id="{{ $lead->id }}"
-                                            data-previous="{{ $lead->priority }}"
-                                            data-tone="{{ \App\Support\CrmStatusTone::for($lead->priority) }}"
-                                            aria-label="Priority for {{ $lead->full_name }}">
-                                        @foreach(\App\Enums\LeadPriority::cases() as $priority)
-                                            <option value="{{ $priority->value }}" data-tone="{{ \App\Support\CrmStatusTone::for($priority->value) }}" @selected($lead->priority === $priority->value)>{{ $priority->label() }}</option>
-                                        @endforeach
-                                    </select>
+                                    @include('admin.crm.partials.inline-control', [
+                                        'field' => 'priority',
+                                        'value' => $lead->priority,
+                                        'recordId' => $lead->id,
+                                        'idAttr' => 'data-lead-id',
+                                        'options' => $priorityInlineOptions,
+                                        'ariaLabel' => 'Priority for '.$lead->full_name,
+                                    ])
                                 @else
                                     @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
                                 @endcan
                             </td>
                             <td>
                                 @can('assign leads')
-                                    <select class="form-select form-select-sm crm-inline-select crm-inline-select--owner"
-                                            data-crm-inline
-                                            data-field="assigned_to"
-                                            data-lead-id="{{ $lead->id }}"
-                                            data-previous="{{ $lead->assigned_to }}"
-                                            data-tone="neutral"
-                                            aria-label="Assignee for {{ $lead->full_name }}">
-                                        <option value="" data-tone="neutral">Unassigned</option>
-                                        @foreach($admins as $admin)
-                                            <option value="{{ $admin->id }}" data-tone="neutral" @selected((int) $lead->assigned_to === (int) $admin->id)>{{ $admin->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    @include('admin.crm.partials.inline-control', [
+                                        'field' => 'assigned_to',
+                                        'value' => $lead->assigned_to ?? '',
+                                        'recordId' => $lead->id,
+                                        'idAttr' => 'data-lead-id',
+                                        'options' => $assigneeInlineOptions,
+                                        'owner' => true,
+                                        'ariaLabel' => 'Assignee for '.$lead->full_name,
+                                    ])
                                 @else
                                     <span class="text-sm">{{ $lead->assignedAdmin?->name ?? '—' }}</span>
                                 @endcan
@@ -189,6 +219,7 @@
                 </div>
                 <div class="text-sm text-secondary-light mb-12">
                     @include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])
+                    @if($lead->category) · {{ $lead->category->name }}@endif
                     · {{ ucfirst($lead->priority) }} · {{ $lead->assignedAdmin?->name ?? 'Unassigned' }}
                 </div>
                 @if($followUp->hasFollowUp())
@@ -203,8 +234,8 @@
         @csrf
         <div class="card-body p-20 d-flex flex-wrap gap-12 align-items-end">
             <div class="flex-grow-1"><label class="form-label text-sm">Save current filter</label><input type="text" name="name" class="form-control radius-8" placeholder="Filter name" required></div>
-            @foreach(request()->only(['search','source','advertising_platform','campaign_name','lead_status','priority','assigned_to','sort_by','sort_order']) as $key=>$value)
-                @if($value)<input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">@endif
+            @foreach(request()->only(['search','lead_category_id','source','advertising_platform','campaign_name','lead_status','priority','assigned_to','sort_by','sort_order']) as $key=>$value)
+                @if($value !== null && $value !== '')<input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">@endif
             @endforeach
             <button type="submit" class="btn btn-outline-primary-600 radius-8 px-20 py-11">Save Filter</button>
         </div>

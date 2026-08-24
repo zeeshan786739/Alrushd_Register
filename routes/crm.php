@@ -19,6 +19,9 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('leads/import', [LeadImportController::class, 'create'])->name('leads.import.create');
     Route::post('leads/import', [LeadImportController::class, 'store'])->name('leads.import.store');
     Route::get('leads/import/history', [LeadImportController::class, 'index'])->name('leads.import.index');
+    Route::get('leads/import/{leadImport}/category', [LeadImportController::class, 'category'])->name('leads.import.category');
+    Route::post('leads/import/{leadImport}/category', [LeadImportController::class, 'saveCategory'])->name('leads.import.category.save');
+    Route::post('leads/import/{leadImport}/categories', [LeadImportController::class, 'storeCategory'])->name('leads.import.categories.store');
     Route::get('leads/import/{leadImport}/map', [LeadImportController::class, 'map'])->name('leads.import.map');
     Route::post('leads/import/{leadImport}/map', [LeadImportController::class, 'saveMap'])->name('leads.import.map.save');
     Route::get('leads/import/{leadImport}/preview', [LeadImportController::class, 'preview'])->name('leads.import.preview');

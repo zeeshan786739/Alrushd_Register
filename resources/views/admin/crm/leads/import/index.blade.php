@@ -17,6 +17,16 @@
         ],
     ])
 
+    @if(($categories ?? collect())->isNotEmpty())
+        @include('admin.partials.filter-bar', [
+            'action' => route('admin.crm.leads.import.index'),
+            'resetUrl' => route('admin.crm.leads.import.index'),
+            'fields' => [
+                ['name'=>'lead_category_id','label'=>'Category','type'=>'select','options'=>['uncategorized'=>'Uncategorized'] + $categories->pluck('name','id')->all()],
+            ],
+        ])
+    @endif
+
     <div class="card radius-12 shadow-2 border-0">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -24,6 +34,7 @@
                     <thead>
                         <tr>
                             <th>File</th>
+                            <th>Category</th>
                             <th>Uploaded by</th>
                             <th>Date</th>
                             <th>Status</th>
@@ -40,6 +51,7 @@
                     @forelse($imports as $batch)
                         <tr>
                             <td>{{ $batch->original_filename }}</td>
+                            <td>{{ $batch->category?->name ?? '—' }}</td>
                             <td>{{ $batch->uploader?->name ?? '—' }}</td>
                             <td>{{ $batch->created_at->format('M j, Y H:i') }}</td>
                             <td>{{ $batch->statusEnum()->label() }}</td>
@@ -52,7 +64,7 @@
                             <td><a href="{{ route('admin.crm.leads.import.show', $batch) }}" class="btn btn-sm btn-outline-primary-600 radius-8">View</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="11" class="text-center py-40 text-secondary-light">No imports yet.</td></tr>
+                        <tr><td colspan="12" class="text-center py-40 text-secondary-light">No imports yet.</td></tr>
                     @endforelse
                     </tbody>
                 </table>

@@ -45,4 +45,15 @@ final class CrmOrgRules
                 ->where('organization_id', self::currentOrganizationId())
                 ->whereNull('deleted_at'));
     }
+
+    public static function leadCategoryId(bool $activeOnly = false): Exists
+    {
+        return Rule::exists('lead_categories', 'id')
+            ->where(function ($query) use ($activeOnly) {
+                $query->where('organization_id', self::currentOrganizationId());
+                if ($activeOnly) {
+                    $query->where('is_active', true);
+                }
+            });
+    }
 }

@@ -11,9 +11,17 @@
             ['label' => 'CRM'],
             ['label' => 'Leads', 'url' => route('admin.crm.leads.index')],
             ['label' => 'Import', 'url' => route('admin.crm.leads.import.create')],
+            ['label' => 'Category', 'url' => route('admin.crm.leads.import.category', $import)],
             ['label' => 'Mapping'],
         ],
     ])
+
+    @if($import->category)
+        <div class="alert alert-light border radius-8 mb-16">
+            Category for this batch: <strong>{{ $import->category->name }}</strong>
+            <a href="{{ route('admin.crm.leads.import.category', $import) }}" class="ms-8">Change</a>
+        </div>
+    @endif
 
     <form method="POST" action="{{ route('admin.crm.leads.import.map.save', $import) }}">
         @csrf

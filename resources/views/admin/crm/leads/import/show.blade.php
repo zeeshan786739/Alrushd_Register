@@ -28,7 +28,7 @@
     <div class="card radius-12 shadow-2 border-0 mb-24">
         <div class="card-body p-24">
             <h6 class="fw-semibold mb-12">Options</h6>
-            <div class="text-sm">Duplicate behavior: {{ $import->option('duplicate_behavior') }} · Status: {{ $import->option('default_status') }} · Label: {{ $import->option('source_label') ?: $import->original_filename }}</div>
+            <div class="text-sm">Category: {{ $import->category?->name ?? '—' }} · Duplicate behavior: {{ $import->option('duplicate_behavior') }} · Status: {{ $import->option('default_status') }} · Label: {{ $import->option('source_label') ?: $import->original_filename }}</div>
         </div>
     </div>
 

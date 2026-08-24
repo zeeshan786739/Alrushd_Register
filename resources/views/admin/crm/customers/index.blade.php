@@ -5,6 +5,22 @@
 @php
     $canUpdateCustomers = auth('admin')->user()?->can('update customers');
     $customerStatuses = ['active' => 'Active', 'inactive' => 'Inactive', 'prospect' => 'Prospect'];
+    $statusInlineOptions = [];
+    foreach ($customerStatuses as $value => $label) {
+        $statusInlineOptions[$value] = [
+            'label' => $label,
+            'tone' => \App\Support\CrmStatusTone::for($value),
+            'icon' => \App\Support\CrmStatusTone::icon($value),
+        ];
+    }
+    $ownerInlineOptions = ['' => ['label' => 'Unassigned', 'tone' => 'neutral', 'icon' => 'solar:user-linear']];
+    foreach ($admins as $admin) {
+        $ownerInlineOptions[(string) $admin->id] = [
+            'label' => $admin->name,
+            'tone' => 'neutral',
+            'icon' => 'solar:user-linear',
+        ];
+    }
 @endphp
 <div class="dashboard-main-body" id="crm-customers-page"
      data-inline-url-template="{{ url('admin/crm/customers') }}/__ID__/inline">
@@ -61,35 +77,27 @@
                             </td>
                             <td>
                                 @if($canUpdateCustomers)
-                                    <select class="form-select form-select-sm crm-inline-select"
-                                            data-crm-inline
-                                            data-field="status"
-                                            data-record-id="{{ $customer->id }}"
-                                            data-previous="{{ $customer->status }}"
-                                            data-tone="{{ \App\Support\CrmStatusTone::for($customer->status) }}"
-                                            aria-label="Status for {{ $customer->name }}">
-                                        @foreach($customerStatuses as $value => $label)
-                                            <option value="{{ $value }}" data-tone="{{ \App\Support\CrmStatusTone::for($value) }}" @selected($customer->status === $value)>{{ $label }}</option>
-                                        @endforeach
-                                    </select>
+                                    @include('admin.crm.partials.inline-control', [
+                                        'field' => 'status',
+                                        'value' => $customer->status,
+                                        'recordId' => $customer->id,
+                                        'options' => $statusInlineOptions,
+                                        'ariaLabel' => 'Status for '.$customer->name,
+                                    ])
                                 @else
                                     @include('admin.crm.partials.status-pill', ['status'=>$customer->status])
                                 @endif
                             </td>
                             <td>
                                 @if($canUpdateCustomers)
-                                    <select class="form-select form-select-sm crm-inline-select crm-inline-select--owner"
-                                            data-crm-inline
-                                            data-field="assigned_to"
-                                            data-record-id="{{ $customer->id }}"
-                                            data-previous="{{ $customer->assigned_to }}"
-                                            data-tone="neutral"
-                                            aria-label="Owner for {{ $customer->name }}">
-                                        <option value="">Unassigned</option>
-                                        @foreach($admins as $admin)
-                                            <option value="{{ $admin->id }}" @selected((int) $customer->assigned_to === (int) $admin->id)>{{ $admin->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    @include('admin.crm.partials.inline-control', [
+                                        'field' => 'assigned_to',
+                                        'value' => $customer->assigned_to ?? '',
+                                        'recordId' => $customer->id,
+                                        'options' => $ownerInlineOptions,
+                                        'owner' => true,
+                                        'ariaLabel' => 'Owner for '.$customer->name,
+                                    ])
                                 @else
                                     {{ $customer->assignedAdmin?->name ?? '—' }}
                                 @endif

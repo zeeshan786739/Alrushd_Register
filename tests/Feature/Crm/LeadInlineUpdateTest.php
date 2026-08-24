@@ -118,6 +118,7 @@ class LeadInlineUpdateTest extends CrmTestCase
             ->get(route('admin.crm.leads.index'))
             ->assertOk()
             ->assertSee('data-crm-inline', false)
+            ->assertSee('crm-inline-control', false)
             ->assertSee('crm-lead-row', false);
     }
 }

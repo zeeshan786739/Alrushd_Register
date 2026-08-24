@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Crm\Customer;
 use App\Models\Crm\Invoice;
 use App\Models\Crm\Lead;
+use App\Models\Crm\LeadCategory;
 use App\Models\Crm\LeadImport;
 use App\Models\Crm\Project;
 use App\Models\Crm\Quotation;
@@ -91,6 +92,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Route::bind('lead', fn (string $value) => Lead::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('leadImport', fn (string $value) => LeadImport::forCurrentOrganization()->whereKey($value)->firstOrFail());
+        Route::bind('leadCategory', fn (string $value) => LeadCategory::forCurrentOrganization()->whereKey($value)->firstOrFail());
         Route::bind('savedFilter', fn (string $value) => SavedFilter::forCurrentOrganization()
             ->where('admin_id', auth('admin')->id())
             ->whereKey($value)

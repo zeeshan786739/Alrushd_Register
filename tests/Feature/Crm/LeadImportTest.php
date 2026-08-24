@@ -4,7 +4,9 @@ namespace Tests\Feature\Crm;
 
 use App\Models\Admin;
 use App\Models\Crm\Lead;
+use App\Models\Crm\LeadCategory;
 use App\Models\Crm\LeadImport;
+use App\Support\LeadCategorySchema;
 use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -88,7 +90,7 @@ class LeadImportTest extends CrmTestCase
         $this->actingAsCrmAdmin()
             ->get(route('admin.crm.leads.show', $lead))
             ->assertOk()
-            ->assertSee('Additional Lead Information', false)
+            ->assertSee('Custom Lead Information', false)
             ->assertSee('𝐀𝐝𝐚', false);
     }
 
@@ -309,6 +311,29 @@ class LeadImportTest extends CrmTestCase
             ->assertRedirect();
 
         $import = LeadImport::forOrganization($this->organizationA->id)->latest('id')->firstOrFail();
+
+        if (LeadCategorySchema::ready()) {
+            $category = LeadCategory::query()->firstOrCreate(
+                [
+                    'organization_id' => $this->organizationA->id,
+                    'name' => 'General Enquiry',
+                ],
+                [
+                    'icon' => 'solar:folder-with-files-linear',
+                    'tone' => 'neutral',
+                    'is_active' => true,
+                ]
+            );
+
+            $this->actingAsCrmAdmin()
+                ->post(route('admin.crm.leads.import.category.save', $import), [
+                    'lead_category_id' => $category->id,
+                ])
+                ->assertRedirect(route('admin.crm.leads.import.map', $import));
+
+            $import = $import->fresh();
+        }
+
         $mapping = array_merge($import->mapping ?? [], $mappingOverrides);
 
         $this->actingAsCrmAdmin()

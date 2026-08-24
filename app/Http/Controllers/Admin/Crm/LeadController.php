@@ -11,11 +11,14 @@ use App\Http\Requests\Crm\StoreLeadRequest;
 use App\Http\Requests\Crm\UpdateLeadRequest;
 use App\Models\Admin;
 use App\Models\Crm\Lead;
+use App\Models\Crm\LeadCategory;
 use App\Models\Crm\SavedFilter;
 use App\Services\Crm\CrmTransactionalMailService;
 use App\Services\Crm\LeadConversionException;
 use App\Services\Crm\LeadConversionService;
 use App\Support\CrmEmailDeliverySummary;
+use App\Support\CrmStatusTone;
+use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
 use App\Support\LeadSourceOptions;
 use App\Support\OrganizationContext;
@@ -79,7 +82,42 @@ class LeadController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters'))
+        $categories = collect();
+        $segments = ['all' => ['total' => $stats['total'], 'new' => $stats['new']], 'uncategorized' => ['total' => 0, 'new' => 0], 'by_id' => []];
+
+        if (LeadCategorySchema::ready()) {
+            $categories = LeadCategory::forCurrentOrganization()
+                ->active()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get();
+
+            $aggregates = Lead::forCurrentOrganization()
+                ->selectRaw('lead_category_id, COUNT(*) as total, SUM(CASE WHEN lead_status = ? THEN 1 ELSE 0 END) as new_count', [LeadStatus::New->value])
+                ->groupBy('lead_category_id')
+                ->get();
+
+            $byId = [];
+            $uncategorized = ['total' => 0, 'new' => 0];
+            foreach ($aggregates as $row) {
+                $bucket = [
+                    'total' => (int) $row->total,
+                    'new' => (int) $row->new_count,
+                ];
+                if ($row->lead_category_id === null) {
+                    $uncategorized = $bucket;
+                } else {
+                    $byId[(int) $row->lead_category_id] = $bucket;
+                }
+            }
+            $segments = [
+                'all' => ['total' => $stats['total'], 'new' => $stats['new']],
+                'uncategorized' => $uncategorized,
+                'by_id' => $byId,
+            ];
+        }
+
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments'))
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('platformOptions', [
                 'facebook' => 'Facebook',
@@ -93,8 +131,11 @@ class LeadController extends Controller
     public function create(): View
     {
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $categories = LeadCategorySchema::ready()
+            ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
+            : collect();
 
-        return view('admin.crm.leads.create', compact('admins'));
+        return view('admin.crm.leads.create', compact('admins', 'categories'));
     }
 
     public function store(StoreLeadRequest $request): RedirectResponse
@@ -113,7 +154,7 @@ class LeadController extends Controller
     public function show(Lead $lead): View
     {
         $this->authorize('view', $lead);
-        $lead->load(['assignedAdmin', 'notes.admin', 'activities.admin', 'customer', 'formEntry', 'metaLeadSubmission.formMapping', 'leadImport.uploader']);
+        $lead->load(['assignedAdmin', 'notes.admin', 'activities.admin', 'customer', 'formEntry', 'metaLeadSubmission.formMapping', 'leadImport.uploader', 'category']);
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
         $emailHistory = CrmEmailDeliverySummary::latestForLead(
             (int) $lead->organization_id,
@@ -127,8 +168,11 @@ class LeadController extends Controller
     {
         $this->authorize('update', $lead);
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $categories = LeadCategorySchema::ready()
+            ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
+            : collect();
 
-        return view('admin.crm.leads.edit', compact('lead', 'admins'));
+        return view('admin.crm.leads.edit', compact('lead', 'admins', 'categories'));
     }
 
     public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse
@@ -202,6 +246,8 @@ class LeadController extends Controller
                 'field' => $field,
                 'value' => $value,
                 'label' => LeadStatus::tryFrom((string) $value)?->label() ?? $value,
+                'tone' => CrmStatusTone::for((string) $value),
+                'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Status updated.',
             ]);
         }
@@ -216,6 +262,8 @@ class LeadController extends Controller
                 'field' => $field,
                 'value' => $value,
                 'label' => LeadPriority::tryFrom((string) $value)?->label() ?? $value,
+                'tone' => CrmStatusTone::for((string) $value),
+                'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Priority updated.',
             ]);
         }
@@ -230,6 +278,8 @@ class LeadController extends Controller
                 'field' => $field,
                 'value' => null,
                 'label' => 'Unassigned',
+                'tone' => 'neutral',
+                'icon' => 'solar:user-linear',
                 'message' => 'Assignee cleared.',
             ]);
         }
@@ -243,6 +293,8 @@ class LeadController extends Controller
             'field' => $field,
             'value' => $assignee->id,
             'label' => $assignee->name,
+            'tone' => 'neutral',
+            'icon' => 'solar:user-linear',
             'message' => 'Assignee updated.',
         ]);
     }
@@ -452,7 +504,17 @@ class LeadController extends Controller
     private function filteredQuery(Request $request)
     {
         return Lead::forCurrentOrganization()
-            ->with(['assignedAdmin'])
+            ->with(array_filter([
+                'assignedAdmin',
+                LeadCategorySchema::ready() ? 'category' : null,
+            ]))
+            ->when(LeadCategorySchema::ready() && $request->filled('lead_category_id'), function ($q) use ($request) {
+                if ($request->lead_category_id === 'uncategorized') {
+                    $q->whereNull('lead_category_id');
+                } else {
+                    $q->where('lead_category_id', (int) $request->lead_category_id);
+                }
+            })
             ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', $status))
             ->when($request->priority, fn ($q, $priority) => $q->where('priority', $priority))
             ->when($request->assigned_to, fn ($q, $assigned) => $q->where('assigned_to', $assigned))

@@ -95,7 +95,7 @@ class LeadImportProcessor
         $followUpTime = is_string($fields['follow_up_time'] ?? null) ? $fields['follow_up_time'] : null;
         $sourceSubmittedAt = $this->carbonOrNull($fields['source_submitted_at'] ?? null);
 
-        $lead = Lead::create([
+        $attributes = [
             'organization_id' => $import->organization_id,
             'source' => 'file_import',
             'lead_source' => $options['source_label'] ?: $import->original_filename,
@@ -124,7 +124,13 @@ class LeadImportProcessor
             'custom_data' => $custom ?: null,
             'lead_import_id' => $import->id,
             'created_by' => $import->uploaded_by,
-        ]);
+        ];
+
+        if (\App\Support\LeadCategorySchema::ready()) {
+            $attributes['lead_category_id'] = $import->lead_category_id;
+        }
+
+        $lead = Lead::create($attributes);
 
         if (! empty($fields['notes'])) {
             LeadNote::create([

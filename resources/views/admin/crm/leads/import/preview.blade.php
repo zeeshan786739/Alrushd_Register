@@ -10,10 +10,22 @@
         'breadcrumbs' => [
             ['label' => 'CRM'],
             ['label' => 'Leads', 'url' => route('admin.crm.leads.index')],
+            ['label' => 'Category', 'url' => route('admin.crm.leads.import.category', $import)],
             ['label' => 'Mapping', 'url' => route('admin.crm.leads.import.map', $import)],
             ['label' => 'Preview'],
         ],
     ])
+
+    <div class="card radius-12 shadow-2 border-0 mb-24">
+        <div class="card-body p-20">
+            <div class="row g-3 text-sm">
+                <div class="col-md-3"><strong class="d-block text-secondary-light">Category</strong>{{ $import->category?->name ?? '—' }}</div>
+                <div class="col-md-3"><strong class="d-block text-secondary-light">File</strong>{{ $import->original_filename }}</div>
+                <div class="col-md-3"><strong class="d-block text-secondary-light">Rows</strong>{{ $import->total_rows }}</div>
+                <div class="col-md-3"><strong class="d-block text-secondary-light">Duplicates / warnings</strong>{{ $import->duplicate_rows }} / {{ $import->warning_rows }}</div>
+            </div>
+        </div>
+    </div>
 
     <div class="row g-3 mb-24">
         <div class="col-sm-6 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Total','value'=>$import->total_rows,'icon'=>'solar:document-linear','tone'=>'navy'])</div>
@@ -27,8 +39,12 @@
         <div class="alert alert-warning radius-8">This file hash was imported previously ({{ $previousImportCount }} completed batch{{ $previousImportCount > 1 ? 'es' : '' }}).</div>
     @endif
 
+    @if(!empty($mapped))
+        <div class="alert alert-light border radius-8">Mapped fields: {{ implode(', ', $mapped) }}</div>
+    @endif
+
     @if($unmapped)
-        <div class="alert alert-info radius-8">Unmapped columns will be stored as additional lead information: {{ implode(', ', $unmapped) }}</div>
+        <div class="alert alert-info radius-8">Additional / custom fields (stored in custom lead information): {{ implode(', ', $unmapped) }}</div>
     @endif
 
     <div class="card radius-12 shadow-2 border-0 mb-24">
