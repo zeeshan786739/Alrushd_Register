@@ -94,6 +94,7 @@ return [
         'admin.form-manager.*' => 'form_center',
         'admin.form-students.*' => 'form_submissions',
         'admin.form-student-*' => 'form_submissions',
+        'admin.enrollment-setup.*' => 'admissions',
         'admin.settings.*' => 'website_cms',
         'admin.website-cms.*' => 'website_cms',
         'admin.open-events.*' => 'open_events',

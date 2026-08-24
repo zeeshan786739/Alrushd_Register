@@ -32,14 +32,13 @@
                             @endif
                         </div>
                         @if($connected)
-                            <p class="text-sm mb-4"><strong>Advertiser account:</strong> {{ $connection->external_account_name }}</p>
-                            <p class="text-sm mb-4"><strong>Advertiser ID:</strong> <code>{{ $connection->external_account_id }}</code></p>
+                            <p class="text-sm mb-4"><strong>Advertiser account:</strong> {{ $connection->external_account_name ?? 'Connected' }}</p>
                             @if($connectedAt)
                                 <p class="text-sm text-secondary-light mb-0"><strong>Connected:</strong> {{ $connectedAt }}</p>
                             @endif
                         @else
                             <p class="text-sm text-secondary-light mb-0">
-                                Connect a TikTok Ads account and automatically send leads from TikTok Lead Generation Instant Forms into Digital Forms CRM.
+                                Connect a TikTok Ads account and automatically send leads from TikTok Lead Generation Instant Forms into your CRM.
                             </p>
                         @endif
                     </div>
@@ -79,7 +78,7 @@
                             <div class="border radius-8 p-20 h-100 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-16">
                                 <div>
                                     <p class="fw-medium mb-4">{{ $advertiser['name'] }}</p>
-                                    <p class="text-sm text-secondary-light mb-0">Advertiser ID: <code>{{ $advertiser['id'] }}</code></p>
+                                    <p class="text-sm text-secondary-light mb-0">TikTok Ads account</p>
                                 </div>
                                 @can('manage integrations')
                                     <form method="POST" action="{{ route('admin.integrations.tiktok.select-advertiser') }}" class="flex-shrink-0">
@@ -99,7 +98,7 @@
     <div class="card radius-12 shadow-2 border-0 mb-24">
         <div class="card-body p-24">
             <h6 class="mb-4">How setup works</h6>
-            <p class="text-sm text-secondary-light mb-20">Each school connects its own TikTok Ads account. Campaigns stay in TikTok Ads Manager — Digital Forms imports the leads.</p>
+            <p class="text-sm text-secondary-light mb-20">Each school connects its own TikTok Ads account. Campaigns stay in TikTok Ads Manager — Enrolliq imports the leads.</p>
             <div class="row g-3">
                 @foreach($setupSteps as $step)
                     <div class="col-12 col-sm-6 col-xl">
@@ -164,7 +163,7 @@
                         <iconify-icon icon="solar:user-plus-linear" width="20" class="text-primary-600"></iconify-icon>
                     </span>
                     <h6 class="mb-8">CRM Lead Creation</h6>
-                    <p class="text-sm text-secondary-light mb-0">Qualified submissions become CRM leads for follow-up in Digital Forms.</p>
+                    <p class="text-sm text-secondary-light mb-0">Qualified submissions become CRM leads you can follow up on in Enrolliq.</p>
                 </div>
             </div>
         </div>
@@ -263,7 +262,7 @@
                     <h6 class="mb-16">Setup status</h6>
                     <ul class="list-unstyled mb-0">
                         <li class="d-flex align-items-start justify-content-between gap-12 mb-16">
-                            <span class="text-sm">TikTok application configuration</span>
+                            <span class="text-sm">Integration service</span>
                             <span class="badge {{ $configOk ? 'bg-success-focus text-success-main' : 'bg-neutral-200 text-secondary-light' }} radius-8 flex-shrink-0">{{ $setupStatus['application'] }}</span>
                         </li>
                         <li class="d-flex align-items-start justify-content-between gap-12 mb-16">
@@ -296,13 +295,12 @@
                                 <h6 class="mb-8">Lead delivery</h6>
                                 @if($webhookSubscribed)
                                     <p class="text-sm text-secondary-light mb-0">
-                                        TikTok is subscribed to send Instant Form leads for this advertiser to Digital Forms.
+                                        TikTok is sending Instant Form leads to Enrolliq automatically.
                                     </p>
                                 @else
                                     <p class="text-sm text-secondary-light mb-12">
-                                        Lead delivery is not enabled yet. Enable it for this advertiser, or add this callback URL in the TikTok Events Manager / subscription settings.
+                                        Lead delivery is not enabled yet. Click the button to connect instant lead sync for this advertiser account.
                                     </p>
-                                    <p class="text-sm mb-0"><strong>Webhook URL:</strong> <code>{{ $webhookUrl }}</code></p>
                                 @endif
                             </div>
                             @can('manage integrations')
@@ -393,7 +391,7 @@
                 <div class="card-body p-24">
                     <h6 class="mb-8">Working with TikTok Ads Manager</h6>
                     <p class="text-sm text-secondary-light mb-0">
-                        Create and run campaigns in TikTok Ads Manager as usual. Digital Forms imports leads generated through TikTok Lead Generation / Instant Forms into this school’s CRM — it does not replace Ads Manager.
+                        Create and run campaigns in TikTok Ads Manager as usual. Enrolliq imports leads from TikTok Lead Generation Instant Forms into your CRM — it does not replace Ads Manager.
                     </p>
                 </div>
             </div>

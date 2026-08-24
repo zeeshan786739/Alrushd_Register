@@ -39,7 +39,7 @@
             @if(! $stats['mailbox_connected'])
                 Connect your mailbox so you can send campaigns and receive replies.
             @else
-                Add SendGrid configuration for reliable delivery and open/click tracking.
+                Finish your email settings to unlock delivery tracking and campaign analytics.
             @endif
         </p>
     </div>

@@ -88,9 +88,8 @@
             <div class="w-72-px h-72-px bg-primary-50 text-primary-600 rounded-circle d-flex align-items-center justify-content-center mx-auto mb-16">
                 <iconify-icon icon="solar:document-add-linear" class="text-3xl"></iconify-icon>
             </div>
-            <h6 class="fw-semibold mb-8">Form Center is not set up yet</h6>
-            <p class="text-secondary-light text-sm mb-20 max-w-500-px mx-auto">Run the setup command to import all existing forms and submission data into the unified system.</p>
-            <code class="d-inline-block bg-neutral-100 px-16 py-10 radius-8 text-sm mb-24">php artisan forms:setup</code>
+            <h6 class="fw-semibold mb-8">No forms yet</h6>
+            <p class="text-secondary-light text-sm mb-24 max-w-500-px mx-auto">Create your first form to collect enquiries, applications, or registrations. You can publish it on your website or share a direct link.</p>
             <div>
                 <a href="{{ route('admin.form-manager.create') }}" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn">
                     <iconify-icon icon="solar:add-circle-linear"></iconify-icon>

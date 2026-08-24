@@ -78,11 +78,12 @@ class DynamicFormController extends Controller
             'countries' => Country::query()->orderBy('name')->pluck('name')->values()->all(),
         ];
         $fieldModels = $form->fields->keyBy('key');
-        $schema['steps'] = collect($schema['steps'])->map(function ($step) use ($fieldModels) {
-            $step['fields'] = collect($step['fields'])->map(function ($field) use ($fieldModels) {
+        $optionsResolver = $this->options->forOrganization($form->organization_id);
+        $schema['steps'] = collect($schema['steps'])->map(function ($step) use ($fieldModels, $optionsResolver) {
+            $step['fields'] = collect($step['fields'])->map(function ($field) use ($fieldModels, $optionsResolver) {
                 $model = $fieldModels->get($field['key']);
 
-                return $model ? $this->options->resolveField($model) : $field;
+                return $model ? $optionsResolver->resolveField($model) : $field;
             })->values();
 
             return $step;

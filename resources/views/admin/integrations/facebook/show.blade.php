@@ -26,15 +26,14 @@
                             <span class="badge {{ $connection->status->badgeClass() }} radius-8">{{ $connection->status->label() }}</span>
                         </div>
                         <p class="text-sm mb-8"><strong>Page:</strong> {{ $connection->external_account_name }}</p>
-                        <p class="text-sm mb-8"><strong>Page ID:</strong> <code>{{ $connection->external_account_id }}</code></p>
-                        <p class="text-sm mb-8"><strong>Webhook:</strong>
+                        <p class="text-sm mb-8"><strong>Lead delivery:</strong>
                             @if($connection->webhook_subscribed_at || $connection->last_webhook_at)
-                                Confirmed {{ ($connection->last_webhook_at ?? $connection->webhook_subscribed_at)?->diffForHumans() }}
+                                Active — last lead {{ ($connection->last_webhook_at ?? $connection->webhook_subscribed_at)?->diffForHumans() }}
                             @else
-                                Not confirmed — send a test from Meta Webhooks
+                                Waiting for first lead — submit a test from Facebook Ads
                             @endif
                         </p>
-                        <p class="text-sm mb-16"><strong>Last lead received:</strong> {{ $connection->last_webhook_at?->diffForHumans() ?? 'Never' }}</p>
+                        <p class="text-sm mb-16"><strong>Last sync:</strong> {{ $connection->last_webhook_at?->diffForHumans() ?? 'No leads received yet' }}</p>
 
                         @can('manage integrations')
                         <div class="d-flex flex-wrap gap-8">
@@ -82,19 +81,6 @@
                     @endif
                 </div>
             </div>
-
-            <div class="card radius-12 shadow-2 border-0 mt-24">
-                <div class="card-body p-24">
-                    <h6 class="mb-12">Webhook URL</h6>
-                    <p class="text-sm text-secondary-light mb-12">Add this in your Meta App → Webhooks → Page → <code>leadgen</code>.</p>
-                    <div class="bg-neutral-50 radius-8 p-12">
-                        <code class="text-sm d-block text-break">{{ $webhookUrl }}</code>
-                    </div>
-                    <p class="text-sm text-secondary-light mt-12 mb-0">
-                        Verify token: configure <code>META_WEBHOOK_VERIFY_TOKEN</code> in your environment.
-                    </p>
-                </div>
-            </div>
         </div>
 
         <div class="col-xl-8">
@@ -110,7 +96,7 @@
                     @if($connection->formMappings->isEmpty())
                         <div class="text-center py-32 text-secondary-light">
                             <iconify-icon icon="solar:document-linear" width="40" class="mb-12"></iconify-icon>
-                            <p class="mb-0">No Lead Forms synced yet. Connect Facebook and click <strong>Sync Lead Forms</strong>, or add a form by ID below.</p>
+            <p class="text-sm text-secondary-light mb-0">Most forms appear after you click <strong>Sync Lead Forms</strong>. You can also add one manually below.</p>
                         </div>
                     @else
                         <div class="table-responsive">
@@ -130,7 +116,6 @@
                                     <tr>
                                         <td>
                                             <div class="fw-medium">{{ $mapping->external_form_name }}</div>
-                                            <code class="text-xs">{{ $mapping->external_form_id }}</code>
                                         </td>
                                         <td colspan="4">
                                             @can('manage integrations')
@@ -188,16 +173,16 @@
                     @if($connection->isConnected())
                     <div class="border-top pt-20 mt-20">
                         <p class="text-sm fw-medium mb-12">Add another form</p>
-                        <p class="text-sm text-secondary-light mb-12">Copy Form ID from Meta → Lead ads forms → click a form.</p>
+                        <p class="text-sm text-secondary-light mb-12">Most forms appear after you click <strong>Sync Lead Forms</strong>. If one is missing, your marketing team can provide the form reference from Facebook Ads Manager.</p>
                         <form method="POST" action="{{ route('admin.integrations.facebook.register-form') }}" class="row g-2 align-items-end">
                             @csrf
                             <div class="col-md-5">
-                                <label class="form-label text-sm" for="external_form_id">Form ID</label>
-                                <input type="text" name="external_form_id" id="external_form_id" class="form-control form-control-sm radius-8" placeholder="e.g. 1953833178916110" required>
+                                <label class="form-label text-sm" for="external_form_id">Form reference</label>
+                                <input type="text" name="external_form_id" id="external_form_id" class="form-control form-control-sm radius-8" placeholder="Paste form reference from Facebook" required>
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label text-sm" for="external_form_name">Form name (optional)</label>
-                                <input type="text" name="external_form_name" id="external_form_name" class="form-control form-control-sm radius-8" placeholder="FitRaho CRM Test">
+                                <label class="form-label text-sm" for="external_form_name">Display name (optional)</label>
+                                <input type="text" name="external_form_name" id="external_form_name" class="form-control form-control-sm radius-8" placeholder="e.g. Open day enquiry">
                             </div>
                             <div class="col-md-2">
                                 <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8 w-100">Add form</button>

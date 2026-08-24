@@ -19,7 +19,7 @@
     @include('admin.email-marketing.partials.nav')
 
     @if(empty($asmConfigured) && in_array($campaign->status, ['draft','scheduled']))
-        <div class="alert alert-warning radius-8">SendGrid ASM unsubscribe group is not configured for this organization. Marketing sends will still queue, but configure the group ID under Mailbox Settings for provider-side unsubscribe management.</div>
+        <div class="alert alert-warning radius-8">Unsubscribe links are not fully set up yet. Campaigns can still be sent — finish your email settings so recipients can opt out in one click.</div>
     @endif
 
     <div class="row g-3 mb-16">

@@ -32,7 +32,7 @@
                     </a>
                 </div>
                 <p class="text-sm acct-muted mt-16 mb-0">
-                    Admin login stays at <code>{{ url('/admin/login') }}</code> — customers never access the platform super admin panel.
+                    Your staff sign in through the same admin login — your public site is separate from this dashboard.
                 </p>
             </div>
         </div>
@@ -68,9 +68,9 @@
                 <div class="acct-dns-steps">
                     <p class="fw-semibold mb-8">DNS verification</p>
                     <ol class="acct-muted text-sm mb-16">
-                        <li>Add a TXT record on <code>{{ $verificationHost }}</code></li>
-                        <li>Value: <code>{{ $verificationRecord }}</code></li>
-                        <li>Point your domain CNAME to this app (or use your host's custom domain mapping)</li>
+                        <li>Add a TXT record for host <strong>{{ $verificationHost }}</strong></li>
+                        <li>Set the value to <strong>{{ $verificationRecord }}</strong></li>
+                        <li>Ask your domain provider to point your custom domain to Enrolliq (they can use the host and value above)</li>
                     </ol>
                     @if($organization->hasVerifiedCustomDomain())
                         <span class="badge bg-success-focus text-success-main radius-8 px-12 py-6">Verified</span>

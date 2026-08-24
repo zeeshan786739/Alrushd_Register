@@ -17,7 +17,7 @@
     <div class="card radius-12 shadow-2 border-0 mb-24">
         <div class="card-body p-24">
             <h5 class="mb-4">{{ $mapping->external_form_name }}</h5>
-            <p class="text-sm text-secondary-light mb-0">Form ID: <code>{{ $mapping->external_form_id }}</code></p>
+            <p class="text-sm text-secondary-light mb-0">Form reference: {{ $mapping->external_form_id }}</p>
         </div>
     </div>
 

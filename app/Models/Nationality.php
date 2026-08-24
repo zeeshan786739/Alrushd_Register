@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 
 class Nationality extends Model
 {
-    protected $guarded =[];
+    use BelongsToOrganization;
+
+    protected $guarded = [];
 }

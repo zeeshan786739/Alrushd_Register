@@ -430,7 +430,9 @@ class FormManagerController extends Controller
         $labels = FormOptionsResolver::sourceLabels();
         abort_unless(array_key_exists($source, $labels) && $source !== '', 404);
 
-        $options = app(FormOptionsResolver::class)->resolve($source);
+        $options = app(FormOptionsResolver::class)
+            ->forOrganization(auth('admin')->user()?->organization_id)
+            ->resolve($source);
 
         return response()->json([
             'source' => $source,

@@ -4,6 +4,7 @@ namespace App\Services\Tenant;
 
 use App\Models\Organization;
 use App\Models\WebsiteCms;
+use App\Services\Tenant\EnrollmentCatalogProvisioner;
 use Illuminate\Support\Str;
 
 /**
@@ -15,6 +16,7 @@ class TenantProvisioner
     {
         $this->provisionWebsiteCms($organization);
         $this->ensureDomainVerificationToken($organization);
+        app(EnrollmentCatalogProvisioner::class)->ensureDefaults($organization);
     }
 
     private function provisionWebsiteCms(Organization $organization): void

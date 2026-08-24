@@ -140,14 +140,14 @@
                 </div>
                 @unless($stripeReady)
                 <p class="acct-muted text-sm mt-16 mb-0">
-                    Paid plan checkout requires platform Stripe keys. Free and trial plans can be switched instantly above.
-                    Need help? Contact
-                    <a href="mailto:{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}">{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}</a>.
+                    Paid plans need online billing to be enabled for your account. Free plans switch instantly above.
+                    Need help?
+                    <a href="mailto:{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}">Contact support</a>.
                 </p>
                 @endunless
                 @if($portalUrl ?? null)
                 <p class="acct-muted text-sm mt-12 mb-0">
-                    <a href="{{ $portalUrl }}" target="_blank" rel="noopener">Manage payment methods in Stripe</a>
+                    <a href="{{ $portalUrl }}" target="_blank" rel="noopener">Manage your payment methods</a>
                 </p>
                 @endif
             </div>

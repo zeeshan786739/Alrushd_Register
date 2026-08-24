@@ -16,9 +16,17 @@ use App\Models\StudentLanguage;
 use App\Models\StudentPackage;
 use App\Models\StudentSubject;
 use App\Models\StudentYear;
+use Illuminate\Database\Eloquent\Builder;
 
 class FormOptionsResolver
 {
+    public function __construct(private ?int $organizationId = null) {}
+
+    public function forOrganization(?int $organizationId): self
+    {
+        return new self($organizationId);
+    }
+
     public function resolve(?string $source): array
     {
         if (! $source) {
@@ -115,7 +123,7 @@ class FormOptionsResolver
 
     private function resolveNationalities(): array
     {
-        $rows = Nationality::query()->where('status', 1)->orderBy('name')->pluck('name');
+        $rows = $this->scopedQuery(Nationality::query())->where('status', 1)->orderBy('name')->pluck('name');
         if ($rows->isEmpty()) {
             $rows = Country::query()->orderBy('name')->pluck('name');
         }
@@ -125,7 +133,7 @@ class FormOptionsResolver
 
     private function resolveAdmissionDates(): array
     {
-        return AdmissionDate::query()
+        return $this->scopedQuery(AdmissionDate::query())
             ->where('status', 1)
             ->orderBy('date')
             ->get(['date'])
@@ -136,12 +144,21 @@ class FormOptionsResolver
 
     private function pluckName(string $modelClass): array
     {
-        return $modelClass::query()
+        return $this->scopedQuery($modelClass::query())
             ->where('status', 1)
             ->orderBy('name')
             ->pluck('name')
             ->map(fn ($name) => ['value' => $name, 'label' => $name])
             ->values()
             ->all();
+    }
+
+    private function scopedQuery(Builder $query): Builder
+    {
+        if ($this->organizationId && $query->getModel()->isFillable('organization_id')) {
+            $query->where($query->getModel()->getTable().'.organization_id', $this->organizationId);
+        }
+
+        return $query;
     }
 }

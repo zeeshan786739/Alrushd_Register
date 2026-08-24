@@ -50,7 +50,7 @@
                 <label class="em-toggle-row">
                     <span class="em-toggle-row__text">
                         <strong>Test mode</strong>
-                        <small>Use test keys (pk_test_ / sk_test_) while setting up — no real charges.</small>
+                        <small>Practice mode — no real charges while you test checkout.</small>
                     </span>
                     <input class="em-toggle-row__input" type="checkbox" name="test_mode" value="1" @checked(old('test_mode', $settings->test_mode ?? true))>
                     <span class="em-toggle-row__switch" aria-hidden="true"></span>
@@ -61,24 +61,24 @@
                 <div class="em-form-block__head">
                     <span class="em-form-block__icon"><iconify-icon icon="solar:key-linear"></iconify-icon></span>
                     <div>
-                        <h3 class="em-form-block__title">API keys</h3>
-                        <p class="em-form-block__desc">Find these in your Stripe Dashboard → Developers → API keys.</p>
+                        <h3 class="em-form-block__title">Payment credentials</h3>
+                        <p class="em-form-block__desc">Enter the keys from your Stripe account settings. Your support team can help if you are unsure where to find them.</p>
                     </div>
                 </div>
 
                 <div class="row g-4">
                     <div class="col-12">
                         <label class="form-label" for="stripe_publishable_key">Publishable key</label>
-                        <input id="stripe_publishable_key" name="stripe_publishable_key" class="form-control radius-8" value="{{ old('stripe_publishable_key', $settings->stripe_publishable_key) }}" placeholder="pk_test_… or pk_live_…" autocomplete="off">
+                        <input id="stripe_publishable_key" name="stripe_publishable_key" class="form-control radius-8" value="{{ old('stripe_publishable_key', $settings->stripe_publishable_key) }}" placeholder="Starts with pk_" autocomplete="off">
                     </div>
                     <div class="col-12 col-lg-6">
                         <label class="form-label" for="stripe_secret">Secret key</label>
-                        <input id="stripe_secret" type="password" name="stripe_secret" class="form-control radius-8" value="" placeholder="{{ $settings->stripe_secret ? '•••••••• (leave blank to keep)' : 'sk_test_… or sk_live_…' }}" autocomplete="new-password">
+                        <input id="stripe_secret" type="password" name="stripe_secret" class="form-control radius-8" value="" placeholder="{{ $settings->stripe_secret ? '•••••••• (leave blank to keep)' : 'Starts with sk_' }}" autocomplete="new-password">
                         <div class="form-text">Never share this key. It stays encrypted on the server.</div>
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label class="form-label" for="stripe_webhook_secret">Webhook secret (optional)</label>
-                        <input id="stripe_webhook_secret" type="password" name="stripe_webhook_secret" class="form-control radius-8" value="" placeholder="{{ $settings->stripe_webhook_secret ? '•••••••• (leave blank to keep)' : 'whsec_…' }}" autocomplete="new-password">
+                        <label class="form-label" for="stripe_webhook_secret">Payment notifications (optional)</label>
+                        <input id="stripe_webhook_secret" type="password" name="stripe_webhook_secret" class="form-control radius-8" value="" placeholder="{{ $settings->stripe_webhook_secret ? '•••••••• (leave blank to keep)' : 'Optional — for automatic status updates' }}" autocomplete="new-password">
                         <div class="form-text">For automated payment status updates in a future release.</div>
                     </div>
                     <div class="col-12 col-lg-6">
@@ -94,14 +94,14 @@
                     <span class="em-form-block__icon"><iconify-icon icon="solar:question-circle-linear"></iconify-icon></span>
                     <div>
                         <h3 class="em-form-block__title">Need help?</h3>
-                        <p class="em-form-block__desc mb-0">Use test card <code>4242 4242 4242 4242</code> with any future expiry in test mode.</p>
+                        <p class="em-form-block__desc mb-0">Need help connecting Stripe? Contact your Enrolliq support team — we can walk you through setup.</p>
                     </div>
                 </div>
             </section>
         </div>
 
         <div class="em-settings-footer">
-            <p class="em-settings-footer__hint">Keys are scoped to this school only. Platform billing uses separate Stripe credentials.</p>
+            <p class="em-settings-footer__hint">These keys are used only to collect fees from your customers (parents, applicants).</p>
             <div class="d-flex flex-wrap gap-10">
                 @if($settings->stripe_secret)
                 <button formaction="{{ route('admin.account.payments.test') }}" formmethod="POST" class="btn btn-outline-neutral-500 radius-8 fc-btn" type="submit">

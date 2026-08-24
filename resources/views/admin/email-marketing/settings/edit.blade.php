@@ -65,7 +65,7 @@
                     <div class="em-settings-alert__body">
                         <strong>{{ $sendGridConfigured ? 'Configured' : 'Not configured' }}</strong>
                         <p>{{ $providerLabel }}</p>
-                        <p class="mb-0">API keys stay in server environment variables — never stored here.</p>
+                        <p class="mb-0">Email delivery is managed securely by Enrolliq — no API keys to paste here.</p>
                     </div>
                 </div>
             </section>
@@ -140,12 +140,12 @@
                     <span class="em-form-block__icon"><iconify-icon icon="solar:shield-check-linear"></iconify-icon></span>
                     <div>
                         <h3 class="em-form-block__title">Marketing unsubscribe</h3>
-                        <p class="em-form-block__desc">SendGrid ASM group for one-click unsubscribe on marketing mail.</p>
+                        <p class="em-form-block__desc">One-click unsubscribe for marketing emails (recommended for compliance).</p>
                     </div>
                 </div>
                 <div class="em-form-block__fields">
-                    <label class="form-label" for="sendgrid_asm_group_id">SendGrid unsubscribe group ID (ASM)</label>
-                    <input id="sendgrid_asm_group_id" type="number" min="1" name="sendgrid_asm_group_id" class="form-control radius-8 em-settings-input-narrow" value="{{ old('sendgrid_asm_group_id', $settings->sendgrid_asm_group_id) }}" placeholder="e.g. 12345">
+                    <label class="form-label" for="sendgrid_asm_group_id">Unsubscribe group reference</label>
+                    <input id="sendgrid_asm_group_id" type="number" min="1" name="sendgrid_asm_group_id" class="form-control radius-8 em-settings-input-narrow" value="{{ old('sendgrid_asm_group_id', $settings->sendgrid_asm_group_id) }}" placeholder="Provided by your email provider">
                 </div>
             </section>
 

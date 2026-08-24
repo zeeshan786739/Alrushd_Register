@@ -170,12 +170,8 @@
                 <h6 class="fw-semibold mb-0">Facebook Lead Ads</h6>
             </div>
             <div class="row g-3 text-sm">
-                <div class="col-md-6"><strong>Form mapping</strong><br>{{ $meta->formMapping?->internal_label ?? '—' }}</div>
-                <div class="col-md-6"><strong>Meta lead ID</strong><br><code>{{ $meta->meta_leadgen_id }}</code></div>
-                <div class="col-md-4"><strong>Form ID</strong><br>{{ $meta->meta_form_id ?? '—' }}</div>
-                <div class="col-md-4"><strong>Ad ID</strong><br>{{ $meta->meta_ad_id ?? '—' }}</div>
-                <div class="col-md-4"><strong>Campaign ID</strong><br>{{ $meta->meta_campaign_id ?? '—' }}</div>
-                <div class="col-md-6"><strong>Received</strong><br>{{ $meta->created_at->format('M j, Y H:i') }}</div>
+                <div class="col-md-6"><strong>Lead form</strong><br>{{ $meta->formMapping?->external_form_name ?? $meta->formMapping?->internal_label ?? '—' }}</div>
+                <div class="col-md-6"><strong>Received</strong><br>{{ $meta->created_at->format('M j, Y g:i A') }}</div>
             </div>
         </div>
     </div>

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 
 class StudentCourse extends Model
 {
+    use BelongsToOrganization;
+
     protected $guarded = [];
 
     public function group()

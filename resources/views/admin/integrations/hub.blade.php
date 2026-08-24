@@ -63,7 +63,7 @@
                     @if($facebookConnection?->isConnected())
                         <p class="text-sm mb-8"><strong>Page:</strong> {{ $facebookConnection->external_account_name }}</p>
                         <p class="text-sm mb-16 text-secondary-light">
-                            Last webhook: {{ $facebookConnection->last_webhook_at?->diffForHumans() ?? 'Never' }}
+                            Last lead received: {{ $facebookConnection->last_webhook_at?->diffForHumans() ?? 'None yet' }}
                         </p>
                     @endif
 
@@ -109,7 +109,7 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Lead ID</th>
+                            <th>Lead</th>
                             <th>Form</th>
                             <th>Status</th>
                             <th>Received</th>
@@ -118,8 +118,8 @@
                     <tbody>
                         @foreach($recentFacebookLeads as $submission)
                         <tr>
-                            <td><code>{{ $submission->meta_leadgen_id }}</code></td>
-                            <td>{{ $submission->meta_form_id ?? '—' }}</td>
+                            <td class="text-sm">{{ $submission->formMapping?->internal_label ?? 'Facebook lead' }}</td>
+                            <td>{{ $submission->formMapping?->external_form_name ?? $submission->formMapping?->internal_label ?? '—' }}</td>
                             <td><span class="badge bg-neutral-200 text-secondary-light radius-8">{{ ucfirst($submission->status->value) }}</span></td>
                             <td>{{ $submission->created_at->diffForHumans() }}</td>
                         </tr>

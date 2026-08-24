@@ -245,6 +245,25 @@ html.admin-pjax-enabled.admin-pjax-loading #crm-page-loader.is-active {
     padding-inline-start: 1.35rem !important;
 }
 
+.sidebar-submenu__heading {
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--crm-text-muted, #94a3b8) !important;
+    padding: 12px 1.35rem 4px !important;
+    margin-top: 4px;
+    pointer-events: none;
+    list-style: none;
+}
+.sidebar-submenu__heading:first-child {
+    margin-top: 0;
+    padding-top: 4px !important;
+}
+.sidebar-submenu li.sidebar-submenu__heading + li a {
+    padding-top: 6px;
+}
+
 .sidebar-menu a:focus-visible,
 .sidebar-toggle:focus-visible,
 .sidebar-close-btn:focus-visible {

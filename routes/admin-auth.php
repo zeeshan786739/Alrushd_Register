@@ -223,6 +223,12 @@ Route::prefix('admin')->name('admin.')
     Route::resource('open-event-form',OpenEventSubmissionFormController::class);
 
 
+    // Enrollment catalog hub
+    Route::get('enrollment-setup', [\App\Http\Controllers\Admin\EnrollmentSetupController::class, 'index'])->name('enrollment-setup.index');
+    Route::post('enrollment-setup/{type}', [\App\Http\Controllers\Admin\EnrollmentSetupController::class, 'store'])->name('enrollment-setup.store');
+    Route::put('enrollment-setup/{type}/{id}', [\App\Http\Controllers\Admin\EnrollmentSetupController::class, 'update'])->name('enrollment-setup.update');
+    Route::delete('enrollment-setup/{type}/{id}', [\App\Http\Controllers\Admin\EnrollmentSetupController::class, 'destroy'])->name('enrollment-setup.destroy');
+
     // Student
     Route::resource('student-groups',StudentGroupController::class);
     Route::resource('student-years',StudentYearController::class);

@@ -84,7 +84,7 @@
                            value="{{ $selectedCustomResource }}"
                            placeholder="e.g. reports, fee reminders, audit log"
                            data-builder-custom-input>
-                    <small class="text-secondary-light d-block mt-8">Use plain words. We’ll format it as <code>action feature</code> automatically.</small>
+                    <small class="text-secondary-light d-block mt-8">Use plain words — for example, “view reports” or “edit forms”. We format permissions automatically.</small>
                 </div>
 
                 <p class="um-builder-placeholder" data-builder-resource-placeholder>

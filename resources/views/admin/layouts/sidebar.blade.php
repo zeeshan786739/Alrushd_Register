@@ -177,16 +177,13 @@
     @endcanany
     @endif
 
-    {{-- ================= FORMS & SUBMISSIONS ================= --}}
+    {{-- ================= FORMS & INTAKE ================= --}}
     @php
         $canFormsSection = (
             plan_module('form_center')
-            || plan_module('form_submissions')
             || plan_module('admissions')
-            || plan_module('staff_applications')
         ) && (
             auth('admin')->check()
-            || auth('admin')->user()?->can('view form submissions')
             || auth('admin')->user()?->canany([
                 'create nationality','edit nationality','view nationality','delete nationality',
                 'create admission_date','edit admission_date','view admission_date','delete admission_date',
@@ -201,41 +198,40 @@
                 'create package','edit package','view package','delete package',
                 'create course','edit course','view course','delete course',
                 'create admission_studetns','edit admission_studetns','view admission_studetns','delete admission_studetns',
-                'create staff_application_form','edit staff_application_form','view staff_application_form','delete staff_application_form',
                 'view job','view apply','view enquire','view referral','view subscribe',
             ])
         );
     @endphp
     @if($canFormsSection)
-    <li class="sidebar-menu-group-title" role="presentation">Forms &amp; Submissions</li>
+    <li class="sidebar-menu-group-title" role="presentation">Forms &amp; Intake</li>
 
-    {{-- Form Center (definitions) --}}
+    {{-- Form Center — build & publish forms --}}
     @if(plan_module('form_center') && auth('admin')->check())
     <li>
         <a href="{{ route('admin.form-manager.index') }}"
            class="{{ AdminNav::linkClass('admin.form-manager.*') }}"
-           title="Form Center">
+           title="Build and manage dynamic forms">
             <iconify-icon icon="solar:widget-2-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
             <span>Form Center</span>
         </a>
     </li>
     @endif
 
-    {{-- Unified Form Submissions (CRM form_entries) --}}
-    @if(plan_module('form_submissions'))
-    @can('view form submissions')
+    {{-- Student application responses --}}
+    @if(plan_module('admissions'))
+    @canany(['create admission_studetns','edit admission_studetns','view admission_studetns','delete admission_studetns'])
     <li>
-        <a href="{{ route('admin.crm.form-entries.index') }}"
-           class="{{ AdminNav::linkClass('admin.crm.form-entries.*') }}"
-           title="Form Submissions">
-            <iconify-icon icon="solar:inbox-in-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>Form Submissions</span>
+        <a href="{{ route('admin.form-students.index') }}"
+           class="{{ AdminNav::linkClass('admin.form-students.*') }}"
+           title="Review student enrollment applications">
+            <iconify-icon icon="solar:user-id-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Student Applications</span>
         </a>
     </li>
-    @endcan
+    @endcanany
     @endif
 
-    {{-- Admission setup & student submissions --}}
+    {{-- Enrollment catalog — single hub for all setup lists --}}
     @if(plan_module('admissions'))
     @canany([
         'create nationality','edit nationality','view nationality','delete nationality',
@@ -250,174 +246,19 @@
         'create subject','edit subject','view subject','delete subject',
         'create package','edit package','view package','delete package',
         'create course','edit course','view course','delete course',
-        'create admission_studetns','edit admission_studetns','view admission_studetns','delete admission_studetns'
     ])
-    <li class="{{ AdminNav::dropdownClass([
-        'admin.nationality.*','admin.admission-date.*','admin.genders.*','admin.relation-ships.*',
-        'admin.countries.*','admin.terms.*','admin.student-school.*','admin.student-years.*',
-        'admin.student-language.*','admin.student-subject.*','admin.student-package.*',
-        'admin.student-course.*','admin.form-students.*'
-    ]) }}">
-        <a href="javascript:void(0)"
-           role="button"
-           aria-expanded="{{ AdminNav::expanded([
-               'admin.nationality.*','admin.admission-date.*','admin.genders.*','admin.relation-ships.*',
-               'admin.countries.*','admin.terms.*','admin.student-school.*','admin.student-years.*',
-               'admin.student-language.*','admin.student-subject.*','admin.student-package.*',
-               'admin.student-course.*','admin.form-students.*'
-           ]) }}"
-           aria-controls="nav-admissions"
-           title="Admissions">
-            <iconify-icon icon="solar:square-academic-cap-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>Admissions</span>
+    <li>
+        <a href="{{ route('admin.enrollment-setup.index') }}"
+           class="{{ AdminNav::linkClass(['admin.enrollment-setup.*','admin.student-course.*','admin.terms.*']) }}"
+           title="Manage courses, packages, fields, and enrollment options">
+            <iconify-icon icon="solar:settings-minimalistic-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Enrollment Setup</span>
         </a>
-        <ul class="sidebar-submenu" id="nav-admissions">
-            @canany(['create nationality','edit nationality','view nationality','delete nationality'])
-            <li>
-                <a href="{{ route('admin.nationality.index') }}" class="{{ AdminNav::linkClass('admin.nationality.*') }}" title="Nationalities">
-                    <iconify-icon icon="solar:flag-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Nationalities</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create admission_date','edit admission_date','view admission_date','delete admission_date'])
-            <li>
-                <a href="{{ route('admin.admission-date.index') }}" class="{{ AdminNav::linkClass('admin.admission-date.*') }}" title="Admission Dates">
-                    <iconify-icon icon="solar:calendar-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Admission Dates</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create gender','edit gender','view gender','delete gender'])
-            <li>
-                <a href="{{ route('admin.genders.index') }}" class="{{ AdminNav::linkClass('admin.genders.*') }}" title="Genders">
-                    <iconify-icon icon="solar:user-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Genders</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create relation_ship','edit relation_ship','view relation_ship','delete relation_ship'])
-            <li>
-                <a href="{{ route('admin.relation-ships.index') }}" class="{{ AdminNav::linkClass('admin.relation-ships.*') }}" title="Relationships">
-                    <iconify-icon icon="solar:link-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Relationships</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create country','edit country','view country','delete country'])
-            <li>
-                <a href="{{ route('admin.countries.index') }}" class="{{ AdminNav::linkClass('admin.countries.*') }}" title="Payment Countries">
-                    <iconify-icon icon="solar:global-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Payment Countries</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create terms_condition','edit terms_condition','view terms_condition','delete terms_condition'])
-            <li>
-                <a href="{{ route('admin.terms.index') }}" class="{{ AdminNav::linkClass('admin.terms.*') }}" title="Terms & Conditions">
-                    <iconify-icon icon="solar:document-text-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Terms &amp; Conditions</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create school','edit school','view school','delete school'])
-            <li>
-                <a href="{{ route('admin.student-school.index') }}" class="{{ AdminNav::linkClass('admin.student-school.*') }}" title="Schools">
-                    <iconify-icon icon="solar:buildings-2-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Schools</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create year','edit year','view year','delete year'])
-            <li>
-                <a href="{{ route('admin.student-years.index') }}" class="{{ AdminNav::linkClass('admin.student-years.*') }}" title="Years">
-                    <iconify-icon icon="solar:calendar-mark-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Years</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create language','edit language','view language','delete language'])
-            <li>
-                <a href="{{ route('admin.student-language.index') }}" class="{{ AdminNav::linkClass('admin.student-language.*') }}" title="Languages">
-                    <iconify-icon icon="solar:translation-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Languages</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create subject','edit subject','view subject','delete subject'])
-            <li>
-                <a href="{{ route('admin.student-subject.index') }}" class="{{ AdminNav::linkClass('admin.student-subject.*') }}" title="Subjects">
-                    <iconify-icon icon="solar:book-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Subjects</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create package','edit package','view package','delete package'])
-            <li>
-                <a href="{{ route('admin.student-package.index') }}" class="{{ AdminNav::linkClass('admin.student-package.*') }}" title="Packages">
-                    <iconify-icon icon="solar:box-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Packages</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create course','edit course','view course','delete course'])
-            <li>
-                <a href="{{ route('admin.student-course.index') }}" class="{{ AdminNav::linkClass('admin.student-course.*') }}" title="Courses">
-                    <iconify-icon icon="solar:notebook-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Courses</span>
-                </a>
-            </li>
-            @endcanany
-            @canany(['create admission_studetns','edit admission_studetns','view admission_studetns','delete admission_studetns'])
-            <li>
-                <a href="{{ route('admin.form-students.index') }}" class="{{ AdminNav::linkClass('admin.form-students.*') }}" title="Student Submissions">
-                    <iconify-icon icon="solar:user-id-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Student Submissions</span>
-                </a>
-            </li>
-            @endcanany
-        </ul>
     </li>
     @endcanany
     @endif
 
-    {{-- Staff Applications --}}
-    @if(plan_module('staff_applications'))
-    @canany([
-        'create staff_application_form','edit staff_application_form','view staff_application_form','delete staff_application_form'
-    ])
-    <li class="{{ AdminNav::dropdownClass(['admin.staff-applications-form.*','admin.staff-terms-condition']) }}">
-        <a href="javascript:void(0)"
-           role="button"
-           aria-expanded="{{ AdminNav::expanded(['admin.staff-applications-form.*','admin.staff-terms-condition']) }}"
-           aria-controls="nav-staff-apps"
-           title="Staff Applications">
-            <iconify-icon icon="solar:user-speak-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>Staff Applications</span>
-        </a>
-        <ul class="sidebar-submenu" id="nav-staff-apps">
-            <li>
-                <a href="{{ route('admin.staff-applications-form.index') }}"
-                   class="{{ AdminNav::linkClass('admin.staff-applications-form.*') }}"
-                   title="Staff Application Forms">
-                    <iconify-icon icon="solar:document-add-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Application Forms</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ route('admin.staff-terms-condition') }}"
-                   class="{{ AdminNav::linkClass('admin.staff-terms-condition') }}"
-                   title="Staff Terms & Conditions">
-                    <iconify-icon icon="solar:clipboard-text-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Terms &amp; Conditions</span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    @endcanany
-    @endif
-
-    {{-- API / intake applications --}}
+    {{-- Legacy / API-connected form feeds --}}
     @canany(['view job','view apply','view enquire','view referral','view subscribe'])
     <li class="{{ AdminNav::dropdownClass([
         'admin.job-applications','admin.job-applications.*',
@@ -433,61 +274,61 @@
                'admin.enquire-now','admin.referral-applications',
                'admin.direct-debit','admin.subscribe-applications'
            ]) }}"
-           aria-controls="nav-api-apps"
-           title="API Form Applications">
-            <iconify-icon icon="solar:programming-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>API Form Applications</span>
+           aria-controls="nav-api-intake"
+           title="Submissions from external website forms">
+            <iconify-icon icon="solar:link-round-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Website Intake</span>
         </a>
-        <ul class="sidebar-submenu" id="nav-api-apps">
+        <ul class="sidebar-submenu" id="nav-api-intake">
             @can('view job')
             <li>
-                <a href="{{ route('admin.job-applications') }}" class="{{ AdminNav::linkClass(['admin.job-applications','admin.job-applications.*']) }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Job Applications
+                <a href="{{ route('admin.job-applications') }}" class="{{ AdminNav::linkClass(['admin.job-applications','admin.job-applications.*']) }}" title="Job applications">
+                    <iconify-icon icon="solar:case-minimalistic-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Job Applications</span>
                 </a>
             </li>
             @endcan
             @can('view apply')
             <li>
-                <a href="{{ route('admin.apply-now') }}" class="{{ AdminNav::linkClass('admin.apply-now') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Apply Now
+                <a href="{{ route('admin.apply-now') }}" class="{{ AdminNav::linkClass('admin.apply-now') }}" title="Apply now submissions">
+                    <iconify-icon icon="solar:pen-new-square-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Apply Now</span>
                 </a>
             </li>
             <li>
-                <a href="{{ route('admin.online-madrasah') }}" class="{{ AdminNav::linkClass('admin.online-madrasah') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Online Madrasah
+                <a href="{{ route('admin.online-madrasah') }}" class="{{ AdminNav::linkClass('admin.online-madrasah') }}" title="Online madrasah sign-ups">
+                    <iconify-icon icon="solar:book-bookmark-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Online Madrasah</span>
                 </a>
             </li>
             @endcan
             @can('view enquire')
             <li>
-                <a href="{{ route('admin.enquire-now') }}" class="{{ AdminNav::linkClass('admin.enquire-now') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Enquire Now
+                <a href="{{ route('admin.enquire-now') }}" class="{{ AdminNav::linkClass('admin.enquire-now') }}" title="Enquiry form submissions">
+                    <iconify-icon icon="solar:chat-round-dots-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Enquiries</span>
                 </a>
             </li>
             @endcan
             @can('view referral')
             <li>
-                <a href="{{ route('admin.referral-applications') }}" class="{{ AdminNav::linkClass('admin.referral-applications') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Referral
+                <a href="{{ route('admin.referral-applications') }}" class="{{ AdminNav::linkClass('admin.referral-applications') }}" title="Referral submissions">
+                    <iconify-icon icon="solar:share-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Referrals</span>
                 </a>
             </li>
             <li>
-                <a href="{{ route('admin.direct-debit') }}" class="{{ AdminNav::linkClass('admin.direct-debit') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Direct Debit
+                <a href="{{ route('admin.direct-debit') }}" class="{{ AdminNav::linkClass('admin.direct-debit') }}" title="Direct debit sign-ups">
+                    <iconify-icon icon="solar:card-transfer-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Direct Debit</span>
                 </a>
             </li>
             @endcan
             @can('view subscribe')
             <li>
-                <a href="{{ route('admin.subscribe-applications') }}" class="{{ AdminNav::linkClass('admin.subscribe-applications') }}">
-                    <i class="ri-circle-fill circle-icon text-primary-600" aria-hidden="true"></i>
-                    Subscribe
+                <a href="{{ route('admin.subscribe-applications') }}" class="{{ AdminNav::linkClass('admin.subscribe-applications') }}" title="Newsletter / subscribe sign-ups">
+                    <iconify-icon icon="solar:letter-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Subscribe</span>
                 </a>
             </li>
             @endcan
