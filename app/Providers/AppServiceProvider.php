@@ -27,7 +27,7 @@ use App\Policies\EmailMarketing\CampaignPolicy;
 use App\Policies\EmailMarketing\MessagePolicy;
 use App\Policies\EmailMarketing\TemplatePolicy;
 use App\Services\EmailMarketing\Contracts\MailboxClientInterface;
-use App\Services\EmailMarketing\FakeMailboxClient;
+use App\Services\EmailMarketing\UnavailableMailboxClient;
 use App\Services\EmailMarketing\WebklexMailboxClient;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -57,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
                 return new WebklexMailboxClient;
             }
 
-            return new FakeMailboxClient;
+            return new UnavailableMailboxClient;
         });
     }
 

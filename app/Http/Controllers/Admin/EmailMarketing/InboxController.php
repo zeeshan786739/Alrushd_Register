@@ -9,6 +9,7 @@ use App\Services\EmailMarketing\AttachmentService;
 use App\Services\EmailMarketing\ComposeService;
 use App\Services\EmailMarketing\HtmlSanitizer;
 use App\Services\EmailMarketing\InboxSyncService;
+use App\Services\EmailMarketing\MailConfigResolver;
 use App\Support\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -346,7 +347,9 @@ class InboxController extends Controller
 
             return back()->with('success', 'Inbox synced. Imported '.$result['imported'].' message(s).');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Sync failed. Check mailbox settings.');
+            report($e);
+
+            return back()->with('error', $e->getMessage());
         }
     }
 
@@ -379,12 +382,16 @@ class InboxController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $mailbox = app(MailConfigResolver::class)->forOrganization(OrganizationContext::idOrFail());
+
         return view('admin.email-marketing.inbox.index', [
             'messages' => $messages,
             'folder' => $folder,
             'title' => $title,
             'counts' => $this->folderCounts(),
             'selected' => null,
+            'mailbox' => $mailbox,
+            'imapClientAvailable' => class_exists(\Webklex\PHPIMAP\ClientManager::class),
         ]);
     }
 

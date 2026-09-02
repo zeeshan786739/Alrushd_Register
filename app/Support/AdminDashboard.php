@@ -305,7 +305,7 @@ final class AdminDashboard
                 'label' => 'New campaign',
                 'desc' => 'Email your audience',
                 'url' => route('admin.email.campaigns.create'),
-                'icon' => 'solar:megaphone-linear',
+                'icon' => 'solar:add-circle-linear',
             ] : null,
             [
                 'label' => 'Form Center',

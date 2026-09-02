@@ -14,6 +14,7 @@ class MailboxSetting extends Model
     protected $fillable = [
         'organization_id', 'from_name', 'from_email', 'reply_to',
         'inbound_domain', 'inbound_enabled',
+        'sendgrid_api_key', 'sendgrid_event_webhook_public_key',
         'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password',
         'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_password',
         'inbox_folder', 'sent_folder', 'validate_cert', 'tracking_enabled',
@@ -21,11 +22,16 @@ class MailboxSetting extends Model
         'last_synced_at', 'last_sync_status', 'last_sync_error',
     ];
 
-    protected $hidden = ['smtp_password', 'imap_password'];
+    protected $hidden = [
+        'sendgrid_api_key', 'sendgrid_event_webhook_public_key',
+        'smtp_password', 'imap_password',
+    ];
 
     protected function casts(): array
     {
         return [
+            'sendgrid_api_key' => 'encrypted',
+            'sendgrid_event_webhook_public_key' => 'encrypted',
             'smtp_password' => 'encrypted',
             'imap_password' => 'encrypted',
             'validate_cert' => 'boolean',
@@ -55,6 +61,8 @@ class MailboxSetting extends Model
             return false;
         }
 
-        return filled(config('sendgrid.api_key')) || $this->isSmtpConfigured();
+        return filled($this->sendgrid_api_key)
+            || filled(config('sendgrid.api_key'))
+            || $this->isSmtpConfigured();
     }
 }

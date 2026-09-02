@@ -4876,10 +4876,12 @@ label.form-label {
 .em-inbox-search__field { position: relative; flex: 1 1 280px; min-width: 0; }
 .em-inbox-search__icon {
     position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    z-index: 1; width: 18px; height: 18px; display: inline-flex;
+    align-items: center; justify-content: center; line-height: 1;
     font-size: 18px; color: var(--crm-text-muted); pointer-events: none;
 }
 .em-inbox-search__field .form-control {
-    height: 42px; padding-left: 42px; background: var(--crm-surface);
+    height: 42px; padding-left: 44px !important; background: var(--crm-surface);
     border-color: var(--crm-border);
 }
 .em-inbox-panel__body {

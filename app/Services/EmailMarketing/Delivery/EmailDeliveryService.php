@@ -14,9 +14,9 @@ class EmailDeliveryService
     ) {
     }
 
-    public function sendGridConfigured(): bool
+    public function sendGridConfigured(?MailboxSetting $settings = null): bool
     {
-        return $this->sendGrid->isConfigured();
+        return $this->sendGrid->isConfigured($settings?->sendgrid_api_key);
     }
 
     public function activeProviderName(MailboxSetting $settings): string
@@ -41,7 +41,7 @@ class EmailDeliveryService
         }
 
         if ($this->preferSendGrid($settings)) {
-            return $this->sendGrid->send($email);
+            return $this->sendGrid->send($email, $settings->sendgrid_api_key);
         }
 
         $this->mailConfig->applyRuntimeConfig($settings);
@@ -55,7 +55,7 @@ class EmailDeliveryService
             return false;
         }
 
-        if (! $this->sendGrid->isConfigured()) {
+        if (! $this->sendGrid->isConfigured($settings->sendgrid_api_key)) {
             return false;
         }
 

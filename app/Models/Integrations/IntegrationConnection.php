@@ -7,6 +7,7 @@ use App\Enums\IntegrationPlatform;
 use App\Models\Admin;
 use App\Models\Organization;
 use App\Traits\BelongsToOrganization;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -59,9 +60,15 @@ class IntegrationConnection extends Model
 
     public function isConnected(): bool
     {
-        return $this->status === IntegrationConnectionStatus::Connected
-            && filled($this->access_token)
-            && filled($this->external_account_id);
+        try {
+            return $this->status === IntegrationConnectionStatus::Connected
+                && filled($this->access_token)
+                && filled($this->external_account_id);
+        } catch (DecryptException) {
+            // Database dumps may contain credentials encrypted with another
+            // application's key. They cannot be used until reconnected.
+            return false;
+        }
     }
 
     public static function forPlatform(Organization $organization, IntegrationPlatform $platform): self

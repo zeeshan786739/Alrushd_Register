@@ -25,7 +25,7 @@ final class LeadCategoryUi
             'solar:user-id-linear' => ['label' => 'Admin', 'icon' => 'solar:user-id-linear'],
             'solar:buildings-2-linear' => ['label' => 'Campus', 'icon' => 'solar:buildings-2-linear'],
             'solar:document-text-linear' => ['label' => 'Forms', 'icon' => 'solar:document-text-linear'],
-            'solar:megaphone-linear' => ['label' => 'Campaign', 'icon' => 'solar:megaphone-linear'],
+            'solar:letter-linear' => ['label' => 'Campaign', 'icon' => 'solar:letter-linear'],
             'solar:target-linear' => ['label' => 'Target', 'icon' => 'solar:target-linear'],
             'solar:phone-linear' => ['label' => 'Contact', 'icon' => 'solar:phone-linear'],
             'solar:star-linear' => ['label' => 'Featured', 'icon' => 'solar:star-linear'],

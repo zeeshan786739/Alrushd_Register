@@ -13,9 +13,9 @@ class MailConfigResolver
         return MailboxSetting::query()->where('organization_id', $organizationId)->first();
     }
 
-    public function sendGridConfigured(): bool
+    public function sendGridConfigured(?MailboxSetting $settings = null): bool
     {
-        return filled(config('sendgrid.api_key'));
+        return filled($settings?->sendgrid_api_key) || filled(config('sendgrid.api_key'));
     }
 
     public function canSend(?MailboxSetting $settings): bool
@@ -25,7 +25,7 @@ class MailConfigResolver
         }
 
         // SendGrid (global key) or classic per-org SMTP.
-        return $this->sendGridConfigured() || $settings->isSmtpConfigured();
+        return $this->sendGridConfigured($settings) || $settings->isSmtpConfigured();
     }
 
     public function applyRuntimeConfig(MailboxSetting $settings): void
@@ -71,7 +71,7 @@ class MailConfigResolver
 
         if (! $this->canSend($settings)) {
             throw new \RuntimeException(
-                $this->sendGridConfigured()
+                $this->sendGridConfigured($settings)
                     ? 'Mailbox is not enabled or From email is missing for this organization.'
                     : 'Mailbox SMTP is not configured for this organization.'
             );
@@ -82,7 +82,7 @@ class MailConfigResolver
 
     public function providerStatusLabel(MailboxSetting $settings): string
     {
-        if ($this->sendGridConfigured()) {
+        if ($this->sendGridConfigured($settings)) {
             return filled($settings->from_email) && $settings->is_enabled
                 ? 'SendGrid configured (org sender ready)'
                 : 'SendGrid API configured — enable mailbox and set From email';

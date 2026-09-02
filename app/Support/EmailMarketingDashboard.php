@@ -58,7 +58,7 @@ final class EmailMarketingDashboard
             'last_open_rate' => $lastCampaign?->openRate() ?? 0,
             'last_campaign_name' => $lastCampaign?->name,
             'mailbox_connected' => (bool) ($mailbox?->is_enabled && filled($mailbox?->from_email)),
-            'sendgrid_ready' => filled(config('sendgrid.api_key')) || filled($mailbox?->sendgrid_asm_group_id),
+            'sendgrid_ready' => filled($mailbox?->sendgrid_api_key) || filled(config('sendgrid.api_key')),
         ];
     }
 

@@ -13,14 +13,16 @@ class SendGridMailProvider implements MailProviderInterface
         return 'sendgrid';
     }
 
-    public function isConfigured(): bool
+    public function isConfigured(?string $apiKey = null): bool
     {
-        return filled(config('sendgrid.api_key'));
+        return filled($apiKey ?: config('sendgrid.api_key'));
     }
 
-    public function send(OutboundEmail $email): DeliveryResult
+    public function send(OutboundEmail $email, ?string $apiKey = null): DeliveryResult
     {
-        if (! $this->isConfigured()) {
+        $apiKey = $apiKey ?: (string) config('sendgrid.api_key');
+
+        if (! $this->isConfigured($apiKey)) {
             return DeliveryResult::failed($this->name(), 'SendGrid is not configured.');
         }
 
@@ -93,7 +95,7 @@ class SendGridMailProvider implements MailProviderInterface
         }
 
         try {
-            $response = Http::withToken((string) config('sendgrid.api_key'))
+            $response = Http::withToken($apiKey)
                 ->acceptJson()
                 ->baseUrl(rtrim((string) config('sendgrid.api_base'), '/'))
                 ->timeout(30)
@@ -102,7 +104,7 @@ class SendGridMailProvider implements MailProviderInterface
             if ($response->successful() || $response->status() === 202) {
                 $providerId = $response->header('X-Message-Id') ?: $response->header('X-Message-ID');
 
-                return DeliveryResult::accepted($this->name(), $providerId ?: null, 'processed');
+                return DeliveryResult::accepted($this->name(), $providerId ?: null, 'accepted');
             }
 
             Log::warning('SendGrid mail send rejected', [

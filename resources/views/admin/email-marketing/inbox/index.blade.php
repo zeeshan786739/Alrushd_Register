@@ -23,6 +23,27 @@
 @include('admin.email-marketing.partials.nav', ['folder' => $folder, 'skipModuleNav' => true, 'showInboxFolders' => true])
 
 <div class="em-inbox-panel em-panel">
+    @if($folder === 'inbox' && (! ($imapClientAvailable ?? false) || ! ($mailbox?->isImapConfigured() ?? false)))
+        <div class="alert alert-warning m-3 mb-0" role="alert">
+            <strong>Inbox connection required.</strong>
+            @if(! ($imapClientAvailable ?? false))
+                Install the project IMAP dependency with <code>composer require webklex/php-imap:^6.2</code>.
+            @else
+                Add the receiving mailbox's IMAP host, username, and app password in Mailbox Settings.
+            @endif
+            @can('manage mailbox settings')
+                <a href="{{ route('admin.email.mailbox.settings') }}" class="alert-link ms-1">Open Mailbox Settings</a>
+            @endcan
+        </div>
+    @elseif($folder === 'inbox' && ($mailbox?->last_sync_status === 'failed'))
+        <div class="alert alert-danger m-3 mb-0" role="alert">
+            <strong>Last inbox sync failed.</strong>
+            {{ $mailbox->last_sync_error ?: 'Verify the IMAP server and credentials.' }}
+            @can('manage mailbox settings')
+                <a href="{{ route('admin.email.mailbox.settings') }}" class="alert-link ms-1">Check Mailbox Settings</a>
+            @endcan
+        </div>
+    @endif
     <div class="em-inbox-panel__head em-panel__head">
         <div>
             <h2 class="em-panel__title">{{ $title }}</h2>

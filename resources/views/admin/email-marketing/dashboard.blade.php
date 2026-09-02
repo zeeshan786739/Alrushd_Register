@@ -17,7 +17,7 @@
             'label' => 'New campaign',
             'url' => route('admin.email.campaigns.create'),
             'class' => 'btn-primary-600 radius-8 px-20 py-11',
-            'icon' => 'solar:megaphone-linear',
+            'icon' => 'solar:add-circle-linear',
         ] : null,
         auth('admin')->user()?->can('compose emails') ? [
             'label' => 'Compose email',
@@ -54,7 +54,7 @@
 <div class="em-quick-actions mb-24">
     @can('create campaigns')
     <a href="{{ route('admin.email.campaigns.create') }}" class="em-quick-action">
-        <span class="em-quick-action__icon"><iconify-icon icon="solar:megaphone-linear"></iconify-icon></span>
+        <span class="em-quick-action__icon"><iconify-icon icon="solar:add-circle-linear"></iconify-icon></span>
         <span class="em-quick-action__text"><strong>New campaign</strong><small>Broadcast to your audience</small></span>
     </a>
     @endcan
@@ -127,7 +127,7 @@
             </div>
             @if($recentCampaigns->isEmpty())
                 <div class="em-empty-state em-empty-state--compact">
-                    <iconify-icon icon="solar:megaphone-linear"></iconify-icon>
+                    <iconify-icon icon="solar:letter-linear"></iconify-icon>
                     <h3>No campaigns yet</h3>
                     <p>Your first broadcast can target CRM leads, customers, form submissions, or a custom list.</p>
                 </div>

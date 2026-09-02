@@ -4,11 +4,11 @@
     $enum = ProviderStatus::tryFrom($status);
     $label = $enum?->label() ?? str_replace('_', ' ', ucfirst($status));
     // Distinguish provider-accepted from delivered.
-    if (in_array($status, ['sent', 'processed'], true)) {
-        $label = $status === 'sent' ? 'Accepted' : 'Processed';
+    if (in_array($status, ['sent', 'accepted', 'processed'], true)) {
+        $label = in_array($status, ['sent', 'accepted'], true) ? 'Accepted' : 'Processed';
     }
     $tone = $enum?->tone() ?? match ($status) {
-        'sent', 'processed' => 'info',
+        'sent', 'accepted', 'processed' => 'info',
         'failed', 'bounce', 'dropped', 'spamreport' => 'danger',
         'deferred', 'sending', 'queued', 'pending' => 'warning',
         'delivered', 'open', 'click' => 'success',
