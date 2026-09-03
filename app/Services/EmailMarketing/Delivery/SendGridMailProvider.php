@@ -109,9 +109,20 @@ class SendGridMailProvider implements MailProviderInterface
 
             Log::warning('SendGrid mail send rejected', [
                 'status' => $response->status(),
+                'errors' => $response->json('errors'),
             ]);
 
-            return DeliveryResult::failed($this->name(), 'Email provider rejected the message.');
+            $providerMessage = collect((array) $response->json('errors'))
+                ->pluck('message')
+                ->filter(fn ($message) => is_string($message) && $message !== '')
+                ->first();
+
+            return DeliveryResult::failed(
+                $this->name(),
+                $providerMessage
+                    ? 'SendGrid rejected the message: '.Str::limit($providerMessage, 350)
+                    : 'Email provider rejected the message.'
+            );
         } catch (\Throwable $e) {
             Log::warning('SendGrid mail send failed', [
                 'error' => Str::limit($e->getMessage(), 200),

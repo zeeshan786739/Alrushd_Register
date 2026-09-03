@@ -3,6 +3,7 @@
 namespace App\Services\EmailMarketing\Contracts;
 
 use App\Models\EmailMarketing\MailboxSetting;
+use App\Models\EmailMarketing\SenderMailbox;
 
 interface MailboxClientInterface
 {
@@ -21,5 +22,5 @@ interface MailboxClientInterface
      *   attachments: array<int, array{name:string,mime:?string,contents:string}>
      * }>
      */
-    public function fetchNewMessages(MailboxSetting $settings, ?string $sinceUid = null): array;
+    public function fetchNewMessages(MailboxSetting|SenderMailbox $settings, ?string $sinceUid = null): array;
 }

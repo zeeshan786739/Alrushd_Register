@@ -4,6 +4,7 @@ namespace App\Services\EmailMarketing;
 
 use App\Models\EmailMarketing\Message;
 use App\Models\EmailMarketing\MessageAttachment;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Models\EmailMarketing\SyncState;
 use App\Services\EmailMarketing\Contracts\MailboxClientInterface;
 use Illuminate\Support\Facades\DB;
@@ -20,16 +21,55 @@ class InboxSyncService
     ) {
     }
 
-    public function syncOrganization(int $organizationId): array
+    public function syncOrganization(int $organizationId, ?int $senderMailboxId = null): array
     {
+        $identityQuery = SenderMailbox::query()
+            ->where('organization_id', $organizationId)
+            ->available();
+
+        if ($senderMailboxId !== null && ! (clone $identityQuery)->whereKey($senderMailboxId)->exists()) {
+            return ['imported' => 0, 'skipped' => true, 'reason' => 'mailbox_not_found'];
+        }
+
+        $hasSenderIdentities = (clone $identityQuery)->exists();
+        $mailboxes = $identityQuery
+            ->when($senderMailboxId !== null, fn ($query) => $query->whereKey($senderMailboxId))
+            ->get()
+            ->filter(fn (SenderMailbox $mailbox) => $mailbox->isImapConfigured());
+
+        if ($mailboxes->isNotEmpty()) {
+            $imported = 0;
+            foreach ($mailboxes as $mailbox) {
+                $result = $this->syncMailbox($mailbox);
+                $imported += (int) ($result['imported'] ?? 0);
+            }
+
+            return ['imported' => $imported, 'skipped' => false];
+        }
+
+        if ($hasSenderIdentities) {
+            return ['imported' => 0, 'skipped' => true, 'reason' => 'imap_not_configured'];
+        }
+
         $settings = $this->mailConfig->forOrganization($organizationId);
 
         if (! $settings || ! $settings->is_enabled || ! $settings->isImapConfigured()) {
             return ['imported' => 0, 'skipped' => true, 'reason' => 'imap_not_configured'];
         }
 
+        return $this->syncMailbox($settings);
+    }
+
+    private function syncMailbox(object $settings): array
+    {
+        $organizationId = (int) $settings->organization_id;
+        $senderMailboxId = $settings instanceof SenderMailbox ? $settings->id : null;
         $state = SyncState::firstOrCreate(
-            ['organization_id' => $organizationId, 'mailbox' => $settings->inbox_folder ?: 'INBOX'],
+            [
+                'organization_id' => $organizationId,
+                'sender_mailbox_id' => $senderMailboxId,
+                'mailbox' => $settings->inbox_folder ?: 'INBOX',
+            ],
             ['last_uid' => null]
         );
 
@@ -38,7 +78,7 @@ class InboxSyncService
             $imported = 0;
             $maxUid = $state->last_uid;
 
-            DB::transaction(function () use ($fetched, $organizationId, &$imported, &$maxUid) {
+            DB::transaction(function () use ($fetched, $organizationId, $senderMailboxId, &$imported, &$maxUid) {
                 foreach ($fetched as $item) {
                     $messageId = $item['message_id'] ?: null;
                     $imapUid = (string) ($item['imap_uid'] ?? '');
@@ -49,6 +89,7 @@ class InboxSyncService
 
                     $exists = Message::query()
                         ->where('organization_id', $organizationId)
+                        ->where('sender_mailbox_id', $senderMailboxId)
                         ->where(function ($q) use ($messageId, $imapUid) {
                             $q->where('imap_uid', $imapUid);
                             if ($messageId) {
@@ -63,6 +104,7 @@ class InboxSyncService
 
                     $message = Message::create([
                         'organization_id' => $organizationId,
+                        'sender_mailbox_id' => $senderMailboxId,
                         'folder' => 'inbox',
                         'direction' => 'inbound',
                         'message_id' => $messageId ?: 'imap-'.$imapUid.'-'.Str::random(8),

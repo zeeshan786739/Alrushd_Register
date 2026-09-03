@@ -26,6 +26,20 @@
                     <input type="hidden" name="customer_id" value="{{ $prefill['customer_id'] ?? '' }}">
 
                     <div class="mb-16">
+                        <label class="form-label" for="sender_mailbox_id">From</label>
+                        <select id="sender_mailbox_id" name="sender_mailbox_id" class="form-select radius-8" required>
+                            @foreach($senderMailboxes as $sender)
+                                <option value="{{ $sender->id }}" @selected((int) old('sender_mailbox_id', $prefill['sender_mailbox_id'] ?? $senderMailboxes->firstWhere('is_default', true)?->id) === $sender->id)>
+                                    {{ $sender->name ? $sender->name.' — ' : '' }}{{ $sender->email }}{{ $sender->is_default ? ' (Default)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @if($senderMailboxes->isEmpty())
+                            <div class="form-text text-danger">Add and verify a sender in <a href="{{ route('admin.email.mailbox.settings') }}#sender-mailboxes">Mailbox Settings</a>.</div>
+                        @endif
+                    </div>
+
+                    <div class="mb-16">
                         <label class="form-label" for="to">To</label>
                         <input id="to" type="text" name="to" class="form-control radius-8" value="{{ old('to', $prefill['to'] ?? '') }}" required placeholder="email@example.com">
                     </div>

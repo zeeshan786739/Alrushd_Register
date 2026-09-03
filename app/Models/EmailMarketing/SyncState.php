@@ -12,7 +12,7 @@ class SyncState extends Model
     protected $table = 'em_sync_states';
 
     protected $fillable = [
-        'organization_id', 'mailbox', 'last_uid', 'last_synced_at',
+        'organization_id', 'sender_mailbox_id', 'mailbox', 'last_uid', 'last_synced_at',
     ];
 
     protected function casts(): array

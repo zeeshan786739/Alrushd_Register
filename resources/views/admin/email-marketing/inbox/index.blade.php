@@ -16,14 +16,25 @@
 ])
 
 @can('sync inbox')
-<form id="em-sync-form" method="POST" action="{{ route('admin.email.inbox.sync') }}" class="d-none">@csrf</form>
+<form id="em-sync-form" method="POST" action="{{ route('admin.email.inbox.sync') }}" class="d-none">
+    @csrf
+    @if($selectedSenderMailbox ?? null)<input type="hidden" name="sender_mailbox_id" value="{{ $selectedSenderMailbox->id }}">@endif
+</form>
 @endcan
 
 @php $folder = $folder ?? 'inbox'; @endphp
 @include('admin.email-marketing.partials.nav', ['folder' => $folder, 'skipModuleNav' => true, 'showInboxFolders' => true])
 
 <div class="em-inbox-panel em-panel">
-    @if($folder === 'inbox' && (! ($imapClientAvailable ?? false) || ! ($mailbox?->isImapConfigured() ?? false)))
+    @php
+        $inboxConnections = ($senderMailboxes ?? collect())->filter->isImapConfigured();
+        $activeInboxConnection = ($selectedSenderMailbox ?? null)
+            ? $selectedSenderMailbox->isImapConfigured()
+            : $inboxConnections->isNotEmpty();
+        $failedInbox = ($selectedSenderMailbox ?? null)
+            ?: $inboxConnections->first(fn ($item) => $item->last_sync_status === 'failed');
+    @endphp
+    @if($folder === 'inbox' && (! ($imapClientAvailable ?? false) || ! $activeInboxConnection))
         <div class="alert alert-warning m-3 mb-0" role="alert">
             <strong>Inbox connection required.</strong>
             @if(! ($imapClientAvailable ?? false))
@@ -35,10 +46,10 @@
                 <a href="{{ route('admin.email.mailbox.settings') }}" class="alert-link ms-1">Open Mailbox Settings</a>
             @endcan
         </div>
-    @elseif($folder === 'inbox' && ($mailbox?->last_sync_status === 'failed'))
+    @elseif($folder === 'inbox' && ($failedInbox?->last_sync_status === 'failed'))
         <div class="alert alert-danger m-3 mb-0" role="alert">
             <strong>Last inbox sync failed.</strong>
-            {{ $mailbox->last_sync_error ?: 'Verify the IMAP server and credentials.' }}
+            {{ $failedInbox->last_sync_error ?: 'Verify the IMAP server and credentials.' }}
             @can('manage mailbox settings')
                 <a href="{{ route('admin.email.mailbox.settings') }}" class="alert-link ms-1">Check Mailbox Settings</a>
             @endcan
@@ -58,6 +69,16 @@
 
     <div class="em-inbox-toolbar">
         <form method="GET" class="em-inbox-search">
+            @if(($senderMailboxes ?? collect())->isNotEmpty())
+            <select name="sender_mailbox_id" class="form-select radius-8" aria-label="Filter by mailbox" onchange="this.form.submit()" style="max-width: 290px">
+                <option value="">All mailboxes</option>
+                @foreach($senderMailboxes as $sender)
+                    <option value="{{ $sender->id }}" @selected(($selectedSenderMailbox?->id ?? null) === $sender->id)>
+                        {{ $sender->email }}{{ $sender->isImapConfigured() ? '' : ' (sending only)' }}
+                    </option>
+                @endforeach
+            </select>
+            @endif
             <div class="em-inbox-search__field">
                 <iconify-icon icon="solar:magnifer-linear" class="em-inbox-search__icon"></iconify-icon>
                 <input type="search" name="search" value="{{ request('search') }}" class="form-control radius-8" placeholder="Search subject, sender, or recipient" aria-label="Search emails">
@@ -85,6 +106,9 @@
                         </span>
                     </span>
                     <span class="em-mail-row__subject">{{ $msg->subject ?: '(no subject)' }}</span>
+                    @if($msg->senderMailbox && ($senderMailboxes ?? collect())->count() > 1)
+                        <span class="em-crm-chip">{{ $msg->senderMailbox->email }}</span>
+                    @endif
                     <span class="em-mail-row__preview">{{ \Illuminate\Support\Str::limit($msg->body_text ?: strip_tags((string) $msg->body_html), 120) }}</span>
                     @if($msg->folder === 'sent' && ($msg->lead_id || $msg->customer_id || $msg->quotation_id || $msg->invoice_id))
                     <span class="em-mail-row__tags">

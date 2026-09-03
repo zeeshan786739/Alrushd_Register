@@ -6,6 +6,7 @@ use App\Enums\EmailMarketing\CampaignStatus;
 use App\Enums\EmailMarketing\RecipientStatus;
 use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\CampaignRecipient;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Services\EmailMarketing\Delivery\EmailDeliveryService;
 use App\Services\EmailMarketing\Delivery\OutboundEmail;
 use App\Services\EmailMarketing\HtmlSanitizer;
@@ -84,6 +85,12 @@ class SendCampaignRecipientJob implements ShouldQueue
         }
 
         $settings = $mailConfig->resolveOrFail($recipient->organization_id);
+        $sender = $campaign->sender_mailbox_id
+            ? SenderMailbox::query()
+                ->where('organization_id', $recipient->organization_id)
+                ->available()
+                ->findOrFail($campaign->sender_mailbox_id)
+            : null;
 
         $unsubscribeUrl = route('email-marketing.unsubscribe.show', [
             'token' => $recipient->tracking_token,
@@ -114,12 +121,13 @@ class SendCampaignRecipientJob implements ShouldQueue
         $asmGroupId = $settings->sendgrid_asm_group_id ? (int) $settings->sendgrid_asm_group_id : null;
 
         $result = $delivery->send(new OutboundEmail(
-            fromEmail: (string) ($campaign->from_email ?: $settings->from_email),
-            fromName: $campaign->from_name ?: $settings->from_name,
+            fromEmail: (string) ($sender?->email ?: $campaign->from_email ?: $settings->from_email),
+            fromName: $campaign->from_name ?: $sender?->name ?: $settings->from_name,
             to: [strtolower($recipient->email)],
             subject: (string) $campaign->subject,
             html: $html,
             text: $sanitizer->toPlainText($html),
+            replyTo: $sender?->reply_to ?: $settings->reply_to ?: $sender?->email ?: $settings->from_email,
             customArgs: [
                 'correlation_uuid' => $correlationUuid,
             ],

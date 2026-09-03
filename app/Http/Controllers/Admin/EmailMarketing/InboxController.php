@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\EmailMarketing;
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\Message;
 use App\Models\EmailMarketing\MessageAttachment;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Services\EmailMarketing\AttachmentService;
 use App\Services\EmailMarketing\ComposeService;
 use App\Services\EmailMarketing\HtmlSanitizer;
@@ -52,8 +53,11 @@ class InboxController extends Controller
 
     public function starred(Request $request): View
     {
+        [$senderMailboxes, $selectedSenderMailbox] = $this->senderMailboxContext($request);
         $messages = Message::forCurrentOrganization()
             ->starred()
+            ->when($selectedSenderMailbox, fn ($query) => $query->where('sender_mailbox_id', $selectedSenderMailbox->id))
+            ->with('senderMailbox')
             ->withCount('attachments')
             ->when($request->search, fn ($q, $s) => $q->where(function ($inner) use ($s) {
                 $inner->where('subject', 'like', "%{$s}%")
@@ -72,6 +76,9 @@ class InboxController extends Controller
             'title' => 'Starred',
             'counts' => $counts,
             'selected' => null,
+            'senderMailboxes' => $senderMailboxes,
+            'selectedSenderMailbox' => $selectedSenderMailbox,
+            'imapClientAvailable' => class_exists(\Webklex\PHPIMAP\ClientManager::class),
         ]);
     }
 
@@ -121,6 +128,7 @@ class InboxController extends Controller
             'lead_id' => $request->get('lead_id'),
             'customer_id' => $request->get('customer_id'),
             'body_html' => '',
+            'sender_mailbox_id' => $request->integer('sender_mailbox_id') ?: null,
         ];
 
         if ($request->filled('draft_id')) {
@@ -134,12 +142,17 @@ class InboxController extends Controller
                 'lead_id' => $draft->lead_id,
                 'customer_id' => $draft->customer_id,
                 'draft_id' => $draft->id,
+                'sender_mailbox_id' => $draft->sender_mailbox_id,
             ];
         }
+
+        $senderMailboxes = SenderMailbox::forCurrentOrganization()->available()
+            ->orderByDesc('is_default')->orderBy('email')->get();
 
         return view('admin.email-marketing.inbox.compose', [
             'prefill' => $prefill,
             'counts' => $this->folderCounts(),
+            'senderMailboxes' => $senderMailboxes,
         ]);
     }
 
@@ -158,6 +171,7 @@ class InboxController extends Controller
             'draft_id' => 'nullable|integer',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:10240',
+            'sender_mailbox_id' => $this->senderMailboxRule(),
         ]);
 
         $orgId = OrganizationContext::idOrFail();
@@ -198,6 +212,7 @@ class InboxController extends Controller
             'draft_id' => 'nullable|integer',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:10240',
+            'sender_mailbox_id' => $this->senderMailboxRule(false),
         ]);
 
         $existing = null;
@@ -244,6 +259,7 @@ class InboxController extends Controller
                 'quotation_id' => $emMessage->quotation_id,
                 'invoice_id' => $emMessage->invoice_id,
                 'created_by' => auth('admin')->id(),
+                'sender_mailbox_id' => $emMessage->sender_mailbox_id,
             ]);
 
             return redirect()->route('admin.email.sent')->with('success', 'Reply sent.');
@@ -280,6 +296,7 @@ class InboxController extends Controller
                 'body_html' => ($validated['body_html'] ?? '').$quoted,
                 'parent_id' => $emMessage->id,
                 'created_by' => auth('admin')->id(),
+                'sender_mailbox_id' => $emMessage->sender_mailbox_id,
             ]);
 
             return redirect()->route('admin.email.sent')->with('success', 'Email forwarded.');
@@ -334,12 +351,20 @@ class InboxController extends Controller
         return redirect()->route($route)->with('success', 'Message deleted.');
     }
 
-    public function sync(): RedirectResponse
+    public function sync(Request $request): RedirectResponse
     {
         $this->authorize('sync', Message::class);
 
+        $senderMailboxId = $request->filled('sender_mailbox_id')
+            ? SenderMailbox::forCurrentOrganization()->whereKey($request->integer('sender_mailbox_id'))->value('id')
+            : null;
+
+        if ($request->filled('sender_mailbox_id') && ! $senderMailboxId) {
+            abort(404);
+        }
+
         try {
-            $result = $this->sync->syncOrganization(OrganizationContext::idOrFail());
+            $result = $this->sync->syncOrganization(OrganizationContext::idOrFail(), $senderMailboxId);
 
             if ($result['skipped'] ?? false) {
                 return back()->with('error', 'IMAP is not configured for this organization.');
@@ -368,8 +393,11 @@ class InboxController extends Controller
 
     private function folderView(Request $request, string $folder, string $title): View
     {
+        [$senderMailboxes, $selectedSenderMailbox] = $this->senderMailboxContext($request);
         $messages = Message::forCurrentOrganization()
             ->where('folder', $folder)
+            ->when($selectedSenderMailbox, fn ($query) => $query->where('sender_mailbox_id', $selectedSenderMailbox->id))
+            ->with('senderMailbox')
             ->withCount('attachments')
             ->when($request->search, function ($q, $s) {
                 $q->where(function ($inner) use ($s) {
@@ -391,8 +419,27 @@ class InboxController extends Controller
             'counts' => $this->folderCounts(),
             'selected' => null,
             'mailbox' => $mailbox,
+            'senderMailboxes' => $senderMailboxes,
+            'selectedSenderMailbox' => $selectedSenderMailbox,
             'imapClientAvailable' => class_exists(\Webklex\PHPIMAP\ClientManager::class),
         ]);
+    }
+
+    private function senderMailboxContext(Request $request): array
+    {
+        $mailboxes = SenderMailbox::forCurrentOrganization()
+            ->available()
+            ->orderByDesc('is_default')
+            ->orderBy('email')
+            ->get();
+
+        $selected = null;
+        if ($request->filled('sender_mailbox_id')) {
+            $selected = $mailboxes->firstWhere('id', $request->integer('sender_mailbox_id'));
+            abort_unless($selected, 404);
+        }
+
+        return [$mailboxes, $selected];
     }
 
     /** @return array<string, int> */
@@ -406,6 +453,24 @@ class InboxController extends Controller
             'sent' => (clone $base)->sent()->count(),
             'draft' => (clone $base)->draft()->count(),
             'starred' => (clone $base)->starred()->count(),
+        ];
+    }
+
+    private function senderMailboxRule(bool $required = true): array
+    {
+        // Legacy organizations without sender rows may still use their original
+        // mailbox setting. Once sender rows exist, an available one is mandatory.
+        $hasConfiguredSenders = SenderMailbox::forCurrentOrganization()->exists();
+
+        return [
+            $required && $hasConfiguredSenders ? 'required' : 'nullable',
+            'integer',
+            \Illuminate\Validation\Rule::exists('em_sender_mailboxes', 'id')->where(
+                fn ($query) => $query
+                    ->where('organization_id', OrganizationContext::idOrFail())
+                    ->where('is_active', true)
+                    ->where('is_verified', true)
+            ),
         ];
     }
 }

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin\EmailMarketing;
 
+use App\Enums\EmailMarketing\CampaignStatus;
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\MailboxSetting;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Models\EmailMarketing\Template;
 use App\Services\EmailMarketing\CampaignDispatchService;
 use App\Services\EmailMarketing\CampaignPreflightService;
@@ -49,9 +51,15 @@ class CampaignController extends Controller
     public function create(): View
     {
         $templates = Template::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get();
+        $mailbox = MailboxSetting::query()
+            ->where('organization_id', OrganizationContext::idOrFail())
+            ->first();
+        $senderMailboxes = $this->availableSenders();
 
         return view('admin.email-marketing.campaigns.create', [
             'templates' => $templates,
+            'mailbox' => $mailbox,
+            'senderMailboxes' => $senderMailboxes,
             'leadStatuses' => LeadStatus::options(),
             'leadPriorities' => LeadPriority::options(),
         ]);
@@ -60,10 +68,15 @@ class CampaignController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validated($request);
+        $mailbox = $this->campaignMailbox();
+        $sender = $this->campaignSender((int) $validated['sender_mailbox_id']);
         $campaign = Campaign::create([
             ...$validated,
             'organization_id' => OrganizationContext::idOrFail(),
             'body_html' => $this->sanitizer->sanitize($validated['body_html'] ?? ''),
+            'sender_mailbox_id' => $sender->id,
+            'from_email' => $sender->email,
+            'from_name' => $validated['from_name'] ?: $sender->name,
             'status' => CampaignStatus::Draft->value,
             'created_by' => auth('admin')->id(),
             'recipient_filters' => $this->recipientFilters($request),
@@ -72,7 +85,14 @@ class CampaignController extends Controller
         $this->dispatcher->snapshotRecipients($campaign);
 
         if ($request->boolean('send_now')) {
-            $this->dispatcher->dispatch($campaign->fresh());
+            try {
+                $this->dispatcher->dispatch($campaign->fresh());
+            } catch (\Throwable $e) {
+                report($e);
+
+                return redirect()->route('admin.email.campaigns.show', $campaign)
+                    ->withErrors(['send' => $e->getMessage()]);
+            }
 
             return redirect()->route('admin.email.campaigns.show', $campaign)
                 ->with('success', 'Campaign queued for delivery.');
@@ -124,10 +144,14 @@ class CampaignController extends Controller
         $this->authorize('update', $emCampaign);
         abort_unless($emCampaign->status === CampaignStatus::Draft->value, 403, 'Only drafts can be edited.');
         $templates = Template::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get();
+        $mailbox = $this->campaignMailbox();
+        $senderMailboxes = $this->availableSenders();
 
         return view('admin.email-marketing.campaigns.edit', [
             'campaign' => $emCampaign,
             'templates' => $templates,
+            'mailbox' => $mailbox,
+            'senderMailboxes' => $senderMailboxes,
             'leadStatuses' => LeadStatus::options(),
             'leadPriorities' => LeadPriority::options(),
         ]);
@@ -139,9 +163,14 @@ class CampaignController extends Controller
         abort_unless($emCampaign->status === CampaignStatus::Draft->value, 403);
 
         $validated = $this->validated($request);
+        $mailbox = $this->campaignMailbox();
+        $sender = $this->campaignSender((int) $validated['sender_mailbox_id']);
         $emCampaign->update([
             ...$validated,
             'body_html' => $this->sanitizer->sanitize($validated['body_html'] ?? ''),
+            'sender_mailbox_id' => $sender->id,
+            'from_email' => $sender->email,
+            'from_name' => $validated['from_name'] ?: $sender->name,
             'recipient_filters' => $this->recipientFilters($request),
         ]);
 
@@ -175,8 +204,22 @@ class CampaignController extends Controller
 
     public function schedule(Request $request, Campaign $emCampaign): RedirectResponse
     {
-        $this->authorize('send', $emCampaign);
+        $this->authorize('schedule', $emCampaign);
+        abort_unless(
+            in_array($emCampaign->status, [CampaignStatus::Draft->value, CampaignStatus::Scheduled->value], true),
+            403,
+            'Only draft or scheduled campaigns can be scheduled.'
+        );
+
         $validated = $request->validate(['scheduled_at' => 'required|date|after:now']);
+
+        if ($emCampaign->recipients()->count() === 0) {
+            $this->dispatcher->snapshotRecipients($emCampaign);
+        }
+
+        if ($emCampaign->recipients()->count() === 0) {
+            return back()->withErrors(['schedule' => 'Campaign has no eligible recipients.']);
+        }
 
         $emCampaign->update([
             'status' => CampaignStatus::Scheduled->value,
@@ -254,6 +297,16 @@ class CampaignController extends Controller
             'subject' => 'required|string|max:255',
             'from_name' => 'nullable|string|max:150',
             'from_email' => 'nullable|email',
+            'sender_mailbox_id' => [
+                'required',
+                'integer',
+                \Illuminate\Validation\Rule::exists('em_sender_mailboxes', 'id')->where(
+                    fn ($query) => $query
+                        ->where('organization_id', OrganizationContext::idOrFail())
+                        ->where('is_active', true)
+                        ->where('is_verified', true)
+                ),
+            ],
             'body_html' => 'required|string',
             'template_id' => 'nullable|integer',
             'recipient_source' => 'required|in:leads,customers,form_entries,manual,selected_leads,selected_customers,selected_form_entries,integration_leads',
@@ -268,5 +321,31 @@ class CampaignController extends Controller
             'form_entry_ids' => 'nullable|array',
             'tracking_enabled' => 'nullable|boolean',
         ]);
+    }
+
+    private function campaignMailbox(): MailboxSetting
+    {
+        $mailbox = MailboxSetting::query()
+            ->where('organization_id', OrganizationContext::idOrFail())
+            ->first();
+
+        abort_unless(
+            $mailbox?->isSendReady(),
+            422,
+            'Configure and enable a verified sender in Mailbox Settings before creating a campaign.'
+        );
+
+        return $mailbox;
+    }
+
+    private function availableSenders()
+    {
+        return SenderMailbox::forCurrentOrganization()->available()
+            ->orderByDesc('is_default')->orderBy('email')->get();
+    }
+
+    private function campaignSender(int $id): SenderMailbox
+    {
+        return SenderMailbox::forCurrentOrganization()->available()->findOrFail($id);
     }
 }

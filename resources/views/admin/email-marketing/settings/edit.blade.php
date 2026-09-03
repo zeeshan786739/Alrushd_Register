@@ -7,19 +7,21 @@
     'shellSubtitle' => 'Configure sender identity, SendGrid tracking, and optional SMTP/IMAP fallback.',
 ])
 
+@include('admin.email-marketing.settings.sender-mailboxes')
+
 <div class="em-panel em-settings-panel">
     <form method="POST" action="{{ route('admin.email.mailbox.settings.update') }}" class="em-settings-form">
         @csrf
         @method('PUT')
 
         <div class="em-settings-stack">
-            {{-- Sender identity --}}
+            {{-- Module availability --}}
             <section class="em-form-block">
                 <div class="em-form-block__head">
                     <span class="em-form-block__icon"><iconify-icon icon="solar:user-id-linear"></iconify-icon></span>
                     <div>
-                        <h3 class="em-form-block__title">Sender identity</h3>
-                        <p class="em-form-block__desc">How recipients see your school in the inbox.</p>
+                        <h3 class="em-form-block__title">Email Marketing</h3>
+                        <p class="em-form-block__desc">Global controls for this workspace. Sender identities and inboxes are managed above.</p>
                     </div>
                 </div>
 
@@ -31,22 +33,6 @@
                     <input class="em-toggle-row__input" type="checkbox" name="is_enabled" value="1" id="is_enabled" @checked(old('is_enabled', $settings->is_enabled))>
                     <span class="em-toggle-row__switch" aria-hidden="true"></span>
                 </label>
-
-                <div class="em-form-block__fields row g-4">
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <label class="form-label" for="from_name">From name</label>
-                        <input id="from_name" name="from_name" class="form-control radius-8" value="{{ old('from_name', $settings->from_name) }}" placeholder="e.g. Al-Rushd Admissions">
-                    </div>
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <label class="form-label" for="from_email">From email</label>
-                        <input id="from_email" type="email" name="from_email" class="form-control radius-8" value="{{ old('from_email', $settings->from_email) }}" placeholder="hello@yourschool.com">
-                    </div>
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <label class="form-label" for="reply_to">Reply-to</label>
-                        <input id="reply_to" type="email" name="reply_to" class="form-control radius-8" value="{{ old('reply_to', $settings->reply_to) }}" placeholder="replies@yourschool.com">
-                        <div class="form-text">Optional when inbound reply routing is enabled.</div>
-                    </div>
-                </div>
             </section>
 
             {{-- SendGrid --}}
@@ -167,7 +153,8 @@
                 </div>
             </section>
 
-            {{-- SMTP / IMAP fallback --}}
+            @if(false)
+            {{-- Legacy global SMTP / IMAP fallback intentionally hidden. Sender-level IMAP is configured above. --}}
             <details class="em-form-block em-form-block--collapsible">
                 <summary class="em-form-block__summary">
                     <span class="em-form-block__head em-form-block__head--inline">
@@ -253,6 +240,7 @@
                     </label>
                 </div>
             </details>
+            @endif
         </div>
 
         <div class="em-settings-footer">

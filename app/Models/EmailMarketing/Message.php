@@ -20,7 +20,7 @@ class Message extends Model
     protected $table = 'em_messages';
 
     protected $fillable = [
-        'organization_id', 'folder', 'direction', 'message_id', 'correlation_uuid', 'imap_uid', 'thread_id', 'parent_id',
+        'organization_id', 'sender_mailbox_id', 'folder', 'direction', 'message_id', 'correlation_uuid', 'imap_uid', 'thread_id', 'parent_id',
         'from_email', 'from_name', 'to', 'cc', 'bcc', 'subject', 'body_html', 'body_text',
         'delivery_status', 'delivery_error', 'provider', 'provider_message_id', 'provider_status',
         'is_read', 'is_starred',
@@ -45,6 +45,11 @@ class Message extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(MessageAttachment::class, 'message_id');
+    }
+
+    public function senderMailbox(): BelongsTo
+    {
+        return $this->belongsTo(SenderMailbox::class, 'sender_mailbox_id');
     }
 
     public function parent(): BelongsTo

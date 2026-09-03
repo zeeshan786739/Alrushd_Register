@@ -45,6 +45,8 @@
             <form method="POST" action="{{ route('admin.email.campaigns.send', $campaign) }}" onsubmit="return confirm('Queue this campaign for delivery?')">@csrf
                 <button class="btn btn-primary-600 radius-8">Send now</button>
             </form>
+            @endcan
+            @can('schedule campaigns')
             <form method="POST" action="{{ route('admin.email.campaigns.schedule', $campaign) }}" class="d-flex gap-8">@csrf
                 <label class="visually-hidden" for="scheduled_at">Schedule</label>
                 <input id="scheduled_at" type="datetime-local" name="scheduled_at" class="form-control radius-8" required>

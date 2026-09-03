@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\EmailMarketing\CampaignController;
 use App\Http\Controllers\Admin\EmailMarketing\DashboardController;
 use App\Http\Controllers\Admin\EmailMarketing\InboxController;
 use App\Http\Controllers\Admin\EmailMarketing\MailboxSettingsController;
+use App\Http\Controllers\Admin\EmailMarketing\SenderMailboxController;
 use App\Http\Controllers\Admin\EmailMarketing\TemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,8 +43,12 @@ Route::prefix('email-marketing')->name('email.')->group(function () {
     Route::post('templates/{emTemplate}/duplicate', [TemplateController::class, 'duplicate'])->name('templates.duplicate');
     Route::get('templates/{emTemplate}/preview', [TemplateController::class, 'preview'])->name('templates.preview');
     Route::get('templates/{emTemplate}/body', [TemplateController::class, 'body'])->name('templates.body');
+    Route::post('templates/image-upload', [TemplateController::class, 'uploadImage'])->middleware('throttle:20,1')->name('templates.image-upload');
     Route::resource('templates', TemplateController::class)->except(['show'])->parameters(['templates' => 'emTemplate']);
 
     Route::get('mailbox-settings', [MailboxSettingsController::class, 'edit'])->name('mailbox.settings');
     Route::put('mailbox-settings', [MailboxSettingsController::class, 'update'])->name('mailbox.settings.update');
+    Route::post('mailbox-settings/senders', [SenderMailboxController::class, 'store'])->name('mailbox.senders.store');
+    Route::put('mailbox-settings/senders/{senderMailbox}', [SenderMailboxController::class, 'update'])->name('mailbox.senders.update');
+    Route::delete('mailbox-settings/senders/{senderMailbox}', [SenderMailboxController::class, 'destroy'])->name('mailbox.senders.destroy');
 });

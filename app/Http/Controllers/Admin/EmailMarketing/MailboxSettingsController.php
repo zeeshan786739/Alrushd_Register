@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\EmailMarketing;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\MailboxSetting;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,8 +26,12 @@ class MailboxSettingsController extends Controller
         $mailConfig = app(\App\Services\EmailMarketing\MailConfigResolver::class);
         $providerLabel = $mailConfig->providerStatusLabel($settings);
         $sendGridConfigured = $mailConfig->sendGridConfigured($settings);
+        $senderMailboxes = SenderMailbox::forCurrentOrganization()
+            ->orderByDesc('is_default')
+            ->orderBy('email')
+            ->get();
 
-        return view('admin.email-marketing.settings.edit', compact('settings', 'providerLabel', 'sendGridConfigured'));
+        return view('admin.email-marketing.settings.edit', compact('settings', 'providerLabel', 'sendGridConfigured', 'senderMailboxes'));
     }
 
     public function update(Request $request): RedirectResponse

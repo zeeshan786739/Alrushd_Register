@@ -3,6 +3,7 @@
 namespace App\Services\EmailMarketing;
 
 use App\Models\EmailMarketing\MailboxSetting;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Services\EmailMarketing\Contracts\MailboxClientInterface;
 use Illuminate\Support\Facades\Log;
 
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  */
 class WebklexMailboxClient implements MailboxClientInterface
 {
-    public function fetchNewMessages(MailboxSetting $settings, ?string $sinceUid = null): array
+    public function fetchNewMessages(MailboxSetting|SenderMailbox $settings, ?string $sinceUid = null): array
     {
         if (! class_exists(\Webklex\PHPIMAP\ClientManager::class)) {
             Log::warning('EmailMarketing: webklex/php-imap is not installed; inbox sync skipped.');
