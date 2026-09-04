@@ -2,6 +2,7 @@
 @section('title', 'Leads')
 @section('content')
 @include('admin.crm.partials.styles')
+@include('admin.crm.leads.partials.premium-styles')
 @php
     $categoryFilterOptions = collect($categories ?? [])->pluck('name', 'id')->all();
     if ((($segments['uncategorized']['total'] ?? 0) > 0) || request('lead_category_id') === 'uncategorized') {
@@ -134,6 +135,9 @@
                             data-href="{{ route('admin.crm.leads.show', $lead) }}"
                             aria-label="Open lead {{ $lead->full_name }}">
                             <td>
+                                <div class="crm-lead-identity">
+                                <span class="crm-lead-avatar" aria-hidden="true">{{ \App\Support\UserManagementHelper::initials($lead->full_name) }}</span>
+                                <div class="crm-lead-identity__text">
                                 <div class="crm-lead-name text-truncate" style="max-width:220px" title="{{ $lead->full_name }}">{{ $lead->full_name }}</div>
                                 <div class="crm-lead-meta text-truncate" style="max-width:220px" title="{{ $lead->email ?? $lead->phone }}">{{ $lead->email ?? $lead->phone ?? '—' }}</div>
                                 @if($lead->category)
@@ -142,6 +146,8 @@
                                         {{ $lead->category->name }}
                                     </span>
                                 @endif
+                                </div>
+                                </div>
                             </td>
                             <td>@include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])</td>
                             <td>
@@ -246,5 +252,5 @@
 </div>
 @endsection
 @section('script')
-<script src="{{ asset('admin/assets/js/crm-leads.js') }}"></script>
+<script src="{{ asset('admin/assets/js/crm-leads.js') }}?v={{ filemtime(public_path('admin/assets/js/crm-leads.js')) }}"></script>
 @endsection

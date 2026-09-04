@@ -175,6 +175,23 @@ class LeadImportValueNormalizer
             }
         }
 
+        $aliases = [
+            'pending' => LeadStatus::New->value,
+            'pending_admission' => LeadStatus::New->value,
+            'in_progress' => LeadStatus::Contacted->value,
+            'successful' => LeadStatus::Won->value,
+            'succesful' => LeadStatus::Won->value,
+            'confirmed_admission' => LeadStatus::Won->value,
+            'unsuccessful' => LeadStatus::Lost->value,
+            'unsuccesful' => LeadStatus::Lost->value,
+            'spam_/_not_interested' => LeadStatus::Lost->value,
+            'spam_not_interested' => LeadStatus::Lost->value,
+            'not_interested' => LeadStatus::Lost->value,
+        ];
+        if (isset($aliases[$value])) {
+            return [$aliases[$value], []];
+        }
+
         return [$default, ['Unknown status "'.$this->stringify($raw).'" defaulted to '.$default]];
     }
 

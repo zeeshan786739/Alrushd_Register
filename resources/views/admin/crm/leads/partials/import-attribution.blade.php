@@ -1,8 +1,9 @@
-@if($lead->isFromImport() || $lead->advertising_platform || $lead->campaign_name || $lead->custom_data || $lead->category)
-<div class="card radius-12 shadow-2 border-0 mb-24">
+@if($lead->isFromImport() || $lead->advertising_platform || $lead->campaign_name || $lead->adset_name || $lead->ad_name || $lead->form_name || $lead->custom_data || $lead->category)
+<div class="card radius-12 shadow-2 border-0 mb-24 crm-detail-secondary-card">
     <div class="card-body p-24">
-        <h6 class="fw-semibold mb-16">Ingestion &amp; Classification</h6>
-        <div class="row g-3 text-sm">
+        <section class="crm-detail-section">
+        <h6 class="crm-detail-section__title">Ingestion &amp; Classification</h6>
+        <div class="row g-3 text-sm crm-detail-facts">
             <div class="col-md-6"><strong>Ingestion source</strong><br>{{ \App\Support\LeadSourceOptions::label($lead->source) }}</div>
             <div class="col-md-6"><strong>Category</strong><br>
                 @if($lead->category)
@@ -20,30 +21,25 @@
             @endif
             <div class="col-md-6"><strong>Original source timestamp</strong><br>{{ optional($lead->source_submitted_at)->format('M j, Y H:i') ?? '—' }}</div>
         </div>
-    </div>
-</div>
-@endif
+        </section>
 
 @if($lead->advertising_platform || $lead->campaign_name || $lead->adset_name || $lead->ad_name || $lead->form_name)
-<div class="card radius-12 shadow-2 border-0 mb-24">
-    <div class="card-body p-24">
-        <h6 class="fw-semibold mb-16">Platform / Campaign Attribution</h6>
-        <div class="row g-3 text-sm">
+        <section class="crm-detail-section">
+        <h6 class="crm-detail-section__title">Platform / Campaign Attribution</h6>
+        <div class="row g-3 text-sm crm-detail-facts">
             <div class="col-md-6"><strong>Platform</strong><br>{{ $lead->advertising_platform ? ucfirst($lead->advertising_platform) : '—' }}</div>
             <div class="col-md-6"><strong>Campaign</strong><br>{{ $lead->campaign_name ?? '—' }}</div>
             <div class="col-md-6"><strong>Ad set</strong><br>{{ $lead->adset_name ?? '—' }}</div>
             <div class="col-md-6"><strong>Ad / creative</strong><br>{{ $lead->ad_name ?? '—' }}</div>
             <div class="col-md-6"><strong>Form</strong><br>{{ $lead->form_name ?? '—' }}</div>
         </div>
-    </div>
-</div>
+        </section>
 @endif
 
 @if(!empty($lead->custom_data) && is_array($lead->custom_data))
-<div class="card radius-12 shadow-2 border-0 mb-24">
-    <div class="card-body p-24">
-        <h6 class="fw-semibold mb-16">Custom Lead Information</h6>
-        <div class="row g-3 text-sm">
+        <section class="crm-detail-section">
+        <h6 class="crm-detail-section__title">Custom Lead Information</h6>
+        <div class="row g-3 text-sm crm-detail-facts">
             @foreach($lead->custom_data as $label => $value)
                 <div class="col-md-6">
                     <strong>{{ $label }}</strong><br>{{ is_scalar($value) ? $value : json_encode($value) }}
@@ -69,6 +65,8 @@
                 </details>
             @endif
         @endcan
+        </section>
+@endif
     </div>
 </div>
 @endif

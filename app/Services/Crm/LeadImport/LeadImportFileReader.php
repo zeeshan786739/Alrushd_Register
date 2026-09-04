@@ -22,6 +22,7 @@ class LeadImportFileReader
      *     sheets: array<int, array{name: string, row_count: int, has_data: bool}>,
      *     selected_sheet: string,
      *     header_row: int,
+     *     data_start_row: int,
      *     headers: array<int, array{key: string, label: string, index: int}>,
      *     rows: array<int, array{row_number: int, values: array<string, mixed>}>,
      *     sample_values: array<string, array<int, string>>
@@ -55,9 +56,11 @@ class LeadImportFileReader
 
             $rows = [];
             $sampleValues = [];
-            $lastRow = min($highestRow, $detectedHeaderRow + $maxRows);
+            $scanLastRow = min($highestRow, $detectedHeaderRow + $maxRows);
+            $dataStartRow = $this->detectDataStartRow($sheet, $headers, $detectedHeaderRow, $scanLastRow);
+            $lastRow = min($highestRow, $dataStartRow + $maxRows - 1);
 
-            for ($row = $detectedHeaderRow + 1; $row <= $lastRow; $row++) {
+            for ($row = $dataStartRow; $row <= $lastRow; $row++) {
                 $values = [];
                 $empty = true;
                 foreach ($headers as $header) {
@@ -76,6 +79,12 @@ class LeadImportFileReader
                     continue;
                 }
 
+                // Some administration sheets use an otherwise unnamed first column
+                // for date-only section dividers. They are layout, not lead records.
+                if ($this->isDateSectionDivider($headers, $values)) {
+                    continue;
+                }
+
                 $rows[] = [
                     'row_number' => $row,
                     'values' => $values,
@@ -91,6 +100,7 @@ class LeadImportFileReader
                 'sheets' => $sheets,
                 'selected_sheet' => $sheet->getTitle(),
                 'header_row' => $detectedHeaderRow,
+                'data_start_row' => $dataStartRow,
                 'headers' => $headers,
                 'rows' => $rows,
                 'sample_values' => $sampleValues,
@@ -231,18 +241,29 @@ class LeadImportFileReader
     private function readHeaders(Worksheet $sheet, int $headerRow, int $columnCount): array
     {
         $headers = [];
+        $labels = [];
         $lastUsed = 0;
         for ($col = 1; $col <= $columnCount; $col++) {
             $label = $this->cellValue($sheet->getCell(Coordinate::stringFromColumnIndex($col).$headerRow));
             $label = is_scalar($label) ? trim((string) $label) : '';
+            $labels[$col] = $label;
             if ($label !== '') {
                 $lastUsed = $col;
             }
         }
 
+        // The administration workbook intentionally leaves A1 blank although
+        // column A contains the assigned team member. Infer that header only
+        // when the neighbouring identity columns make the layout unambiguous.
+        if (($labels[1] ?? '') === ''
+            && $this->headerLooksLike($labels[2] ?? '', ['contact_no', 'contact_number', 'phone'])
+            && $this->headerLooksLike($labels[3] ?? '', ['email', 'email_address'])
+            && $this->headerLooksLike($labels[4] ?? '', ['student_name', 'name'])) {
+            $labels[1] = 'Assigned team member';
+        }
+
         for ($col = 1; $col <= $lastUsed; $col++) {
-            $label = $this->cellValue($sheet->getCell(Coordinate::stringFromColumnIndex($col).$headerRow));
-            $label = is_scalar($label) ? trim((string) $label) : '';
+            $label = $labels[$col] ?? '';
             if ($label === '') {
                 $label = 'Column '.$col;
             }
@@ -254,6 +275,75 @@ class LeadImportFileReader
         }
 
         return $headers;
+    }
+
+    /**
+     * Find the first genuine table row while preserving sparse rows once the
+     * data region has begun. This excludes legends placed between the header
+     * and the records without requiring users to alter their workbook.
+     *
+     * @param  array<int, array{key: string, label: string, index: int}>  $headers
+     */
+    private function detectDataStartRow(Worksheet $sheet, array $headers, int $headerRow, int $lastRow): int
+    {
+        $minimumCells = min(3, max(1, (int) ceil(count($headers) * 0.15)));
+        $scanUntil = min($lastRow, $headerRow + 100);
+
+        for ($row = $headerRow + 1; $row <= $scanUntil; $row++) {
+            $populated = 0;
+            foreach ($headers as $header) {
+                $value = $this->cellValue($sheet->getCell(
+                    Coordinate::stringFromColumnIndex($header['index'] + 1).$row
+                ));
+                if ($this->hasContent($value)) {
+                    $populated++;
+                }
+            }
+
+            if ($populated >= $minimumCells) {
+                return $row;
+            }
+        }
+
+        return $headerRow + 1;
+    }
+
+    /**
+     * @param  array<int, array{key: string, label: string, index: int}>  $headers
+     * @param  array<string, mixed>  $values
+     */
+    private function isDateSectionDivider(array $headers, array $values): bool
+    {
+        $populated = array_filter($values, fn (mixed $value): bool => $this->hasContent($value));
+        if (count($populated) !== 1) {
+            return false;
+        }
+
+        $key = (string) array_key_first($populated);
+        $header = null;
+        foreach ($headers as $candidate) {
+            if ($candidate['key'] === $key) {
+                $header = $candidate;
+                break;
+            }
+        }
+        if (! is_array($header) || $header['index'] !== 0) {
+            return false;
+        }
+
+        $value = $populated[$key];
+
+        return is_numeric($value) && (float) $value > 20000 && (float) $value < 80000;
+    }
+
+    /** @param array<int, string> $expected */
+    private function headerLooksLike(string $label, array $expected): bool
+    {
+        $normalized = mb_strtolower(trim($label));
+        $normalized = preg_replace('/[^\pL\pN]+/u', '_', $normalized) ?? $normalized;
+        $normalized = trim($normalized, '_');
+
+        return in_array($normalized, $expected, true);
     }
 
     private function cellValue(Cell $cell): mixed

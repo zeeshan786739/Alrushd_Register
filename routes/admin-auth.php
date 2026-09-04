@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\RelationShipController;
 use App\Http\Controllers\Admin\SchoolController;
 use App\Http\Controllers\Admin\TimeTableController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\Auth\AdminPasswordController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\StaffApplicationController;
 use App\Http\Controllers\Admin\StudentCourseController;
@@ -57,6 +58,12 @@ Route::prefix('admin')->middleware('guest:admin')->group(function () {
 
     Route::get('login', [LoginController::class, 'create'])->name('admin.login');
     Route::post('login', [LoginController::class, 'store']);
+
+    Route::get('forgot-password', [AdminPasswordController::class, 'request'])->name('admin.password.request');
+    Route::post('forgot-password', [AdminPasswordController::class, 'email'])->middleware('throttle:6,1')->name('admin.password.email');
+    Route::get('reset-password/{token}', [AdminPasswordController::class, 'reset'])->name('admin.password.reset');
+    Route::get('invitation/{token}', [AdminPasswordController::class, 'reset'])->name('admin.invitation.accept');
+    Route::post('reset-password', [AdminPasswordController::class, 'update'])->name('admin.password.update');
 
 });
 

@@ -295,6 +295,22 @@
     });
 
     document.addEventListener('click', function (event) {
+        // Open menus are portalled to <body> so they are not clipped by the
+        // responsive table. Move the menu back to its control and replay the
+        // option click so the page-scoped save handler receives it.
+        var portalledOption = event.target.closest('.crm-inline-menu--fixed .crm-inline-option');
+        if (portalledOption) {
+            var portalledMenu = portalledOption.closest('.crm-inline-menu');
+            var owner = portalledMenu && portalledMenu.__crmOwner;
+            if (owner && page.contains(owner)) {
+                event.preventDefault();
+                event.stopPropagation();
+                restoreMenu(owner, portalledMenu);
+                portalledOption.click();
+                return;
+            }
+        }
+
         if (openMenu && !event.target.closest('.crm-inline-control') && !event.target.closest('.crm-inline-menu')) {
             closeOpenMenu();
         }

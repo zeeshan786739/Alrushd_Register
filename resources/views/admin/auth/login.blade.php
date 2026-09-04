@@ -164,6 +164,11 @@
             accent-color: var(--ar-gold);
         }
 
+        .ar-forgot { color: var(--ar-gold); font-size: 13px; font-weight: 650; text-decoration: none; }
+        .ar-forgot:hover { color: var(--ar-gold-hover); }
+        .ar-password-help { text-align: right; margin: -7px 0 14px; }
+        .ar-status { background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;border-radius:10px;padding:11px 13px;font-size:13px;margin-bottom:16px; }
+
         .ar-btn {
             display: inline-flex;
             align-items: center;
@@ -222,6 +227,8 @@
         <form method="POST" action="{{ route('admin.login') }}">
             @csrf
 
+            @if(session('status'))<div class="ar-status">{{ session('status') }}</div>@endif
+
             <div class="ar-field">
                 <label class="ar-field-label" for="email">Email</label>
                 <div class="ar-input-wrap @error('email') is-invalid @enderror">
@@ -232,7 +239,7 @@
                         name="email"
                         class="ar-input"
                         placeholder="Enter your email"
-                        value="{{ old('email') }}"
+                        value="{{ old('email', request('email')) }}"
                         autofocus
                         required
                         autocomplete="username"
@@ -264,6 +271,8 @@
                     <p class="ar-error">{{ $message }}</p>
                 @enderror
             </div>
+
+            <div class="ar-password-help"><a class="ar-forgot" href="{{ route('admin.password.request') }}">Forgot password?</a></div>
 
             <div class="ar-actions">
                 <label class="ar-remember">

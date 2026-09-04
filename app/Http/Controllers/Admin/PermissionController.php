@@ -11,6 +11,11 @@ class PermissionController extends Controller
 {
     public function __construct()
     {
+        $this->middleware(function ($request, $next) {
+            abort_unless(UserManagementHelper::canManageAccess(), 403);
+
+            return $next($request);
+        });
         $this->middleware('permission:view permission')->only('index');
         $this->middleware('permission:create permission')->only(['create', 'store']);
         $this->middleware('permission:edit permission')->only(['edit', 'update']);

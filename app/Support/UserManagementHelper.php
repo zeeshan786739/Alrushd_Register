@@ -13,6 +13,20 @@ class UserManagementHelper
     /** Roles that cannot be deleted or renamed by tenant admins. */
     public const PROTECTED_ROLES = ['super-admin'];
 
+    /** Permissions that may only be held by the protected account owner role. */
+    public const ACCESS_CONTROL_PERMISSIONS = [
+        'create role', 'edit role', 'view role', 'delete role',
+        'create permission', 'edit permission', 'view permission', 'delete permission',
+        'create user', 'edit user', 'view user', 'delete user',
+    ];
+
+    public static function canManageAccess(?Admin $admin = null): bool
+    {
+        $admin ??= auth('admin')->user();
+
+        return (bool) ($admin?->isPlatformAdmin() || $admin?->hasRole('super-admin'));
+    }
+
     /** @return array{users: int, roles: int, permissions: int} */
     public static function stats(): array
     {

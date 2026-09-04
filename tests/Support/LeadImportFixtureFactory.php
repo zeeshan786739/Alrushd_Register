@@ -131,4 +131,35 @@ XML;
         (new Xlsx($spreadsheet))->save($path);
         $spreadsheet->disconnectWorksheets();
     }
+
+    public static function administrationSheetXlsx(string $path): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Admission details');
+        $sheet->fromArray([
+            '', 'Contact No', 'Email Address', 'Student Name', 'Year', 'Current status',
+            'Application Form', 'Direct Debit form', 'Admission Fee', 'Lead ID', 'Lead Date',
+            'Lead Channel', 'Lead Status', 'Success/Unsuccessful', 'Comment', 'Mode of contact',
+            'Date of contact', 'Followup details', 'Notes:',
+        ], null, 'A1');
+        $sheet->setCellValue('L2', 'G-Ads/Other');
+        $sheet->setCellValue('B4', 'Key:');
+        $sheet->setCellValue('C5', 'Pending admission');
+        $sheet->setCellValue('C6', 'Confirmed admission');
+        $sheet->setCellValue('C7', 'Spam / Not interested');
+        $sheet->setCellValue('A9', 46023);
+        $sheet->fromArray([
+            'Foysol', '44 7917 496967', 'parent@example.test', 'Muhammad Yousaf', 'Y5',
+            'Pending', 1, 0, 0, 1, 46027, 'Google search', 'Whatsapp', 'No',
+            'Interested in September enrolment', 'Phone', 46028, 46029, 'Call after 4pm',
+        ], null, 'A12');
+        $sheet->setCellValue('A13', 46054);
+        $sheet->fromArray([
+            'Tayyeb', '44 7751 549306', 'second@example.test', 'Aya Abdulahi', 'Y6',
+        ], null, 'A14');
+
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+    }
 }
