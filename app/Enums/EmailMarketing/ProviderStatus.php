@@ -5,6 +5,7 @@ namespace App\Enums\EmailMarketing;
 enum ProviderStatus: string
 {
     case Pending = 'pending';
+    case Accepted = 'accepted';
     case Processed = 'processed';
     case Delivered = 'delivered';
     case Deferred = 'deferred';
@@ -20,6 +21,7 @@ enum ProviderStatus: string
     {
         return match ($this) {
             self::Pending => 'Pending',
+            self::Accepted => 'Accepted',
             self::Processed => 'Processed',
             self::Delivered => 'Delivered',
             self::Deferred => 'Deferred',
@@ -37,7 +39,7 @@ enum ProviderStatus: string
     {
         return match ($this) {
             self::Delivered, self::Open, self::Click => 'success',
-            self::Processed, self::Pending => 'info',
+            self::Accepted, self::Processed, self::Pending => 'info',
             self::Deferred => 'warning',
             self::Bounce, self::Dropped, self::Failed, self::SpamReport => 'danger',
             self::Unsubscribe => 'neutral',

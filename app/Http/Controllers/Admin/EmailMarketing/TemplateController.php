@@ -10,6 +10,7 @@ use App\Support\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class TemplateController extends Controller
@@ -37,7 +38,12 @@ class TemplateController extends Controller
 
     public function create(): View
     {
-        return view('admin.email-marketing.templates.create');
+        $templates = Template::forCurrentOrganization()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.email-marketing.templates.create', compact('templates'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -110,6 +116,27 @@ class TemplateController extends Controller
             'subject' => $emTemplate->subject,
             'category' => $emTemplate->category,
             'body_html' => $emTemplate->body_html,
+        ]);
+    }
+
+    public function uploadImage(Request $request): JsonResponse
+    {
+        abort_unless(
+            $request->user('admin')?->can('create templates') || $request->user('admin')?->can('update templates'),
+            403
+        );
+
+        $validated = $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+        ]);
+
+        $path = $validated['image']->store(
+            'email-marketing/'.OrganizationContext::idOrFail(),
+            'public'
+        );
+
+        return response()->json([
+            'url' => url(Storage::disk('public')->url($path)),
         ]);
     }
 

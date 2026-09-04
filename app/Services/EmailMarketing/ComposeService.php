@@ -6,6 +6,7 @@ use App\Enums\EmailMarketing\DeliveryStatus;
 use App\Models\Crm\Customer;
 use App\Models\Crm\Lead;
 use App\Models\EmailMarketing\Message;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Services\EmailMarketing\Delivery\EmailDeliveryService;
 use App\Services\EmailMarketing\Delivery\OutboundEmail;
 use Illuminate\Http\UploadedFile;
@@ -34,6 +35,7 @@ class ComposeService
     public function send(int $organizationId, array $data, array $files = []): Message
     {
         $settings = $this->mailConfig->resolveOrFail($organizationId);
+        $sender = $this->resolveSender($organizationId, $data['sender_mailbox_id'] ?? null);
 
         $to = $this->normalizeRecipients($data['to']);
         if ($to === []) {
@@ -45,17 +47,18 @@ class ComposeService
         $correlationUuid = (string) Str::uuid();
         $threadId = $data['thread_id'] ?? $correlationUuid;
 
-        return DB::transaction(function () use ($organizationId, $data, $files, $settings, $to, $html, $text, $correlationUuid, $threadId) {
+        return DB::transaction(function () use ($organizationId, $data, $files, $settings, $sender, $to, $html, $text, $correlationUuid, $threadId) {
             $message = Message::create([
                 'organization_id' => $organizationId,
+                'sender_mailbox_id' => $sender?->id,
                 'folder' => 'sent',
                 'direction' => 'outbound',
                 'message_id' => 'local-'.Str::uuid(),
                 'correlation_uuid' => $correlationUuid,
                 'thread_id' => $threadId,
                 'parent_id' => $data['parent_id'] ?? null,
-                'from_email' => $settings->from_email,
-                'from_name' => $settings->from_name,
+                'from_email' => $sender?->email ?: $settings->from_email,
+                'from_name' => $sender?->name ?: $settings->from_name,
                 'to' => implode(', ', $to),
                 'cc' => $data['cc'] ?? null,
                 'bcc' => $data['bcc'] ?? null,
@@ -86,11 +89,11 @@ class ComposeService
                 ];
             }
 
-            $replyTo = $this->resolveReplyTo($settings, $threadId);
+            $replyTo = $this->resolveReplyTo($settings, $threadId, $sender);
 
             $result = $this->delivery->send(new OutboundEmail(
-                fromEmail: (string) $settings->from_email,
-                fromName: $settings->from_name,
+                fromEmail: (string) ($sender?->email ?: $settings->from_email),
+                fromName: $sender?->name ?: $settings->from_name,
                 to: $to,
                 subject: (string) $message->subject,
                 html: $html ?: nl2br(e($text)),
@@ -135,6 +138,7 @@ class ComposeService
         return DB::transaction(function () use ($organizationId, $data, $files, $existing) {
             $payload = [
                 'organization_id' => $organizationId,
+                'sender_mailbox_id' => $data['sender_mailbox_id'] ?? null,
                 'folder' => 'draft',
                 'direction' => 'outbound',
                 'to' => $data['to'] ?? null,
@@ -180,14 +184,27 @@ class ComposeService
         return array_values($emails);
     }
 
-    private function resolveReplyTo(object $settings, string $threadId): ?string
+    private function resolveReplyTo(object $settings, string $threadId, ?SenderMailbox $sender = null): ?string
     {
         $domain = $settings->inbound_domain ?: config('sendgrid.inbound_domain');
         if ($settings->inbound_enabled && filled($domain)) {
             return 'reply+'.$threadId.'@'.$domain;
         }
 
-        return $settings->reply_to ?: null;
+        return $sender?->reply_to ?: $settings->reply_to ?: $sender?->email ?: null;
+    }
+
+    private function resolveSender(int $organizationId, mixed $senderMailboxId): ?SenderMailbox
+    {
+        $query = SenderMailbox::query()
+            ->where('organization_id', $organizationId)
+            ->available();
+
+        if ($senderMailboxId) {
+            return $query->whereKey((int) $senderMailboxId)->firstOrFail();
+        }
+
+        return $query->orderByDesc('is_default')->orderBy('id')->first();
     }
 
     private function logCrmActivity(Message $message): void

@@ -16,7 +16,7 @@
     @endcan
     @can('view campaigns')
     <a href="{{ route('admin.email.campaigns.index') }}" class="em-module-nav__link {{ $activeTab === 'campaigns' ? 'is-active' : '' }}">
-        <iconify-icon icon="solar:megaphone-linear"></iconify-icon> Campaigns
+        <iconify-icon icon="solar:letter-linear"></iconify-icon> Campaigns
     </a>
     @endcan
     @can('view templates')

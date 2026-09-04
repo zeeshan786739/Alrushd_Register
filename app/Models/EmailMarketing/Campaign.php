@@ -17,7 +17,7 @@ class Campaign extends Model
     protected $table = 'em_campaigns';
 
     protected $fillable = [
-        'organization_id', 'name', 'subject', 'from_name', 'from_email',
+        'organization_id', 'sender_mailbox_id', 'name', 'subject', 'from_name', 'from_email',
         'body_html', 'body_text', 'template_id', 'status', 'recipient_source',
         'recipient_filters', 'scheduled_at', 'started_at', 'completed_at',
         'recipient_count', 'sent_count', 'failed_count', 'opened_count', 'clicked_count',
@@ -38,6 +38,11 @@ class Campaign extends Model
     public function recipients(): HasMany
     {
         return $this->hasMany(CampaignRecipient::class, 'campaign_id');
+    }
+
+    public function senderMailbox(): BelongsTo
+    {
+        return $this->belongsTo(SenderMailbox::class, 'sender_mailbox_id');
     }
 
     public function template(): BelongsTo

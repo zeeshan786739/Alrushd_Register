@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\EmailMarketing;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\MailboxSetting;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,9 +25,13 @@ class MailboxSettingsController extends Controller
 
         $mailConfig = app(\App\Services\EmailMarketing\MailConfigResolver::class);
         $providerLabel = $mailConfig->providerStatusLabel($settings);
-        $sendGridConfigured = $mailConfig->sendGridConfigured();
+        $sendGridConfigured = $mailConfig->sendGridConfigured($settings);
+        $senderMailboxes = SenderMailbox::forCurrentOrganization()
+            ->orderByDesc('is_default')
+            ->orderBy('email')
+            ->get();
 
-        return view('admin.email-marketing.settings.edit', compact('settings', 'providerLabel', 'sendGridConfigured'));
+        return view('admin.email-marketing.settings.edit', compact('settings', 'providerLabel', 'sendGridConfigured', 'senderMailboxes'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -36,6 +41,8 @@ class MailboxSettingsController extends Controller
             'from_email' => 'nullable|email',
             'reply_to' => 'nullable|email',
             'inbound_domain' => 'nullable|string|max:255',
+            'sendgrid_api_key' => ['nullable', 'string', 'max:255', 'regex:/^SG\.[A-Za-z0-9._-]+$/'],
+            'sendgrid_event_webhook_public_key' => 'nullable|string|max:2000',
             'smtp_host' => 'nullable|string|max:255',
             'smtp_port' => 'nullable|integer|min:1|max:65535',
             'smtp_encryption' => 'nullable|in:tls,ssl,',
@@ -68,7 +75,18 @@ class MailboxSettingsController extends Controller
         if ($request->filled('imap_password')) {
             $settings->imap_password = $validated['imap_password'];
         }
-        unset($validated['smtp_password'], $validated['imap_password']);
+        if ($request->filled('sendgrid_api_key')) {
+            $settings->sendgrid_api_key = $validated['sendgrid_api_key'];
+        }
+        if ($request->filled('sendgrid_event_webhook_public_key')) {
+            $settings->sendgrid_event_webhook_public_key = $validated['sendgrid_event_webhook_public_key'];
+        }
+        unset(
+            $validated['smtp_password'],
+            $validated['imap_password'],
+            $validated['sendgrid_api_key'],
+            $validated['sendgrid_event_webhook_public_key'],
+        );
 
         $settings->fill($validated);
         $settings->validate_cert = $request->boolean('validate_cert', true);

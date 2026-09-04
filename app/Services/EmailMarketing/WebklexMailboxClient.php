@@ -3,6 +3,7 @@
 namespace App\Services\EmailMarketing;
 
 use App\Models\EmailMarketing\MailboxSetting;
+use App\Models\EmailMarketing\SenderMailbox;
 use App\Services\EmailMarketing\Contracts\MailboxClientInterface;
 use Illuminate\Support\Facades\Log;
 
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  */
 class WebklexMailboxClient implements MailboxClientInterface
 {
-    public function fetchNewMessages(MailboxSetting $settings, ?string $sinceUid = null): array
+    public function fetchNewMessages(MailboxSetting|SenderMailbox $settings, ?string $sinceUid = null): array
     {
         if (! class_exists(\Webklex\PHPIMAP\ClientManager::class)) {
             Log::warning('EmailMarketing: webklex/php-imap is not installed; inbox sync skipped.');
@@ -37,14 +38,16 @@ class WebklexMailboxClient implements MailboxClientInterface
 
         $client->connect();
         $folder = $client->getFolder($settings->inbox_folder ?: 'INBOX');
-        $query = $folder->messages()->unseen();
+        $query = $folder->messages()->unseen()->limit(50);
 
-        if ($sinceUid) {
-            $query->whereUidGreaterThan((int) $sinceUid);
-        }
+        // Webklex 6.2 exposes incremental UID retrieval on Query itself.
+        // whereUidGreaterThan() is not a supported WhereQuery condition.
+        $fetched = $sinceUid
+            ? $query->getByUidGreater((int) $sinceUid)
+            : $query->get();
 
         $messages = [];
-        foreach ($query->limit(50)->get() as $message) {
+        foreach ($fetched as $message) {
             $from = $message->getFrom()->first();
             $attachments = [];
             foreach ($message->getAttachments() as $attachment) {

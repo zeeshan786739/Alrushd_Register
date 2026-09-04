@@ -32,14 +32,14 @@
     <h6 class="crm-section-title mb-12">Sales</h6>
     <div class="row g-3 mb-24">
         @can('view quotations')
-            <div class="col-6 col-md-4 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Quotes Open','value'=>$stats['quotations_open'],'icon'=>'solar:document-text-linear','tone'=>'navy'])</div>
-            <div class="col-6 col-md-4 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Accepted Value','value'=>number_format($stats['quotations_accepted_value'],2),'icon'=>'solar:check-circle-linear','tone'=>'green'])</div>
+            <div class="col-6 col-md-4 col-xl-4 col-xxl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Quotes Open','value'=>$stats['quotations_open'],'icon'=>'solar:document-text-linear','tone'=>'navy'])</div>
+            <div class="col-6 col-md-4 col-xl-4 col-xxl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Accepted Value','value'=>number_format($stats['quotations_accepted_value'],2),'icon'=>'solar:check-circle-linear','tone'=>'green'])</div>
         @endcan
         @can('view invoices')
-            <div class="col-6 col-md-4 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Total Invoiced','value'=>number_format($stats['invoiced'],2),'icon'=>'solar:bill-list-linear','tone'=>'navy'])</div>
-            <div class="col-6 col-md-4 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Paid','value'=>number_format($stats['paid'],2),'icon'=>'solar:wallet-money-linear','tone'=>'green'])</div>
-            <div class="col-6 col-md-4 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Outstanding','value'=>number_format($stats['outstanding'],2),'icon'=>'solar:wallet-linear','tone'=>'amber'])</div>
-            <div class="col-6 col-md-4 col-xl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Overdue','value'=>number_format($stats['overdue_invoices'],2),'icon'=>'solar:danger-triangle-linear','tone'=>'amber'])</div>
+            <div class="col-6 col-md-4 col-xl-4 col-xxl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Total Invoiced','value'=>number_format($stats['invoiced'],2),'icon'=>'solar:bill-list-linear','tone'=>'navy'])</div>
+            <div class="col-6 col-md-4 col-xl-4 col-xxl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Paid','value'=>number_format($stats['paid'],2),'icon'=>'solar:wallet-money-linear','tone'=>'green'])</div>
+            <div class="col-6 col-md-4 col-xl-4 col-xxl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Outstanding','value'=>number_format($stats['outstanding'],2),'icon'=>'solar:wallet-linear','tone'=>'amber'])</div>
+            <div class="col-6 col-md-4 col-xl-4 col-xxl-2">@include('admin.partials.dashboard-stat-card', ['label'=>'Overdue','value'=>number_format($stats['overdue_invoices'],2),'icon'=>'solar:danger-triangle-linear','tone'=>'amber'])</div>
         @endcan
     </div>
     @endcanany

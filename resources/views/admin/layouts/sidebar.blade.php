@@ -403,27 +403,71 @@
         'view inbox','view sent emails','manage drafts','star emails','compose emails','view campaigns','view templates','manage mailbox settings'
     ])
     <li class="sidebar-menu-group-title" role="presentation">Marketing</li>
-    <li>
-        <a href="{{ route('admin.email.dashboard') }}"
-           class="{{ AdminNav::linkClass([
-               'admin.email.dashboard','admin.email.inbox','admin.email.compose','admin.email.sent','admin.email.drafts',
-               'admin.email.starred','admin.email.campaigns.*','admin.email.templates.*','admin.email.mailbox.*'
-           ]) }}"
+    @php
+        $emailMarketingRoutes = [
+            'admin.email.dashboard','admin.email.inbox','admin.email.compose','admin.email.sent','admin.email.drafts',
+            'admin.email.starred','admin.email.campaigns.*','admin.email.templates.*','admin.email.mailbox.*',
+        ];
+        $emUnread = 0;
+        try {
+            if (auth('admin')->user()?->organization_id && auth('admin')->user()->can('view inbox')) {
+                $emUnread = \App\Models\EmailMarketing\Message::forCurrentOrganization()->inbox()->unread()->count();
+            }
+        } catch (\Throwable) {}
+    @endphp
+    <li class="email-marketing-nav {{ AdminNav::dropdownClass($emailMarketingRoutes) }}">
+        <a href="javascript:void(0)"
+           role="button"
+           aria-expanded="{{ AdminNav::expanded($emailMarketingRoutes) }}"
+           aria-controls="nav-email-marketing"
            title="Email Marketing">
             <iconify-icon icon="solar:letter-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
             <span>Email Marketing</span>
-            @php
-                $emUnread = 0;
-                try {
-                    if (auth('admin')->user()?->organization_id && auth('admin')->user()->can('view inbox')) {
-                        $emUnread = \App\Models\EmailMarketing\Message::forCurrentOrganization()->inbox()->unread()->count();
-                    }
-                } catch (\Throwable) {}
-            @endphp
             @if($emUnread > 0)
                 <span class="sidebar-badge" aria-label="{{ $emUnread }} unread">{{ $emUnread }}</span>
             @endif
         </a>
+        <ul class="sidebar-submenu" id="nav-email-marketing">
+            <li>
+                <a href="{{ route('admin.email.dashboard') }}" class="{{ AdminNav::linkClass('admin.email.dashboard') }}" title="Email Marketing overview">
+                    <iconify-icon icon="solar:widget-2-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Overview</span>
+                </a>
+            </li>
+            @can('view inbox')
+            <li>
+                <a href="{{ route('admin.email.inbox') }}" class="{{ AdminNav::linkClass(['admin.email.inbox','admin.email.compose','admin.email.sent','admin.email.drafts','admin.email.starred']) }}" title="Email inbox">
+                    <iconify-icon icon="solar:inbox-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Inbox</span>
+                    @if($emUnread > 0)<span class="sidebar-badge">{{ $emUnread }}</span>@endif
+                </a>
+            </li>
+            @endcan
+            @can('view campaigns')
+            <li>
+                <a href="{{ route('admin.email.campaigns.index') }}" class="{{ AdminNav::linkClass('admin.email.campaigns.*') }}" title="Email campaigns">
+                    <iconify-icon icon="solar:letter-opened-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Campaigns</span>
+                </a>
+            </li>
+            @endcan
+            @can('view templates')
+            <li>
+                <a href="{{ route('admin.email.templates.index') }}" class="{{ AdminNav::linkClass('admin.email.templates.*') }}" title="Email templates">
+                    <iconify-icon icon="solar:clipboard-list-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Templates</span>
+                </a>
+            </li>
+            @endcan
+            @can('manage mailbox settings')
+            <li>
+                <a href="{{ route('admin.email.mailbox.settings') }}" class="{{ AdminNav::linkClass('admin.email.mailbox.*') }}" title="Email settings">
+                    <iconify-icon icon="solar:settings-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Settings</span>
+                </a>
+            </li>
+            @endcan
+        </ul>
     </li>
     @endcanany
     @endif

@@ -57,8 +57,22 @@
                     <input id="from_name" type="text" name="from_name" class="form-control radius-8" value="{{ old('from_name', $c?->from_name ?? '') }}" placeholder="Admissions Team">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label fw-semibold text-sm" for="from_email">From email</label>
-                    <input id="from_email" type="email" name="from_email" class="form-control radius-8" value="{{ old('from_email', $c?->from_email ?? '') }}" placeholder="admissions@school.com">
+                    <label class="form-label fw-semibold text-sm" for="sender_mailbox_id">From email</label>
+                    <select id="sender_mailbox_id" name="sender_mailbox_id" class="form-select radius-8" required>
+                        @if($senderMailboxes->isEmpty())
+                            <option value="">No verified sender available</option>
+                        @endif
+                        @foreach($senderMailboxes as $sender)
+                            <option value="{{ $sender->id }}" data-sender-email="{{ $sender->email }}" @selected((int) old('sender_mailbox_id', $c?->sender_mailbox_id ?? $senderMailboxes->firstWhere('is_default', true)?->id) === $sender->id)>
+                                {{ $sender->name ? $sender->name.' — ' : '' }}{{ $sender->email }}{{ $sender->is_default ? ' (Default)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <input id="from_email" type="hidden" name="from_email" value="{{ $c?->from_email ?? $senderMailboxes->first()?->email }}">
+                    <div class="form-text">Only active SendGrid-verified senders are available.</div>
+                    @if($senderMailboxes->isEmpty() && auth('admin')->user()?->can('manage mailbox settings'))
+                        <a href="{{ route('admin.email.mailbox.settings') }}#sender-mailboxes" class="form-text text-primary-600">Add a verified sender in Mailbox Settings</a>
+                    @endif
                 </div>
             </div>
         </div>

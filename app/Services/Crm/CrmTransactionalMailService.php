@@ -219,7 +219,7 @@ class CrmTransactionalMailService
         $settings = $this->mailConfig->forOrganization($organizationId);
 
         if ($settings && filled($settings->from_email) && $settings->is_enabled
-            && ($this->mailConfig->sendGridConfigured() || $settings->isSmtpConfigured() || app()->environment('testing'))) {
+            && ($this->mailConfig->sendGridConfigured($settings) || $settings->isSmtpConfigured() || app()->environment('testing'))) {
             return $settings;
         }
 

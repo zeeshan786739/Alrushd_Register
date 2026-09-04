@@ -7,19 +7,21 @@
     'shellSubtitle' => 'Configure sender identity, SendGrid tracking, and optional SMTP/IMAP fallback.',
 ])
 
+@include('admin.email-marketing.settings.sender-mailboxes')
+
 <div class="em-panel em-settings-panel">
     <form method="POST" action="{{ route('admin.email.mailbox.settings.update') }}" class="em-settings-form">
         @csrf
         @method('PUT')
 
         <div class="em-settings-stack">
-            {{-- Sender identity --}}
+            {{-- Module availability --}}
             <section class="em-form-block">
                 <div class="em-form-block__head">
                     <span class="em-form-block__icon"><iconify-icon icon="solar:user-id-linear"></iconify-icon></span>
                     <div>
-                        <h3 class="em-form-block__title">Sender identity</h3>
-                        <p class="em-form-block__desc">How recipients see your school in the inbox.</p>
+                        <h3 class="em-form-block__title">Email Marketing</h3>
+                        <p class="em-form-block__desc">Global controls for this workspace. Sender identities and inboxes are managed above.</p>
                     </div>
                 </div>
 
@@ -31,22 +33,6 @@
                     <input class="em-toggle-row__input" type="checkbox" name="is_enabled" value="1" id="is_enabled" @checked(old('is_enabled', $settings->is_enabled))>
                     <span class="em-toggle-row__switch" aria-hidden="true"></span>
                 </label>
-
-                <div class="em-form-block__fields row g-4">
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <label class="form-label" for="from_name">From name</label>
-                        <input id="from_name" name="from_name" class="form-control radius-8" value="{{ old('from_name', $settings->from_name) }}" placeholder="e.g. Al-Rushd Admissions">
-                    </div>
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <label class="form-label" for="from_email">From email</label>
-                        <input id="from_email" type="email" name="from_email" class="form-control radius-8" value="{{ old('from_email', $settings->from_email) }}" placeholder="hello@yourschool.com">
-                    </div>
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <label class="form-label" for="reply_to">Reply-to</label>
-                        <input id="reply_to" type="email" name="reply_to" class="form-control radius-8" value="{{ old('reply_to', $settings->reply_to) }}" placeholder="replies@yourschool.com">
-                        <div class="form-text">Optional when inbound reply routing is enabled.</div>
-                    </div>
-                </div>
             </section>
 
             {{-- SendGrid --}}
@@ -55,7 +41,7 @@
                     <span class="em-form-block__icon"><iconify-icon icon="solar:cloud-linear"></iconify-icon></span>
                     <div>
                         <h3 class="em-form-block__title">SendGrid</h3>
-                        <p class="em-form-block__desc">Delivery provider status for campaigns and transactional sends.</p>
+                        <p class="em-form-block__desc">Connect this school to its own SendGrid account.</p>
                     </div>
                 </div>
                 <div class="em-settings-alert {{ $sendGridConfigured ? 'em-settings-alert--success' : 'em-settings-alert--warning' }}">
@@ -65,7 +51,25 @@
                     <div class="em-settings-alert__body">
                         <strong>{{ $sendGridConfigured ? 'Configured' : 'Not configured' }}</strong>
                         <p>{{ $providerLabel }}</p>
-                        <p class="mb-0">Email delivery is managed securely by Enrolliq — no API keys to paste here.</p>
+                        <p class="mb-0">Credentials are encrypted before they are stored.</p>
+                    </div>
+                </div>
+
+                <div class="em-form-block__fields row g-4 mt-1">
+                    <div class="col-12">
+                        <label class="form-label" for="sendgrid_api_key">SendGrid API key</label>
+                        <input id="sendgrid_api_key" type="password" name="sendgrid_api_key" class="form-control radius-8" value="" placeholder="{{ filled($settings->sendgrid_api_key) ? '•••••••••••• (leave blank to keep)' : 'SG.xxxxxxxxxxxxxxxxx' }}" autocomplete="new-password">
+                        <div class="form-text">Use a restricted key with Mail Send permission. Leave blank to preserve the saved key.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="sendgrid_event_webhook_public_key">Event Webhook verification key</label>
+                        <textarea id="sendgrid_event_webhook_public_key" name="sendgrid_event_webhook_public_key" class="form-control radius-8" rows="3" placeholder="{{ filled($settings->sendgrid_event_webhook_public_key) ? '•••••••••••• (leave blank to keep)' : 'Paste the SendGrid signed webhook public key' }}" autocomplete="off"></textarea>
+                        <div class="form-text">Required for authoritative Delivered, Deferred, Bounce, Open, and Click updates.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Event Webhook URL</label>
+                        <input class="form-control radius-8" value="{{ url('/webhooks/sendgrid/events') }}" readonly>
+                        <div class="form-text">Configure this HTTPS URL in SendGrid and enable signed webhook verification. Local 127.0.0.1 URLs are not reachable by SendGrid.</div>
                     </div>
                 </div>
             </section>
@@ -149,7 +153,8 @@
                 </div>
             </section>
 
-            {{-- SMTP / IMAP fallback --}}
+            @if(false)
+            {{-- Legacy global SMTP / IMAP fallback intentionally hidden. Sender-level IMAP is configured above. --}}
             <details class="em-form-block em-form-block--collapsible">
                 <summary class="em-form-block__summary">
                     <span class="em-form-block__head em-form-block__head--inline">
@@ -235,10 +240,11 @@
                     </label>
                 </div>
             </details>
+            @endif
         </div>
 
         <div class="em-settings-footer">
-            <p class="em-settings-footer__hint">Changes apply to this school only. Delivery keys remain on the server.</p>
+            <p class="em-settings-footer__hint">Changes apply to this school only. Provider credentials are stored encrypted.</p>
             <button class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn" type="submit">
                 <iconify-icon icon="solar:diskette-linear"></iconify-icon>
                 Save settings

@@ -43,4 +43,10 @@ class CampaignPolicy
         return $admin->can('send campaigns')
             && $campaign->organization_id === $admin->organization_id;
     }
+
+    public function schedule(Admin $admin, Campaign $campaign): bool
+    {
+        return $admin->can('schedule campaigns')
+            && $campaign->organization_id === $admin->organization_id;
+    }
 }

@@ -10,15 +10,16 @@
     .crm-stat-card--purple .crm-stat-card__glow{background:linear-gradient(90deg,#7c3aed,#a78bfa)}
     .crm-stat-card__body{padding:18px 18px 16px}
     .crm-stat-card__top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-    .crm-stat-card__info{display:flex;align-items:flex-start;gap:12px;min-width:0}
+    .crm-stat-card__info{display:flex;align-items:flex-start;gap:12px;min-width:0;width:100%}
+    .crm-stat-card__text{min-width:0;flex:1 1 auto;overflow:hidden}
     .crm-stat-card__icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
     .crm-stat-card--navy .crm-stat-card__icon{background:rgba(15,39,74,.1);color:#0F274A}
     .crm-stat-card--green .crm-stat-card__icon{background:rgba(22,163,74,.1);color:#16a34a}
     .crm-stat-card--gold .crm-stat-card__icon{background:rgba(197,168,109,.16);color:#9a7b42}
     .crm-stat-card--amber .crm-stat-card__icon{background:rgba(217,119,6,.1);color:#d97706}
     .crm-stat-card--purple .crm-stat-card__icon{background:rgba(124,58,237,.1);color:#7c3aed}
-    .crm-stat-card__label{display:block;font-size:12px;font-weight:600;color:var(--crm-text-muted,#64748b);text-transform:uppercase;letter-spacing:.04em}
-    .crm-stat-card__value{display:block;font-size:1.5rem;font-weight:700;color:var(--crm-text,#0f172a);line-height:1.2;margin-top:4px}
+    .crm-stat-card__label{display:block;font-size:12px;font-weight:600;color:var(--crm-text-muted,#64748b);text-transform:uppercase;letter-spacing:.04em;line-height:1.25;overflow-wrap:anywhere}
+    .crm-stat-card__value{display:block;font-size:clamp(1.1rem,1.7vw,1.5rem);font-weight:700;color:var(--crm-text,#0f172a);line-height:1.2;margin-top:4px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
     .crm-stat-card__meta{display:block;font-size:11px;color:var(--crm-text-muted,#64748b);margin-top:2px}
     .crm-stat-card__footer{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--crm-border,#e5e7eb)}
     .crm-stat-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}

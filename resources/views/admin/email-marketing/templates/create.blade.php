@@ -38,7 +38,8 @@
         </div>
 
         @include('admin.email-marketing.partials.template-studio', [
-            'showGallery' => false,
+            'showGallery' => true,
+            'templates' => $templates,
             'bodyHtml' => old('body_html'),
         ])
 

@@ -59,6 +59,10 @@ class CampaignDispatchService
             $this->snapshotRecipients($campaign);
         }
 
+        if ($campaign->recipients()->count() === 0) {
+            throw new \RuntimeException('Campaign has no eligible recipients.');
+        }
+
         $campaign->update([
             'status' => CampaignStatus::Sending->value,
             'started_at' => now(),

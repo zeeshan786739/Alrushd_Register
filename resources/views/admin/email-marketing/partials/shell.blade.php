@@ -56,7 +56,7 @@
         @can('view campaigns')
         <a href="{{ route('admin.email.campaigns.index') }}" class="em-kpi-card">
             <span class="em-kpi-card__icon em-kpi-card__icon--campaigns">
-                <iconify-icon icon="solar:megaphone-linear"></iconify-icon>
+                <iconify-icon icon="solar:letter-linear"></iconify-icon>
             </span>
             <span class="em-kpi-card__body">
                 <strong>{{ $emStats['campaigns_total'] ?? 0 }}</strong>

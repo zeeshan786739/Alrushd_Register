@@ -75,7 +75,52 @@ class SendGridFoundationTest extends EmailMarketingTestCase
         $this->assertTrue($result->accepted);
         $this->assertSame('sendgrid', $result->provider);
         $this->assertSame('sg-msg-1', $result->providerMessageId);
+        $this->assertSame('accepted', $result->providerStatus);
         Http::assertSentCount(1);
+    }
+
+    public function test_mailbox_settings_store_tenant_sendgrid_credentials_encrypted(): void
+    {
+        $apiKey = 'SG.'.str_repeat('a', 66);
+        $webhookKey = 'tenant-webhook-public-key';
+
+        $this->actingAsEmAdmin()
+            ->put(route('admin.email.mailbox.settings.update'), [
+                'is_enabled' => '1',
+                'from_name' => 'Org A',
+                'from_email' => 'mail@orga.test',
+                'sendgrid_api_key' => $apiKey,
+                'sendgrid_event_webhook_public_key' => $webhookKey,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $settings = MailboxSetting::query()
+            ->where('organization_id', $this->organizationA->id)
+            ->firstOrFail();
+
+        $this->assertSame($apiKey, $settings->sendgrid_api_key);
+        $this->assertSame($webhookKey, $settings->sendgrid_event_webhook_public_key);
+        $this->assertNotSame($apiKey, $settings->getRawOriginal('sendgrid_api_key'));
+        $this->assertNotSame($webhookKey, $settings->getRawOriginal('sendgrid_event_webhook_public_key'));
+    }
+
+    public function test_sendgrid_provider_prefers_the_tenant_api_key(): void
+    {
+        config(['sendgrid.api_key' => 'SG.global-key']);
+        Http::fake([
+            'api.sendgrid.com/v3/mail/send' => Http::response(null, 202, ['X-Message-Id' => 'tenant-msg']),
+        ]);
+
+        $provider = app(SendGridMailProvider::class);
+        $provider->send(new OutboundEmail(
+            fromEmail: 'from@example.com',
+            fromName: 'From',
+            to: ['to@example.com'],
+            subject: 'Tenant key',
+            html: '<p>Body</p>',
+        ), 'SG.tenant-key');
+
+        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer SG.tenant-key'));
     }
 
     public function test_event_webhook_rejects_unauthenticated_requests(): void

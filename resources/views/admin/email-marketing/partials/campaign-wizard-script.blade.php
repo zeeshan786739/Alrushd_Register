@@ -116,13 +116,16 @@
             var subject = form.querySelector('#subject');
             var fromName = form.querySelector('#from_name');
             var fromEmail = form.querySelector('#from_email');
+            var senderMailbox = form.querySelector('#sender_mailbox_id');
             var sourceInput = form.querySelector('[data-audience-source]');
             var tracking = form.querySelector('#tracking_enabled');
             var body = form.querySelector('[data-studio-editor]');
 
             setText('[data-review-name]', name ? name.value : '—');
             setText('[data-review-subject]', subject ? subject.value : '—');
-            var from = [(fromName && fromName.value) || 'Default sender', (fromEmail && fromEmail.value) ? '<' + fromEmail.value + '>' : ''].filter(Boolean).join(' ');
+            var selectedSender = senderMailbox && senderMailbox.selectedOptions.length ? senderMailbox.selectedOptions[0] : null;
+            var selectedEmail = selectedSender ? selectedSender.dataset.senderEmail : (fromEmail ? fromEmail.value : '');
+            var from = [(fromName && fromName.value) || 'Default sender', selectedEmail ? '<' + selectedEmail + '>' : ''].filter(Boolean).join(' ');
             setText('[data-review-from]', from || 'Default sender');
             var src = sourceInput ? sourceInput.value : 'manual';
             setText('[data-review-audience]', SOURCE_LABELS[src] || src);

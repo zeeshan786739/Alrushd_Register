@@ -34,7 +34,7 @@
 
     @if($campaigns->isEmpty())
         <div class="em-empty-state">
-            <iconify-icon icon="solar:megaphone-linear"></iconify-icon>
+            <iconify-icon icon="solar:letter-linear"></iconify-icon>
             <h3>No campaigns yet</h3>
             <p>Send your first email broadcast to leads, customers, or form submissions.</p>
             @can('create campaigns')
