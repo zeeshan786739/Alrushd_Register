@@ -2,6 +2,7 @@
 @section('title', $lead->full_name)
 @section('content')
 @include('admin.crm.partials.styles')
+@include('admin.crm.leads.partials.show-premium-styles')
 @php
     $followUp = \App\Support\LeadFollowUpState::forLead($lead);
     $activityIcons = [
@@ -18,7 +19,7 @@
         'imported' => 'solar:import-linear',
     ];
 @endphp
-<div class="dashboard-main-body">
+<div class="dashboard-main-body crm-lead-detail">
     <div class="crm-workspace-header mb-20">
         <div class="crm-workspace-header__top">
             <div class="min-w-0">
@@ -181,9 +182,9 @@
 
     @include('admin.crm.partials.email-history-list')
 
-    <div class="row g-3 mb-20">
-        <div class="col-lg-7">
-            <div class="card radius-12 shadow-2 border-0 h-100">
+    <div class="row g-3 mb-24 crm-lead-command-grid align-items-start">
+        <div class="col-lg-5 crm-lead-command-grid__notes">
+            <div class="card radius-12 shadow-2 border-0 crm-notes-card">
                 <div class="card-body p-24">
                     <h6 class="crm-section-title"><iconify-icon icon="solar:notes-linear"></iconify-icon> Notes</h6>
                     @forelse($lead->notes as $note)
@@ -204,9 +205,9 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-5">
+        <div class="col-12 crm-lead-command-grid__actions">
             @can('update leads')
-            <div class="card radius-12 shadow-2 border-0 h-100">
+            <div class="card radius-12 shadow-2 border-0 crm-quick-actions-card">
                 <div class="card-body p-24">
                     <h6 class="crm-section-title"><iconify-icon icon="solar:bolt-linear"></iconify-icon> Quick actions</h6>
 
@@ -258,7 +259,7 @@
                 </div>
             </div>
             @else
-            <div class="card radius-12 shadow-2 border-0 h-100">
+            <div class="card radius-12 shadow-2 border-0 crm-quick-actions-card">
                 <div class="card-body p-24">
                     <h6 class="crm-section-title"><iconify-icon icon="solar:lock-linear"></iconify-icon> Quick actions</h6>
                     <p class="text-secondary-light mb-0">You do not have permission to update this lead.</p>
@@ -266,9 +267,9 @@
             </div>
             @endcan
         </div>
-    </div>
 
-    <div class="card radius-12 shadow-2 border-0 crm-activity-card mb-24">
+        <div class="col-lg-7 crm-lead-command-grid__activity">
+    <div class="card radius-12 shadow-2 border-0 crm-activity-card">
         <div class="card-body p-24">
             <h6 class="crm-section-title"><iconify-icon icon="solar:history-linear"></iconify-icon> Recent activity</h6>
             <div class="crm-activity-scroll">
@@ -289,6 +290,8 @@
                     <p class="text-secondary-light mb-0">No activity logged yet.</p>
                 @endforelse
             </div>
+        </div>
+    </div>
         </div>
     </div>
 </div>

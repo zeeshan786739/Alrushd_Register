@@ -105,6 +105,11 @@
         }
     }
     $adminInitials = strtoupper(substr($adminUser?->name ?? 'A', 0, 1));
+    $adminRoleLabel = $adminUser?->isPlatformAdmin()
+        ? 'Platform Admin'
+        : \App\Support\UserManagementHelper::formatRoleName(
+            $adminUser?->roles()->orderBy('name')->value('name') ?? 'Team Member'
+        );
 @endphp
 
 <div id="crm-page-loader" aria-hidden="true" aria-label="Loading page">
@@ -186,7 +191,7 @@
                             <div
                                 class="py-12 px-16 radius-8 bg-primary-50 mb-16 d-flex align-items-center justify-content-between gap-2">
                                 <div>
-                                    <h6 class="text-lg text-primary-light fw-semibold mb-2">{{ $adminUser?->name }}</h6>
+                                    <h6 class="text-lg text-primary-light fw-semibold mb-2">{{ $adminRoleLabel }}</h6>
                                 </div>
                                 <button type="button" class="hover-text-danger">
                                     <iconify-icon icon="radix-icons:cross-1" class="icon text-xl"></iconify-icon>

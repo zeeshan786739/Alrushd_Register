@@ -15,11 +15,7 @@ class UserManagementController extends Controller
         $this->middleware(function ($request, $next) {
             $user = auth('admin')->user();
 
-            if (! $user || ! $user->canany([
-                'view user', 'create user', 'edit user',
-                'view role', 'create role', 'edit role',
-                'view permission', 'create permission', 'edit permission',
-            ])) {
+            if (! UserManagementHelper::canManageAccess($user)) {
                 abort(403);
             }
 

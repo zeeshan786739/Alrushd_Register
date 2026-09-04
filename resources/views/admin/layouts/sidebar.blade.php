@@ -21,11 +21,7 @@
     @endcanany
 
     {{-- ================= TEAM & ACCESS ================= --}}
-    @canany([
-        'create role','edit role','view role','delete role',
-        'create permission','edit permission','view permission','delete permission',
-        'create user','edit user','view user','delete user'
-    ])
+    @if(\App\Support\UserManagementHelper::canManageAccess())
     <li class="sidebar-menu-group-title" role="presentation">People &amp; Access</li>
     <li>
         <a href="{{ route('admin.user-management.index') }}"
@@ -35,7 +31,7 @@
             <span>Team &amp; Access</span>
         </a>
     </li>
-    @endcanany
+    @endif
 
     {{-- ================= CRM ================= --}}
     @if(plan_module('crm'))

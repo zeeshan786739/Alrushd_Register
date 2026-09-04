@@ -320,6 +320,21 @@
     }
 
     document.addEventListener('click', function (event) {
+        // A fixed dropdown is attached to <body>, outside the page element
+        // that owns the save listener. Restore it before replaying selection.
+        var portalledOption = event.target.closest('.crm-inline-menu--fixed .crm-inline-option');
+        if (portalledOption) {
+            var portalledMenu = portalledOption.closest('.crm-inline-menu');
+            var owner = portalledMenu && portalledMenu.__crmOwner;
+            if (owner) {
+                event.preventDefault();
+                event.stopPropagation();
+                restoreMenu(owner, portalledMenu);
+                portalledOption.click();
+                return;
+            }
+        }
+
         if (openMenu && !event.target.closest('.crm-inline-control') && !event.target.closest('.crm-inline-menu')) {
             closeOpenMenu();
         }

@@ -11,7 +11,7 @@
     'activeTab' => 'users',
     'stats' => $stats,
     'shellTitle' => 'Invite teammate',
-    'shellSubtitle' => 'Create an admin account and assign one or more roles.',
+    'shellSubtitle' => 'Invite a teammate and assign one or more roles. They will securely create their own password.',
     'shellActions' => [[
         'label' => 'Back to team',
         'url' => route('admin.users.index'),
@@ -43,17 +43,11 @@
                                value="{{ old('email') }}" required placeholder="sarah@school.com">
                         @error('email')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold text-sm">Password <span class="text-danger">*</span></label>
-                        <input type="password" name="password" class="form-control radius-8 @error('password') is-invalid @enderror" required minlength="8">
-                        @error('password')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold text-sm">Confirm password <span class="text-danger">*</span></label>
-                        <input type="password" name="password_confirmation" class="form-control radius-8" required minlength="8">
-                    </div>
                 </div>
-                <p class="text-secondary-light text-sm mt-12 mb-0">Minimum 8 characters. Share credentials securely with your teammate.</p>
+                <div class="alert alert-info border-0 radius-8 mt-16 mb-0 d-flex gap-10 align-items-start">
+                    <iconify-icon icon="solar:letter-opened-linear" class="text-xl mt-2"></iconify-icon>
+                    <span class="text-sm">A secure, one-time setup link will be emailed to this teammate. You never need to create or share their password.</span>
+                </div>
             </div>
         </div>
 
