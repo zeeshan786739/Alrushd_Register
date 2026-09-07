@@ -2,12 +2,42 @@
 @section('title', 'Document Settings')
 @section('content')
 @include('admin.crm.partials.styles')
+<style>
+    /* Keep checkbox controls and their labels on one clean visual baseline. */
+    .crm-document-settings .form-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 24px;
+        padding-left: 0;
+        color: #334155;
+        line-height: 1.35;
+        cursor: pointer;
+    }
+
+    .crm-document-settings .form-check .form-check-input {
+        float: none;
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        vertical-align: middle;
+        cursor: pointer;
+    }
+
+    .crm-document-settings .form-check:hover { color: #0f274a; }
+    .crm-document-settings .form-check:has(.form-check-input:focus-visible) {
+        outline: 3px solid rgba(37, 99, 235, .16);
+        outline-offset: 3px;
+        border-radius: 4px;
+    }
+</style>
 @php
     $b = $settings['branding'];
     $q = $settings['quotation'];
     $i = $settings['invoice'];
 @endphp
-<div class="dashboard-main-body">
+<div class="dashboard-main-body crm-document-settings">
     @include('admin.partials.page-header', [
         'title' => 'Document Settings',
         'subtitle' => 'Configure Quotation and Invoice branding and visibility for this organization only',
