@@ -13,6 +13,7 @@ use App\Http\Requests\Crm\UpdateLeadRequest;
 use App\Models\Admin;
 use App\Models\Crm\Lead;
 use App\Models\Form;
+use App\Models\FormEntry;
 use App\Models\Crm\LeadCategory;
 use App\Models\Crm\SavedFilter;
 use App\Services\Crm\CrmTransactionalMailService;
@@ -20,9 +21,11 @@ use App\Services\Crm\LeadConversionException;
 use App\Services\Crm\LeadConversionService;
 use App\Support\CrmFormStats;
 use App\Support\CrmEmailDeliverySummary;
+use App\Support\FormEntryContact;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
+use App\Support\LeadSmartSearch;
 use App\Support\LeadSourceOptions;
 use App\Support\OrganizationContext;
 use Carbon\Carbon;
@@ -105,6 +108,19 @@ class LeadController extends Controller
             ->all();
         $filteredTotal = (int) $this->filteredQuery($request)->count();
 
+        $pendingFormEntries = collect();
+        if ($this->shouldShowFormIntake($request)) {
+            $pendingFormEntries = $this->pendingFormEntriesQuery($request)
+                ->limit($viewMode === 'list' ? $perPage : 50)
+                ->get()
+                ->map(function (FormEntry $entry) {
+                    $entry->setAttribute('contact', FormEntryContact::fromEntry($entry));
+
+                    return $entry;
+                });
+            $filteredTotal += $pendingFormEntries->count();
+        }
+
         $categories = collect();
         $segments = ['all' => ['total' => $stats['total'], 'new' => $stats['new']], 'uncategorized' => ['total' => 0, 'new' => 0], 'by_id' => []];
 
@@ -140,8 +156,14 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts'))
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries'))
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
+            ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
+                $forms,
+                LeadCategorySchema::ready()
+                    ? LeadCategory::forCurrentOrganization()->active()->orderBy('name')->get()
+                    : collect()
+            ))
             ->with('platformOptions', [
                 'facebook' => 'Facebook',
                 'instagram' => 'Instagram',
@@ -274,24 +296,37 @@ class LeadController extends Controller
         return redirect()->route('admin.crm.leads.index')->with('success', 'Lead deleted successfully.');
     }
 
-    public function addNote(Request $request, Lead $lead): RedirectResponse
+    public function addNote(Request $request, Lead $lead): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $lead);
         $validated = $request->validate([
-            'note' => 'required|string',
+            'note' => 'required|string|max:10000',
             'is_important' => 'nullable|boolean',
         ]);
 
-        $lead->notes()->create([
+        $note = $lead->notes()->create([
             'organization_id' => $lead->organization_id,
             'admin_id' => auth('admin')->id(),
-            'note' => $validated['note'],
+            'note' => trim(strip_tags($validated['note'])),
             'is_important' => (bool) ($validated['is_important'] ?? false),
         ]);
 
-        $lead->logActivity('note_added', 'Note added');
+        $lead->logActivity('note_added', 'Comment added');
+        $note->load('admin');
+        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
 
-        return back()->with('success', 'Note added successfully.');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Comment added.',
+                'comment_html' => view('admin.crm.leads.partials.comment-item', [
+                    'note' => $note,
+                    'admins' => $admins,
+                ])->render(),
+                'comment_count' => $lead->notes()->count(),
+            ]);
+        }
+
+        return back()->with('success', 'Comment added successfully.');
     }
 
     public function updateStatus(Request $request, Lead $lead): RedirectResponse
@@ -604,6 +639,35 @@ class LeadController extends Controller
         return request()->expectsJson() || request()->ajax();
     }
 
+    public function smartSearchSuggest(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Lead::class);
+
+        $query = trim((string) $request->query('q', ''));
+        $forms = Form::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $categories = LeadCategorySchema::ready()
+            ? LeadCategory::forCurrentOrganization()->active()->orderBy('name')->get()
+            : collect();
+
+        $parsed = LeadSmartSearch::parse($query, $forms, $categories, (int) auth('admin')->id());
+        $viewMode = $request->query('view') === 'list' ? 'list' : 'board';
+        $params = array_merge(
+            $parsed['filters'],
+            array_filter(['search' => $parsed['search']]),
+            ['view' => $viewMode]
+        );
+
+        return response()->json([
+            'query' => $query,
+            'label' => $parsed['label'],
+            'confidence' => $parsed['confidence'],
+            'filters' => $parsed['filters'],
+            'search' => $parsed['search'],
+            'url' => route('admin.crm.leads.index', $params),
+            'suggestions' => LeadSmartSearch::suggestions($forms, $categories),
+        ]);
+    }
+
     public function export(Request $request): BinaryFileResponse
     {
         $this->authorize('export', Lead::class);
@@ -709,5 +773,58 @@ class LeadController extends Controller
                 });
             })
             ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'));
+    }
+
+    private function shouldShowFormIntake(Request $request): bool
+    {
+        if (! $request->user('admin')?->can('view form submissions')) {
+            return false;
+        }
+
+        if ($request->filled('source') && $request->source !== 'form_submission') {
+            return false;
+        }
+
+        if ($request->filled('lead_status') && $request->lead_status !== 'new') {
+            return false;
+        }
+
+        if ($request->filled('priority')) {
+            return false;
+        }
+
+        if ($request->filled('follow_up')) {
+            return false;
+        }
+
+        if ($request->filled('lead_category_id')) {
+            return false;
+        }
+
+        if ($request->filled('advertising_platform') || $request->filled('campaign_name')) {
+            return false;
+        }
+
+        if ($request->filled('assigned_to') && $request->assigned_to !== 'unassigned') {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function pendingFormEntriesQuery(Request $request)
+    {
+        return FormEntry::forCurrentOrganization()
+            ->with('form')
+            ->where('status', 'pending')
+            ->whereDoesntHave('lead')
+            ->when($request->form_id, fn ($q, $formId) => $q->where('form_id', (int) $formId))
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('data', 'like', "%{$search}%")
+                        ->orWhereHas('form', fn ($formQuery) => $formQuery->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderByDesc('submitted_at');
     }
 }

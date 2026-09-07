@@ -9,7 +9,9 @@ use App\Models\Crm\Customer;
 use App\Models\Crm\Lead;
 use App\Models\Form;
 use App\Models\FormEntry;
+use App\Support\FormEntryContact;
 use App\Support\OrganizationContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,7 +22,7 @@ class FormEntryController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view form submissions')->only(['index', 'forForm', 'show']);
+        $this->middleware('permission:view form submissions')->only(['index', 'forForm', 'show', 'panel']);
         $this->middleware('permission:update form submissions')->only(['edit', 'update']);
         $this->middleware('permission:delete form submissions')->only(['destroy']);
         $this->middleware('permission:export form submissions')->only(['export']);
@@ -50,6 +52,15 @@ class FormEntryController extends Controller
         $formEntry->load('form');
 
         return view('admin.crm.form-entries.show', compact('formEntry'));
+    }
+
+    public function panel(FormEntry $formEntry): View
+    {
+        $this->authorize('view', $formEntry);
+        $formEntry->load('form');
+        $contact = FormEntryContact::fromEntry($formEntry);
+
+        return view('admin.crm.form-entries.partials.submission-panel', compact('formEntry', 'contact'));
     }
 
     public function edit(FormEntry $formEntry): View
@@ -88,10 +99,10 @@ class FormEntryController extends Controller
         );
     }
 
-    public function convertToLead(FormEntry $formEntry): RedirectResponse
+    public function convertToLead(FormEntry $formEntry): RedirectResponse|JsonResponse
     {
         $this->authorize('convert', $formEntry);
-        $data = $this->extractEntryData($formEntry);
+        $data = FormEntryContact::fromEntry($formEntry);
 
         $lead = Lead::create([
             'organization_id' => OrganizationContext::idOrFail(),
@@ -105,11 +116,20 @@ class FormEntryController extends Controller
             'lead_source' => $formEntry->form?->name ?? 'Form Submission',
             'lead_status' => 'new',
             'priority' => 'medium',
-            'lead_description' => $data['description'],
+            'lead_description' => $data['preview'],
             'created_by' => auth('admin')->id(),
         ]);
 
         $lead->logActivity('created', 'Converted from form submission #'.$formEntry->id);
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Form submission converted to lead.',
+                'redirect' => route('admin.crm.leads.index', ['view' => 'board']),
+                'lead_id' => $lead->id,
+            ]);
+        }
 
         return redirect()->route('admin.crm.leads.show', $lead)
             ->with('success', 'Form submission converted to lead.');

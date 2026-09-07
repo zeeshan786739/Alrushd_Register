@@ -42,12 +42,15 @@
      data-inline-url-template="{{ url('admin/crm/leads') }}/__ID__/inline"
      data-panel-url-template="{{ url('admin/crm/leads') }}/__ID__/panel"
      data-panel-edit-url-template="{{ url('admin/crm/leads') }}/__ID__/panel/edit"
+     data-submission-panel-url-template="{{ url('admin/crm/form-submissions') }}/__ID__/panel"
+     data-convert-submission-url-template="{{ url('admin/crm/form-submissions') }}/__ID__/convert-lead"
      data-update-url-template="{{ url('admin/crm/leads') }}/__ID__"
      data-filter-clear-url="{{ route('admin.crm.leads.filters.clear') }}"
      data-can-update="{{ auth('admin')->user()?->can('update leads') ? '1' : '0' }}"
      data-can-assign="{{ auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
      data-can-bulk="{{ auth('admin')->user()?->can('update leads') || auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
      data-bulk-url="{{ route('admin.crm.leads.bulk') }}"
+     data-smart-search-url="{{ route('admin.crm.leads.smart-search') }}"
      data-initial-view="{{ $viewMode ?? 'board' }}">
     @include('admin.partials.page-header', [
         'title' => 'Leads',
@@ -144,6 +147,10 @@
                 @php
                     $columnLeads = $leads->getCollection()->where('lead_status', $status->value);
                     $columnTotal = (int) ($workflowCounts[$status->value] ?? 0);
+                    $columnSubmissions = $status->value === 'new' ? ($pendingFormEntries ?? collect()) : collect();
+                    if ($status->value === 'new') {
+                        $columnTotal += $columnSubmissions->count();
+                    }
                 @endphp
                 <section class="crm-board-column"
                          data-crm-dropzone
@@ -159,6 +166,11 @@
                         <span class="crm-board-column__count" title="On this page">{{ $columnLeads->count() }}</span>
                     </div>
                     <div class="crm-board-column__body">
+                        @if($columnSubmissions->isNotEmpty())
+                            @foreach($columnSubmissions as $entry)
+                                @include('admin.crm.leads.partials.board-submission-card', ['entry' => $entry])
+                            @endforeach
+                        @endif
                         @forelse($columnLeads as $lead)
                             @include('admin.crm.leads.partials.board-card', [
                                 'lead' => $lead,
@@ -166,10 +178,12 @@
                                 'assigneeInlineOptions' => $assigneeInlineOptions,
                             ])
                         @empty
+                            @if($columnSubmissions->isEmpty())
                             <div class="crm-board-empty">
                                 <iconify-icon icon="solar:inbox-line-linear"></iconify-icon>
                                 <span>Drop leads here</span>
                             </div>
+                            @endif
                         @endforelse
                     </div>
                 </section>
@@ -219,6 +233,11 @@
             </div>
 
             <div class="crm-leads-list" data-crm-leads-list>
+                @if(($pendingFormEntries ?? collect())->isNotEmpty())
+                    @foreach($pendingFormEntries as $entry)
+                        @include('admin.crm.leads.partials.list-submission-row', ['entry' => $entry])
+                    @endforeach
+                @endif
                 @forelse($leads as $lead)
                     @include('admin.crm.leads.partials.list-row', [
                         'lead' => $lead,
@@ -227,11 +246,13 @@
                         'assigneeInlineOptions' => $assigneeInlineOptions,
                     ])
                 @empty
+                    @if(($pendingFormEntries ?? collect())->isEmpty())
                     <div class="crm-leads-list-empty">
                         <iconify-icon icon="solar:inbox-line-linear"></iconify-icon>
                         <strong>No leads found</strong>
                         <span>Adjust your filters or import a new spreadsheet to populate this list.</span>
                     </div>
+                    @endif
                 @endforelse
             </div>
         </div>

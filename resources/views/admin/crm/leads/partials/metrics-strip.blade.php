@@ -16,7 +16,7 @@
             ? []
             : ['source' => 'form_submission', 'view' => $viewMode]
     ));
-    $pendingFormsUrl = route('admin.crm.form-entries.index', ['status' => 'pending']);
+    $pendingFormsUrl = route('admin.crm.leads.index', ['source' => 'form_submission', 'view' => $viewMode]);
 @endphp
 <div class="crm-metrics-strip" aria-label="Pipeline metrics">
     <div class="crm-metrics-strip__items">

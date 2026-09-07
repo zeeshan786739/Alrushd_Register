@@ -7,10 +7,15 @@ use App\Models\Crm\Invoice;
 use App\Models\Crm\Lead;
 use App\Models\Crm\Project;
 use App\Models\Crm\Quotation;
+use App\Models\Form;
 use App\Models\FormEntry;
+use App\Models\Crm\LeadCategory;
 use App\Support\CrmFormStats;
+use App\Support\CrmOverviewInsights;
 use App\Support\InvoiceDueState;
+use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
+use App\Support\LeadSmartSearch;
 use App\Support\ProjectDueState;
 use App\Support\QuotationExpiryState;
 use Illuminate\Http\Request;
@@ -185,6 +190,16 @@ class CrmOverviewController extends Controller
             ->values()
             ->take(15);
 
-        return view('admin.crm.overview', compact('stats', 'attention', 'formBreakdown'));
+        $insights = CrmOverviewInsights::generate($stats, $attention, $request->user('admin'));
+        $smartSuggestions = [];
+        if ($request->user('admin')?->can('view leads')) {
+            $forms = Form::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+            $categories = LeadCategorySchema::ready()
+                ? LeadCategory::forCurrentOrganization()->active()->orderBy('name')->get()
+                : collect();
+            $smartSuggestions = LeadSmartSearch::suggestions($forms, $categories);
+        }
+
+        return view('admin.crm.overview', compact('stats', 'attention', 'formBreakdown', 'insights', 'smartSuggestions'));
     }
 }

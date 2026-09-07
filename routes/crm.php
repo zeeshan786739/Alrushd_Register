@@ -15,6 +15,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('/', [CrmOverviewController::class, 'index'])->name('overview');
     Route::get('settings/documents', [DocumentSettingsController::class, 'edit'])->name('settings.documents.edit');
     Route::put('settings/documents', [DocumentSettingsController::class, 'update'])->name('settings.documents.update');
+    Route::get('leads/smart-search', [LeadController::class, 'smartSearchSuggest'])->name('leads.smart-search');
     Route::get('leads/export', [LeadController::class, 'export'])->name('leads.export');
     Route::get('leads/import', [LeadImportController::class, 'create'])->name('leads.import.create');
     Route::post('leads/import', [LeadImportController::class, 'store'])->name('leads.import.store');
@@ -74,6 +75,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('form-submissions/export', [FormEntryController::class, 'export'])->name('form-entries.export');
     Route::get('form-submissions', [FormEntryController::class, 'index'])->name('form-entries.index');
     Route::get('forms/{form}/submissions', [FormEntryController::class, 'forForm'])->name('form-entries.form');
+    Route::get('form-submissions/{formEntry}/panel', [FormEntryController::class, 'panel'])->name('form-entries.panel');
     Route::get('form-submissions/{formEntry}', [FormEntryController::class, 'show'])->name('form-entries.show');
     Route::get('form-submissions/{formEntry}/edit', [FormEntryController::class, 'edit'])->name('form-entries.edit');
     Route::put('form-submissions/{formEntry}', [FormEntryController::class, 'update'])->name('form-entries.update');
