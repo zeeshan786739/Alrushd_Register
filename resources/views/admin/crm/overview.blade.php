@@ -42,6 +42,22 @@
             </span>
             <span class="crm-overview-summary__sep" aria-hidden="true"></span>
         @endcan
+        @can('view form submissions')
+            @if(($stats['submissions_pending'] ?? 0) > 0)
+                <span class="crm-overview-summary__item">
+                    <span class="crm-overview-summary__label">Pending forms</span>
+                    <strong>{{ number_format($stats['submissions_pending']) }}</strong>
+                </span>
+                <span class="crm-overview-summary__sep" aria-hidden="true"></span>
+            @endif
+            @if(($stats['leads_from_forms'] ?? 0) > 0)
+                <span class="crm-overview-summary__item">
+                    <span class="crm-overview-summary__label">Form leads</span>
+                    <strong>{{ number_format($stats['leads_from_forms']) }}</strong>
+                </span>
+                <span class="crm-overview-summary__sep" aria-hidden="true"></span>
+            @endif
+        @endcan
         <span class="crm-overview-summary__item">
             <span class="crm-overview-summary__label">Needs attention</span>
             <strong>{{ number_format($attention->count()) }}</strong>
@@ -181,6 +197,82 @@
                             'accent' => 'green',
                         ])
                     </div>
+                </section>
+            @endcan
+
+            @can('view form submissions')
+                <section class="crm-overview-panel" aria-labelledby="crm-overview-forms">
+                    <div class="crm-overview-panel__head">
+                        <h2 class="crm-overview-panel__title" id="crm-overview-forms">
+                            <iconify-icon icon="solar:inbox-in-linear" aria-hidden="true"></iconify-icon>
+                            Forms &amp; intake
+                        </h2>
+                        <a href="{{ route('admin.crm.form-entries.index') }}" class="crm-overview-panel__link">View submissions</a>
+                    </div>
+                    <div class="crm-overview-metrics crm-overview-metrics--cols-6">
+                        @include('admin.crm.partials.overview-metric', [
+                            'label' => 'Total submissions',
+                            'value' => number_format($stats['submissions_total'] ?? 0),
+                            'href' => route('admin.crm.form-entries.index'),
+                            'accent' => 'brand',
+                        ])
+                        @include('admin.crm.partials.overview-metric', [
+                            'label' => 'Pending review',
+                            'value' => number_format($stats['submissions_pending'] ?? 0),
+                            'href' => route('admin.crm.form-entries.index', ['status' => 'pending']),
+                            'accent' => 'amber',
+                            'hint' => ($stats['submissions_pending'] ?? 0) > 0 ? 'Needs triage' : 'All reviewed',
+                        ])
+                        @include('admin.crm.partials.overview-metric', [
+                            'label' => 'Awaiting lead',
+                            'value' => number_format($stats['submissions_unconverted'] ?? 0),
+                            'href' => route('admin.crm.form-entries.index', ['status' => 'pending']),
+                            'accent' => 'purple',
+                        ])
+                        @include('admin.crm.partials.overview-metric', [
+                            'label' => 'Leads from forms',
+                            'value' => number_format($stats['leads_from_forms'] ?? 0),
+                            'href' => route('admin.crm.leads.index', ['source' => 'form_submission']),
+                            'accent' => 'teal',
+                        ])
+                        @include('admin.crm.partials.overview-metric', [
+                            'label' => 'This week',
+                            'value' => number_format($stats['submissions_this_week'] ?? 0),
+                            'href' => route('admin.crm.form-entries.index'),
+                            'accent' => 'blue',
+                        ])
+                        @include('admin.crm.partials.overview-metric', [
+                            'label' => 'Active forms',
+                            'value' => number_format($stats['active_forms'] ?? 0),
+                            'href' => route('admin.crm.form-entries.index'),
+                            'accent' => 'green',
+                        ])
+                    </div>
+
+                    @if(($formBreakdown ?? collect())->isNotEmpty())
+                        <div class="crm-overview-form-breakdown" aria-label="Submissions by form">
+                            <div class="crm-overview-form-breakdown__head">
+                                <span>Form</span>
+                                <span>Total</span>
+                                <span>Pending</span>
+                                <span>Leads</span>
+                                <span>7d</span>
+                            </div>
+                            @foreach($formBreakdown as $row)
+                                <a href="{{ route('admin.crm.leads.index', ['form_id' => $row['id']]) }}"
+                                   class="crm-overview-form-breakdown__row">
+                                    <span class="crm-overview-form-breakdown__name" title="{{ $row['name'] }}">
+                                        <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
+                                        {{ $row['name'] }}
+                                    </span>
+                                    <span class="crm-overview-form-breakdown__stat">{{ number_format($row['total']) }}</span>
+                                    <span @class(['crm-overview-form-breakdown__stat', 'is-attention' => $row['pending'] > 0])>{{ number_format($row['pending']) }}</span>
+                                    <span class="crm-overview-form-breakdown__stat">{{ number_format($row['leads']) }}</span>
+                                    <span class="crm-overview-form-breakdown__stat">{{ number_format($row['week']) }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
                 </section>
             @endcan
         </div>

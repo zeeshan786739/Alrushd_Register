@@ -12,11 +12,13 @@ use App\Http\Requests\Crm\StoreLeadRequest;
 use App\Http\Requests\Crm\UpdateLeadRequest;
 use App\Models\Admin;
 use App\Models\Crm\Lead;
+use App\Models\Form;
 use App\Models\Crm\LeadCategory;
 use App\Models\Crm\SavedFilter;
 use App\Services\Crm\CrmTransactionalMailService;
 use App\Services\Crm\LeadConversionException;
 use App\Services\Crm\LeadConversionService;
+use App\Support\CrmFormStats;
 use App\Support\CrmEmailDeliverySummary;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
@@ -77,7 +79,16 @@ class LeadController extends Controller
                 ->where('source', 'tiktok_lead_ads')
                 ->where('created_at', '>=', Carbon::now()->subDays(7))
                 ->count(),
+            'form_leads' => (clone $orgScope)->where('source', 'form_submission')->count(),
+            'form_leads_week' => (clone $orgScope)
+                ->where('source', 'form_submission')
+                ->where('created_at', '>=', Carbon::now()->subDays(7))
+                ->count(),
         ];
+
+        $formStats = CrmFormStats::summary();
+        $forms = Form::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $formLeadCounts = CrmFormStats::leadCountsByForm();
 
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
         $savedFilters = SavedFilter::forCurrentOrganization()
@@ -129,7 +140,7 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal'))
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts'))
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('platformOptions', [
                 'facebook' => 'Facebook',
@@ -198,7 +209,7 @@ class LeadController extends Controller
             'notes.admin',
             'activities.admin',
             'customer',
-            'formEntry',
+            'formEntry.form',
             'metaLeadSubmission.formMapping',
             'leadImport.uploader',
             'category',
@@ -658,6 +669,7 @@ class LeadController extends Controller
         return Lead::forCurrentOrganization()
             ->with(array_filter([
                 'assignedAdmin',
+                'formEntry.form',
                 LeadCategorySchema::ready() ? 'category' : null,
             ]))
             ->when(LeadCategorySchema::ready() && $request->filled('lead_category_id'), function ($q) use ($request) {
@@ -682,6 +694,10 @@ class LeadController extends Controller
             ->when($request->follow_up === 'today', fn ($q) => $q->followUpToday())
             ->when($request->follow_up === 'overdue', fn ($q) => $q->overdueFollowUp())
             ->when($request->source, fn ($q, $source) => $q->where('source', $source))
+            ->when($request->form_id, fn ($q, $formId) => $q->whereHas(
+                'formEntry',
+                fn ($entryQuery) => $entryQuery->where('form_id', (int) $formId)
+            ))
             ->when($request->advertising_platform, fn ($q, $platform) => $q->where('advertising_platform', $platform))
             ->when($request->campaign_name, fn ($q, $campaign) => $q->where('campaign_name', 'like', '%'.$campaign.'%'))
             ->when($request->search, function ($q, $search) {

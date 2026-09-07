@@ -126,6 +126,33 @@
 #crm-overview-page .crm-overview-attention__empty iconify-icon{font-size:28px;color:var(--crm-border-strong)}
 #crm-overview-page .crm-overview-attention__empty strong{display:block;font-size:13px;font-weight:500;color:var(--crm-text)}
 
+#crm-overview-page .crm-overview-form-breakdown{
+    border-top:1px solid var(--crm-border);background:var(--crm-surface-sunken);
+}
+#crm-overview-page .crm-overview-form-breakdown__head,
+#crm-overview-page .crm-overview-form-breakdown__row{
+    display:grid;grid-template-columns:minmax(0,1.6fr) repeat(4,minmax(52px,.5fr));gap:8px;align-items:center;
+    padding:10px 16px;font-size:12px;
+}
+#crm-overview-page .crm-overview-form-breakdown__head{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--crm-text-muted);
+    border-bottom:1px solid var(--crm-border);
+}
+#crm-overview-page .crm-overview-form-breakdown__row{
+    text-decoration:none;color:inherit;border-bottom:1px solid var(--crm-border);transition:background .1s ease;
+}
+#crm-overview-page .crm-overview-form-breakdown__row:last-child{border-bottom:0}
+#crm-overview-page .crm-overview-form-breakdown__row:hover{background:rgba(15,39,74,.04)}
+#crm-overview-page .crm-overview-form-breakdown__name{
+    display:flex;align-items:center;gap:8px;min-width:0;font-weight:600;color:var(--crm-text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#crm-overview-page .crm-overview-form-breakdown__name iconify-icon{color:var(--crm-brand);font-size:16px;flex-shrink:0}
+#crm-overview-page .crm-overview-form-breakdown__stat{
+    font-variant-numeric:tabular-nums;font-weight:700;color:var(--crm-text);text-align:right;
+}
+#crm-overview-page .crm-overview-form-breakdown__stat.is-attention{color:#b45309}
+
 @media(max-width:1199px){
     #crm-overview-page .crm-overview-layout{grid-template-columns:1fr;padding:12px}
     #crm-overview-page .crm-overview-main{padding-right:0;border-right:0;padding-bottom:12px;border-bottom:1px solid var(--crm-border)}

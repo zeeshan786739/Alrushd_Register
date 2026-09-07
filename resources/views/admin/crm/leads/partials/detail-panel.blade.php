@@ -183,9 +183,35 @@
             <dd>{{ optional($lead->appointment_date)->format('M j, Y g:i A') ?? '—' }}</dd>
         </div>
         @if($lead->formEntry)
-            <div class="crm-lead-panel__property crm-lead-panel__property--wide">
-                <dt>Form submission</dt>
-                <dd><a href="{{ route('admin.crm.form-entries.show', $lead->formEntry) }}">View submission #{{ $lead->formEntry->id }}</a></dd>
+            <section class="crm-lead-panel__section crm-lead-panel__section--form">
+                <div class="crm-lead-panel__section-head">
+                    <h3><iconify-icon icon="solar:inbox-in-linear"></iconify-icon> Form submission</h3>
+                    <a href="{{ route('admin.crm.form-entries.show', $lead->formEntry) }}" class="crm-lead-panel__section-link" onclick="event.stopPropagation()">
+                        View full submission
+                    </a>
+                </div>
+                <div class="crm-lead-panel__section-body">
+                    <div class="crm-lead-panel__form-meta">
+                        @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission'])
+                        @if($lead->formEntry->form)
+                            <span class="crm-lead-panel__form-name">
+                                <iconify-icon icon="solar:document-text-linear"></iconify-icon>
+                                {{ $lead->formEntry->form->name }}
+                            </span>
+                        @endif
+                        @if($lead->formEntry->submitted_at)
+                            <span class="crm-lead-panel__form-date">
+                                Submitted {{ $lead->formEntry->submitted_at->format('M j, Y g:i A') }}
+                            </span>
+                        @endif
+                    </div>
+                    @include('admin.crm.partials.form-submission-preview', ['formEntry' => $lead->formEntry, 'limit' => 5])
+                </div>
+            </section>
+        @elseif($lead->source && $lead->source !== 'manual')
+            <div class="crm-lead-panel__property">
+                <dt>Source</dt>
+                <dd>@include('admin.crm.partials.crm-source-badge', ['source' => $lead->source, 'label' => $lead->lead_source ?? null])</dd>
             </div>
         @endif
         @if($lead->lead_description)

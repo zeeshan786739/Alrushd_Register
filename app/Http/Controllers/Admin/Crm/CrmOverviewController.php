@@ -7,6 +7,8 @@ use App\Models\Crm\Invoice;
 use App\Models\Crm\Lead;
 use App\Models\Crm\Project;
 use App\Models\Crm\Quotation;
+use App\Models\FormEntry;
+use App\Support\CrmFormStats;
 use App\Support\InvoiceDueState;
 use App\Support\LeadFollowUpState;
 use App\Support\ProjectDueState;
@@ -64,7 +66,35 @@ class CrmOverviewController extends Controller
             'projects_completed' => (clone $projects)->where('status', 'completed')->count(),
         ];
 
+        $formStats = [];
+        $formBreakdown = collect();
+        if ($request->user('admin')?->can('view form submissions')) {
+            $formStats = CrmFormStats::summary();
+            $formBreakdown = CrmFormStats::formBreakdown();
+        }
+
+        $stats = array_merge($stats, $formStats);
+
         $attention = collect();
+
+        if ($request->user('admin')?->can('view form submissions')) {
+            FormEntry::forCurrentOrganization()
+                ->with('form')
+                ->where('status', 'pending')
+                ->whereDoesntHave('lead')
+                ->orderByDesc('submitted_at')
+                ->limit(5)
+                ->get()
+                ->each(function (FormEntry $entry) use ($attention) {
+                    $attention->push([
+                        'severity' => 'warning',
+                        'type' => 'Form submission',
+                        'label' => $entry->form?->name ?? ('Submission #'.$entry->id),
+                        'meta' => 'Pending · '.optional($entry->submitted_at)->diffForHumans(),
+                        'url' => route('admin.crm.form-entries.show', $entry),
+                    ]);
+                });
+        }
 
         if ($request->user('admin')?->can('view leads')) {
             foreach ((clone $leads)->overdueFollowUp()->orderBy('next_follow_up_date')->limit(5)->get() as $lead) {
@@ -155,14 +185,6 @@ class CrmOverviewController extends Controller
             ->values()
             ->take(15);
 
-        $quickLinks = array_values(array_filter([
-            $request->user('admin')?->can('view leads') ? ['label' => 'Leads', 'url' => route('admin.crm.leads.index'), 'icon' => 'solar:user-hand-up-linear'] : null,
-            $request->user('admin')?->can('view customers') ? ['label' => 'Customers', 'url' => route('admin.crm.customers.index'), 'icon' => 'solar:users-group-rounded-linear'] : null,
-            $request->user('admin')?->can('view projects') ? ['label' => 'Projects', 'url' => route('admin.crm.projects.index'), 'icon' => 'solar:folder-linear'] : null,
-            $request->user('admin')?->can('view quotations') ? ['label' => 'Quotations', 'url' => route('admin.crm.quotations.index'), 'icon' => 'solar:document-text-linear'] : null,
-            $request->user('admin')?->can('view invoices') ? ['label' => 'Invoices', 'url' => route('admin.crm.invoices.index'), 'icon' => 'solar:bill-list-linear'] : null,
-        ]));
-
-        return view('admin.crm.overview', compact('stats', 'attention', 'quickLinks'));
+        return view('admin.crm.overview', compact('stats', 'attention', 'formBreakdown'));
     }
 }

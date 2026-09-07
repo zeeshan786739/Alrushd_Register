@@ -50,6 +50,17 @@
             <div class="crm-board-card__meta text-truncate" title="{{ $lead->email ?? $lead->phone }}">
                 {{ $lead->email ?? $lead->phone ?? 'No contact saved' }}
             </div>
+            @if($lead->source === 'form_submission' || $lead->formEntry)
+                <div class="crm-board-card__source-row">
+                    @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
+                    @if($lead->formEntry?->form)
+                        <span class="crm-board-card__form-name" title="{{ $lead->formEntry->form->name }}">
+                            <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
+                            {{ Str::limit($lead->formEntry->form->name, 28) }}
+                        </span>
+                    @endif
+                </div>
+            @endif
             @if($followUp->hasFollowUp())
                 <div class="crm-board-card__followup-row">
                     <span class="crm-board-card__followup {{ $followUp->attention ? 'is-attention' : '' }}">

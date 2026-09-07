@@ -1,9 +1,12 @@
 @php
     $viewMode = $viewMode ?? 'board';
     $categories = $categories ?? collect();
+    $forms = $forms ?? collect();
+    $formLeadCounts = $formLeadCounts ?? [];
     $segments = $segments ?? ['all' => ['total' => 0], 'uncategorized' => ['total' => 0], 'by_id' => []];
     $currentAdminId = auth('admin')->id();
     $activeCategory = request('lead_category_id');
+    $activeFormId = request('form_id');
 
     $isAssignedToMe = request('assigned_to') === 'me' || (string) request('assigned_to') === (string) $currentAdminId;
     $isUnassigned = request('assigned_to') === 'unassigned';
@@ -13,6 +16,7 @@
     $isHighPriority = request('priority') === 'high_urgent';
     $isUrgentPriority = request('priority') === 'urgent';
     $isMediumPriority = request('priority') === 'medium';
+    $isFormSource = request('source') === 'form_submission';
 
     $baseQuery = request()->except('page');
     $filterUrl = fn (array $merge = [], array $except = []) => route('admin.crm.leads.index', array_merge(
@@ -94,17 +98,27 @@
                 ? $filterUrl([], ['priority'])
                 : $filterUrl(['priority' => 'medium'], ['priority']),
         ],
+        [
+            'key' => 'form_source',
+            'label' => 'From forms',
+            'icon' => 'solar:inbox-in-linear',
+            'active' => $isFormSource && ! request()->filled('form_id'),
+            'url' => ($isFormSource && ! request()->filled('form_id'))
+                ? $filterUrl([], ['source', 'form_id'])
+                : $filterUrl(['source' => 'form_submission'], ['source', 'form_id']),
+        ],
     ];
 
-    $advancedFilterKeys = ['source', 'advertising_platform', 'campaign_name', 'lead_status', 'priority', 'assigned_to', 'lead_category_id'];
+    $advancedFilterKeys = ['source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'priority', 'assigned_to', 'lead_category_id'];
     $hasAdvancedValues = collect(request()->only($advancedFilterKeys))
         ->filter(fn ($value) => $value !== null && $value !== '')
         ->isNotEmpty();
     $onlyQuickFilters = ! $hasAdvancedValues || (
-        ! request()->filled('source')
+        (! request()->filled('source') || request('source') === 'form_submission')
         && ! request()->filled('advertising_platform')
         && ! request()->filled('campaign_name')
         && ! request()->filled('lead_category_id')
+        && ! request()->filled('form_id')
         && (
             ! request()->filled('lead_status') || request('lead_status') === 'new'
         )
@@ -197,6 +211,24 @@
                         </a>
                     @endif
                 @endif
+
+                @if($forms->isNotEmpty())
+                    <span class="crm-filter-workspace__chip-divider" aria-hidden="true"></span>
+                    @foreach($forms as $form)
+                        @php
+                            $counts = $formLeadCounts[$form->id] ?? ['total' => 0, 'new' => 0];
+                            $isActive = (string) $activeFormId === (string) $form->id;
+                        @endphp
+                        <a href="{{ $filterUrl(['form_id' => $form->id, 'source' => 'form_submission'], ['form_id', 'source']) }}"
+                           @class(['crm-filter-chip', 'crm-filter-chip--form', 'is-active' => $isActive])
+                           title="{{ $form->name }} leads"
+                           @if($isActive) aria-current="true" @endif>
+                            <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
+                            {{ Str::limit($form->name, 22) }}
+                            <span class="crm-filter-chip__count">{{ (int) $counts['total'] }}</span>
+                        </a>
+                    @endforeach
+                @endif
             </div>
         </div>
 
@@ -240,6 +272,17 @@
                         @endforeach
                     </select>
                 </div>
+                @if($forms->isNotEmpty())
+                    <div class="crm-filter-workspace__field">
+                        <label for="form_id">Form</label>
+                        <select name="form_id" id="form_id" class="form-select">
+                            <option value="">All forms</option>
+                            @foreach($forms as $form)
+                                <option value="{{ $form->id }}" @selected((string) request('form_id') === (string) $form->id)>{{ $form->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
                 <div class="crm-filter-workspace__field">
                     <label for="advertising_platform">Platform</label>
                     <select name="advertising_platform" id="advertising_platform" class="form-select">

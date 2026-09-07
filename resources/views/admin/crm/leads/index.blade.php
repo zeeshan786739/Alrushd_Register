@@ -63,11 +63,13 @@
     ])
 
     <div class="crm-leads-workspace crm-workspace-shell">
-        @include('admin.crm.leads.partials.metrics-strip', ['stats' => $stats, 'viewMode' => $viewMode ?? 'board'])
+        @include('admin.crm.leads.partials.metrics-strip', ['stats' => $stats, 'formStats' => $formStats ?? [], 'viewMode' => $viewMode ?? 'board'])
 
         @include('admin.crm.leads.partials.filter-workspace', [
             'viewMode' => $viewMode ?? 'board',
             'categories' => $categories ?? collect(),
+            'forms' => $forms ?? collect(),
+            'formLeadCounts' => $formLeadCounts ?? [],
             'segments' => $segments ?? [],
             'categoryFilterOptions' => $categoryFilterOptions,
             'sourceOptions' => $sourceOptions ?? [],

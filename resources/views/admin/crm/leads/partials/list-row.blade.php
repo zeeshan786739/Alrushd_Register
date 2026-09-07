@@ -35,6 +35,14 @@
         <div class="min-w-0">
             <div class="crm-list-row__name">{{ $lead->full_name }}</div>
             <div class="crm-list-row__meta">{{ $lead->email ?? $lead->phone ?? 'No contact saved' }}</div>
+            @if($lead->source === 'form_submission' || $lead->formEntry)
+                <div class="crm-list-row__source">
+                    @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
+                    @if($lead->formEntry?->form)
+                        <span class="crm-list-row__form-name">{{ Str::limit($lead->formEntry->form->name, 32) }}</span>
+                    @endif
+                </div>
+            @endif
             @if($lead->category)
                 <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}">
                     <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>

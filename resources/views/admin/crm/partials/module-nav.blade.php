@@ -8,6 +8,7 @@
         ['key' => 'projects', 'label' => 'Projects', 'url' => route('admin.crm.projects.index'), 'icon' => 'solar:folder-linear', 'show' => $user?->can('view projects')],
         ['key' => 'quotations', 'label' => 'Quotations', 'url' => route('admin.crm.quotations.index'), 'icon' => 'solar:document-text-linear', 'show' => $user?->can('view quotations')],
         ['key' => 'invoices', 'label' => 'Invoices', 'url' => route('admin.crm.invoices.index'), 'icon' => 'solar:bill-list-linear', 'show' => $user?->can('view invoices')],
+        ['key' => 'form-submissions', 'label' => 'Form Submissions', 'url' => route('admin.crm.form-entries.index'), 'icon' => 'solar:inbox-in-linear', 'show' => $user?->can('view form submissions')],
     ], fn ($item) => $item['show']));
 @endphp
 @if(!empty($items))
