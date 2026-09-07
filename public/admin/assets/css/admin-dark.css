@@ -1,0 +1,178 @@
+/* Admin UI only. Document sheets and message/editor canvases retain their authored
+   colors. Keep filled-brand colors separate from readable accent text. */
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --crm-surface: #1c2738;
+    --crm-surface-sunken: #131c29;
+    --crm-border: #39485c;
+    --crm-border-strong: #65758a;
+    --crm-text: #e7edf5;
+    --crm-text-muted: #afbdd0;
+    --crm-brand: #254d7f;
+    --crm-brand-hover: #30629e;
+    --crm-brand-soft: #243a54;
+    --crm-accent: #dfc487;
+    --crm-accent-soft: #3b3a33;
+    --dt-link: #a7ceff;
+    --crm-link: #a7ceff;
+    --dt-hover: #2a3b52;
+    --dt-input: #152132;
+    --dt-selected: #30496a;
+    --text-primary-light: #e7edf5;
+    --text-secondary-light: #afbdd0;
+    --input-bg: #152132;
+    --input-stroke: #65758a;
+    --crm-shadow-sm: 0 1px 3px #0003;
+    --crm-shadow-md: 0 5px 18px #0003;
+    --crm-shadow-lg: 0 12px 30px #0004;
+}
+html[data-theme="dark"] body { color: var(--crm-text); background: var(--crm-surface-sunken); }
+html[data-theme="dark"] :is(.sidebar,.navbar-header,.d-footer) { background: var(--crm-surface) !important; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] :is(.crm-brand-name,.d-footer .text-primary-600) { color: #e7edf5 !important; }
+html[data-theme="dark"] :is(.crm-brand-tag,.d-footer,.d-footer p,.sidebar-menu-group-title,.sidebar-submenu__heading) { color: var(--crm-text-muted) !important; opacity: 1; }
+html[data-theme="dark"] .sidebar-menu li a { color: #d3deec !important; }
+html[data-theme="dark"] .sidebar-menu li a:is(:hover,:focus-visible) { background: var(--dt-hover) !important; color: #fff !important; }
+html[data-theme="dark"] .sidebar-menu li a.active-page,
+html[data-theme="dark"] .sidebar-menu li a.active-page:is(:hover,:focus-visible) { background: var(--dt-selected) !important; color: #fff !important; box-shadow: inset 3px 0 var(--crm-accent); }
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a { background: #254d7f !important; color: #fff !important; }
+html[data-theme="dark"] .sidebar-menu li a :is(iconify-icon,i,span),
+html[data-theme="dark"] .sidebar-menu li a:is(:hover,:focus-visible) :is(iconify-icon,i,span) { color: inherit !important; }
+html[data-theme="dark"] .sidebar-badge { background: #385b84 !important; color: #fff !important; }
+html[data-theme="dark"] :is(.sidebar-toggle,.sidebar-close-btn,.crm-nav-btn) { color: #d3deec !important; }
+html[data-theme="dark"] :is(.sidebar-toggle,.crm-nav-btn):hover { background: var(--dt-hover) !important; color: #fff !important; }
+
+/* Shared UI surfaces: dashboard, team/access, CRM, marketing and account. */
+html[data-theme="dark"] :is(.card,.modal-content,.dropdown-menu,.offcanvas,.swal2-popup,
+ .crm-workspace-header,.crm-record-card,.crm-commercial-stat,.crm-filter-bar,.crm-segment-card,
+ .crm-inline-menu,.crm-view-toggle,.crm-saved-filter-chip,.crm-quick-group,
+ .um-panel,.um-form-section,.um-role-card,.um-role-picker__item,.um-perm-item,
+ .dash-panel,.dash-form-card,.dash-module-card,.acct-panel,.acct-plan-card,
+ .em-panel,.em-form-block,.em-template-card,.em-review-card,.em-review-stats > div) {
+    background: var(--crm-surface) !important; color: var(--crm-text); border-color: var(--crm-border) !important;
+}
+html[data-theme="dark"] :is(.text-secondary-light,.text-muted,.crm-lead-meta,.fc-table-url,
+ .crm-commercial-stat__label,.crm-commercial-stat__hint,.crm-empty-state,.crm-quick-group__label,
+ .crm-workspace-header__contact,.crm-detail-facts strong) { color: var(--crm-text-muted) !important; }
+html[data-theme="dark"] :is(.text-primary-600,.hover-text-primary:hover,.crm-workspace-header__contact a,
+ .crm-relation-table a,.crm-saved-filter-chip__link,.um-panel__link,.um-role-mini__link,
+ .dash-panel__head a,.dash-activity-col__head a,.dash-form-card__stat,.acct-shell__eyebrow) { color: var(--dt-link) !important; }
+html[data-theme="dark"] :is(.crm-workspace-header__title,.crm-section-title,.crm-detail-section__title,
+ .crm-commercial-stat__value,.crm-lead-name,.crm-page-header__title,.modal-title,.swal2-title) { color: var(--crm-text) !important; }
+html[data-theme="dark"] :is(.crm-section-title iconify-icon,.crm-activity-icon,.crm-stat-card__icon) { color: var(--dt-link) !important; background: #273d59 !important; }
+html[data-theme="dark"] :is(.border,.border-bottom,.border-top,.modal-header,.modal-footer,.crm-section-title,.crm-activity-item) { border-color: var(--crm-border) !important; }
+
+/* Inputs: retain native checkmarks, focus rings, disabled and checked states. */
+html[data-theme="dark"] :is(.form-control,.form-select,.input-group-text,.search:focus,.search_select:focus) {
+    color: var(--crm-text) !important; background-color: var(--dt-input) !important; border-color: var(--crm-border-strong) !important;
+}
+html[data-theme="dark"] :is(.form-control,.form-select):focus { border-color: #8dbdff !important; box-shadow: 0 0 0 3px #8dbdff30 !important; }
+html[data-theme="dark"] :is(.form-control,.form-select):disabled { color: #9daabe !important; background: #253044 !important; cursor: not-allowed; }
+html[data-theme="dark"] :is(input,textarea)::placeholder { color: #9eacc0 !important; opacity: 1; }
+html[data-theme="dark"] :is(.form-label,label.form-label,.form-check,.form-check-label) { color: #c3cfdf !important; }
+html[data-theme="dark"] .form-select option { color: var(--crm-text); background: var(--dt-input); }
+html[data-theme="dark"] .form-check-input { background-color: var(--dt-input); border-color: #8b9bb0; }
+html[data-theme="dark"] .form-check-input:checked { background-color: #30629e !important; border-color: #8dbdff !important; }
+html[data-theme="dark"] input::file-selector-button { background: #2a3b52; color: #e7edf5; }
+html[data-theme="dark"] .btn:is(.btn-primary,.btn-primary-600) { background: #254d7f !important; border-color: #6088b8 !important; color: #fff !important; }
+html[data-theme="dark"] .btn:is(.btn-primary,.btn-primary-600):hover { background: #30629e !important; color: #fff !important; }
+html[data-theme="dark"] .btn:is(.btn-outline-primary,.btn-outline-primary-600,.btn-outline-neutral-500) { color: #bdd9ff !important; background: transparent !important; border-color: #6a829f !important; }
+html[data-theme="dark"] .btn:is(.btn-outline-primary,.btn-outline-primary-600,.btn-outline-neutral-500):hover { background: var(--dt-hover) !important; color: #fff !important; }
+html[data-theme="dark"] :is(.dropdown-item,.crm-inline-option,.crm-view-toggle button) { color: var(--crm-text) !important; }
+html[data-theme="dark"] :is(.dropdown-item,.crm-inline-option,.crm-view-toggle button):is(:hover,:focus-visible) { background: var(--dt-hover) !important; color: #fff !important; }
+html[data-theme="dark"] :is(.nav-link,.um-module-nav__link,.em-module-nav__link,.acct-module-nav__link) { color: #c6d6e9; }
+html[data-theme="dark"] :is(.nav-link.active,.um-module-nav__link.is-active,.em-module-nav__link.is-active,.acct-module-nav__link.is-active,.crm-view-toggle button.is-active) { background: #254d7f !important; color: #fff !important; }
+html[data-theme="dark"] :is(a,button,input,select,textarea,summary):focus-visible { outline: 2px solid #9bc5ff; outline-offset: 3px; }
+
+/* Tables use opaque cells so pinned columns stay readable on scroll.
+   Exclude the authored document sheet and rich-text content. */
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) {
+    --bs-table-color: #e7edf5; --bs-table-bg: #1c2738; --bs-table-hover-bg: #2a3b52;
+    --bs-table-hover-color: #fff; --bs-table-striped-bg: #202e42; color: var(--crm-text) !important;
+}
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) > :not(caption) > * > * { background-color: var(--crm-surface); color: inherit; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) thead th { color: #bdcce0 !important; background: #243247 !important; }
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) tbody tr:hover > * { background: var(--dt-hover) !important; }
+html[data-theme="dark"] .pagination .page-link { background: var(--crm-surface); border-color: var(--crm-border); color: var(--dt-link); }
+html[data-theme="dark"] .pagination :is(.active .page-link,.page-link:hover) { background: var(--dt-selected); color: #fff; }
+
+/* Leads has ID-scoped !important styles. Match that specificity explicitly. */
+html[data-theme="dark"] #crm-leads-page { --ui-ink: #e7edf5; --ui-muted: #afbdd0; --ui-line: #39485c; background: var(--crm-surface-sunken); color: var(--crm-text); }
+html[data-theme="dark"] #crm-leads-page :is(.crm-stat-card,.crm-segment-card,.crm-filter-bar,.crm-view-toggle,.crm-list-only,.crm-record-card) { background: var(--crm-surface) !important; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] #crm-leads-page :is(.crm-lead-name,.crm-stat-card__value,.crm-page-header__title,.crm-segment-card__counts strong) { color: var(--crm-text) !important; }
+html[data-theme="dark"] #crm-leads-page :is(.crm-lead-meta,.crm-stat-card__label,.crm-page-header__subtitle,.crm-lead-segments__title,.crm-lead-segments__hint,.crm-segment-card__name) { color: var(--crm-text-muted) !important; }
+html[data-theme="dark"] #crm-leads-page .crm-list-only :is(th,td) { background: var(--crm-surface) !important; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] #crm-leads-page .crm-list-only thead th { background: #243247 !important; color: #bdcce0 !important; }
+html[data-theme="dark"] #crm-leads-page .crm-list-only tbody tr:hover td { background: var(--dt-hover) !important; }
+html[data-theme="dark"] #crm-leads-page .crm-list-only .table { color: var(--crm-text); }
+html[data-theme="dark"] #crm-leads-page .crm-list-only .table-responsive { scrollbar-color: #65758a #182334; }
+html[data-theme="dark"] #crm-leads-page :is(.crm-segment-card.is-active,.crm-view-toggle button.is-active) { color: #e3d9ff !important; background: #3a3158 !important; border-color: #a78bfa !important; }
+html[data-theme="dark"] #crm-leads-page .crm-segment-card.is-active :is(.crm-segment-card__name,.crm-segment-card__counts strong) { color: #e3d9ff !important; }
+html[data-theme="dark"] #crm-leads-page :is(.badge,.crm-category-badge) { background: #2c3950 !important; color: #c5d6eb !important; }
+html[data-theme="dark"] #crm-leads-page .crm-page-header .btn { background: #243247 !important; color: #dbe8fa !important; border-color: #65758a !important; }
+html[data-theme="dark"] #crm-leads-page .crm-page-header .btn:hover { background: #304561 !important; }
+html[data-theme="dark"] #crm-leads-page .crm-page-header .btn-primary-600 { background: #6d35c5 !important; color: #fff !important; }
+html[data-theme="dark"] #crm-leads-page #crm-save-filter-form { background: var(--crm-surface) !important; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] #crm-leads-page #crm-save-filter-form :is(label,.btn) { color: #cbdcf3 !important; }
+html[data-theme="dark"] #crm-leads-page #crm-save-filter-form .btn { background: #243247 !important; }
+html[data-theme="dark"] #crm-leads-page nav[role="navigation"] :is(a,span) { background-color: var(--crm-surface) !important; color: #bdcce0 !important; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] #crm-leads-page .fc-table-actions .btn:hover { background: #3a3158 !important; }
+
+/* Lead detail, customer/project summaries and activity. */
+html[data-theme="dark"] .crm-lead-detail { --lead-ink: #e7edf5; --lead-muted: #afbdd0; --lead-line: #39485c; --lead-soft: #243247; }
+html[data-theme="dark"] .crm-lead-detail :is(.card,.crm-workspace-header,.crm-quick-group) { background: var(--crm-surface) !important; border-color: var(--crm-border) !important; }
+html[data-theme="dark"] .crm-lead-detail :is(.crm-section-title,.crm-detail-section__title,.crm-workspace-header__title) { color: var(--crm-text) !important; }
+html[data-theme="dark"] .crm-lead-detail :is(.crm-detail-facts strong,.card .text-secondary-light.d-block,.crm-quick-group__label) { color: var(--crm-text-muted) !important; }
+html[data-theme="dark"] .crm-lead-detail :is(.crm-section-title iconify-icon,.crm-activity-icon) { background: #273d59; color: var(--dt-link); }
+
+/* Form builder and website/enrollment administration chrome. Preview frames
+   deliberately remain unchanged so they represent the actual public output. */
+html[data-theme="dark"] :is(.wcm-shell,.wcm-main) { background: var(--crm-surface-sunken); }
+html[data-theme="dark"] :is(.wcm-topbar,.wcm-sidebar,.wcm-panel,.wcm-section,.wcm-card,.wcm-field input,.wcm-field textarea,.wcm-field select) { background: var(--crm-surface); color: var(--crm-text); border-color: var(--crm-border); }
+html[data-theme="dark"] :is(.wcm-title,.wcm-module-title,.wcm-nav-item,.enroll-panel__head h2,.enroll-setup__nav-item) { color: var(--crm-text); }
+html[data-theme="dark"] :is(.wcm-subtitle,.wcm-meta,.wcm-module-desc,.enroll-panel__head p) { color: var(--crm-text-muted); }
+html[data-theme="dark"] :is(.wcm-nav-item,.enroll-setup__nav-item):hover { background: var(--dt-hover); color: #fff; }
+html[data-theme="dark"] :is(.wcm-nav-item.is-active,.enroll-setup__nav-item.is-active) { background: var(--dt-selected); color: #fff; }
+html[data-theme="dark"] :is(.fc-v2-builder,.fc-pro-table,.em-review-stats > div) { background: var(--crm-surface); color: var(--crm-text); }
+html[data-theme="dark"] #crm-page-loader { background: #131c29dd; }
+html[data-theme="dark"].admin-pjax-loading #admin-page-content::before { background: #131c2966; }
+
+/* Semantic state colors shared by all CRM lists and detail screens. */
+html[data-theme="dark"] :is(.crm-status-pill--tone-neutral,.crm-inline-select[data-tone="neutral"],.crm-inline-control[data-tone="neutral"],.crm-status-pill--draft,.crm-status-pill--medium,.crm-status-pill--low) {
+    --crm-tone-bg: #2b3648; --crm-tone-text: #cbd5e1; --crm-tone-border: #65758a; --crm-tone-ring: #65758a55;
+}
+html[data-theme="dark"] :is(.crm-status-pill--tone-success,.crm-inline-select[data-tone="success"],.crm-inline-control[data-tone="success"],.crm-status-pill--accepted,.crm-status-pill--won,.crm-status-pill--paid,.crm-status-pill--active,.crm-status-pill--approved,.crm-status-pill--completed) {
+    --crm-tone-bg: #183d32; --crm-tone-text: #91e5b9; --crm-tone-border: #3d8062; --crm-tone-ring: #3d806255;
+}
+html[data-theme="dark"] :is(.crm-status-pill--tone-info,.crm-inline-select[data-tone="info"],.crm-inline-control[data-tone="info"],.crm-status-pill--sent,.crm-status-pill--contacted,.crm-status-pill--in_progress) {
+    --crm-tone-bg: #213d60; --crm-tone-text: #afd3ff; --crm-tone-border: #557da8; --crm-tone-ring: #557da855;
+}
+html[data-theme="dark"] :is(.crm-status-pill--tone-warning,.crm-inline-select[data-tone="warning"],.crm-inline-control[data-tone="warning"],.crm-status-pill--pending,.crm-status-pill--new,.crm-status-pill--prospect,.crm-status-pill--partially_paid,.crm-status-pill--expired) {
+    --crm-tone-bg: #453921; --crm-tone-text: #f4d68e; --crm-tone-border: #997c40; --crm-tone-ring: #997c4055;
+}
+html[data-theme="dark"] :is(.crm-status-pill--tone-caution,.crm-inline-select[data-tone="caution"],.crm-inline-control[data-tone="caution"],.crm-status-pill--overdue,.crm-status-pill--urgent,.crm-status-pill--high,.crm-status-pill--on_hold) {
+    --crm-tone-bg: #493124; --crm-tone-text: #ffc59b; --crm-tone-border: #a06d49; --crm-tone-ring: #a06d4955;
+}
+html[data-theme="dark"] :is(.crm-status-pill--tone-danger,.crm-inline-select[data-tone="danger"],.crm-inline-control[data-tone="danger"],.crm-status-pill--rejected,.crm-status-pill--lost,.crm-status-pill--cancelled,.crm-status-pill--inactive) {
+    --crm-tone-bg: #472b35; --crm-tone-text: #ffb6bf; --crm-tone-border: #a05b6a; --crm-tone-ring: #a05b6a55;
+}
+html[data-theme="dark"] :is(.crm-status-pill--tone-indigo,.crm-inline-select[data-tone="indigo"],.crm-inline-control[data-tone="indigo"],.crm-status-pill--qualified,.crm-status-pill--negotiation,.crm-status-pill--proposal_sent,.crm-status-pill--converted) {
+    --crm-tone-bg: #353053; --crm-tone-text: #d0c4ff; --crm-tone-border: #8274af; --crm-tone-ring: #8274af55;
+}
+html[data-theme="dark"] .crm-status-pill { box-shadow: none; }
+html[data-theme="dark"] .crm-inline-option.is-selected { background: var(--dt-selected); }
+html[data-theme="dark"] .crm-inline-option :is(iconify-icon,.crm-inline-option__check) { color: var(--dt-link) !important; }
+html[data-theme="dark"] :is(.fc-action-icon.view,.fc-action-icon.settings,.fc-action-icon.link,.fc-action-icon.duplicate) { background: #263b57 !important; color: #afd3ff !important; }
+html[data-theme="dark"] .fc-action-icon.edit { background: #183d32 !important; color: #91e5b9 !important; }
+html[data-theme="dark"] :is(.fc-action-icon.delete,.fc-action-icon.remove) { background: #472b35 !important; color: #ffb6bf !important; }
+html[data-theme="dark"] :is(.em-status-pill--draft,.em-status-pill--cancelled,.um-guard-badge) { background: #2b3648; color: #cbd5e1; }
+html[data-theme="dark"] :is(.em-status-pill--sent,.um-you-badge,.acct-status-pill--ok,.acct-quick-card__status.is-ok,.dash-form-card__badge.is-live) { background: #183d32; color: #91e5b9; }
+html[data-theme="dark"] :is(.em-status-pill--scheduled,.um-info-banner) { background: #213d60; color: #afd3ff; }
+html[data-theme="dark"] :is(.em-status-pill--sending,.acct-status-pill--warn,.acct-quick-card__status.is-warn) { background: #453921; color: #f4d68e; }
+html[data-theme="dark"] .em-status-pill--failed { background: #472b35; color: #ffb6bf; }
+html[data-theme="dark"] :is(.um-system-badge,.um-role-badge) { background: #353053; color: #d0c4ff; }
+html[data-theme="dark"] :is(.wcm-app,.wcm-editor) { background: var(--crm-surface-sunken); }
+html[data-theme="dark"] :is(.wcm-editor-header,.wcm-field--toggle,.wcm-input,.wcm-sidebar-toggle,.wcm-image-wrap) { background: var(--crm-surface); color: var(--crm-text); border-color: var(--crm-border); }
+html[data-theme="dark"] :is(.wcm-field-label,.wcm-nav-group-label) { color: var(--crm-text-muted); }
+html[data-theme="dark"] :is(.enroll-add,.enroll-panel__count,.enroll-setup__nav-item em) { background: var(--crm-surface); color: var(--crm-text); border-color: var(--crm-border); }
+html[data-theme="dark"] :is(.enroll-add__input,.enroll-add__status,.enroll-inline-form__input,.enroll-inline-form__status) { background: var(--dt-input); color: var(--crm-text); border-color: var(--crm-border-strong); }
+html[data-theme="dark"] :is(.enroll-setup__nav-head,.enroll-setup__nav-item iconify-icon) { color: var(--dt-link); }

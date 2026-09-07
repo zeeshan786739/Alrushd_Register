@@ -7,6 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@yield('title') — AL-Rushd</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        // Apply the saved preference before styles paint, including full reloads.
+        try {
+            document.documentElement.dataset.theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+        } catch (_) { /* Storage may be disabled; keep the default light theme. */ }
+    </script>
     <link rel="icon" type="image/png" href="{{ asset('frontend/assets/img/logo.png') }}" sizes="16x16" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,6 +54,7 @@
     <!-- main css -->
     <link rel="stylesheet" href="{{ \App\Support\AdminAsset::url('admin/assets/css/style.css') }}" />
     <link rel="stylesheet" href="{{ \App\Support\AdminAsset::url('admin/assets/css/alrushad-overrides.css') }}" />
+    <link rel="stylesheet" href="{{ \App\Support\AdminAsset::url('admin/assets/css/admin-dark.css') }}" />
     <style>
         .swal2-title {
             font-size: 16px !important;
