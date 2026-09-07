@@ -121,7 +121,7 @@
     }
 
     function isInteractiveTarget(target) {
-        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option, .crm-list-row__handle, .crm-list-action, .crm-list-status-drop, .crm-lead-panel__tool, .crm-lead-panel__contact-chip, .crm-lead-panel__note-form, .crm-lead-drawer__close, .crm-list-row__select, .crm-list-bulk-bar, [data-crm-bulk-clear], [data-crm-bulk-apply]');
+        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option, .crm-list-row__handle, .crm-list-action, .crm-list-status-drop, .crm-lead-panel__tool, .crm-lead-panel__contact-chip, .crm-lead-panel__note-form, .crm-lead-drawer__close, .crm-list-row__select, .crm-list-bulk-bar, [data-crm-bulk-clear], [data-crm-bulk-apply], [data-crm-panel-edit], [data-crm-panel-cancel], [data-crm-panel-edit-form], [data-crm-panel-save], .crm-board-card__quick-action');
     }
 
     function draggableLeadItem(fromTarget) {
@@ -269,20 +269,84 @@
         return template.replace('__ID__', String(leadId));
     }
 
-    function panelLoadingMarkup() {
-        return '<div class="crm-lead-panel-loading"><div class="crm-lead-panel-loading__spinner"></div><span>Loading lead details…</span></div>';
+    function panelEditUrl(leadId) {
+        var template = page.getAttribute('data-panel-edit-url-template') || '';
+        return template.replace('__ID__', String(leadId));
     }
 
-    function openLeadPanel(leadId) {
-        var drawerEl = document.getElementById('crmLeadDetailDrawer');
-        var host = document.querySelector('[data-crm-lead-panel-host]');
-        if (!drawerEl || !host || !leadId || !window.bootstrap) return;
+    function updateUrl(leadId) {
+        var template = page.getAttribute('data-update-url-template') || '';
+        return template.replace('__ID__', String(leadId));
+    }
 
-        host.innerHTML = panelLoadingMarkup();
-        var drawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
-        drawer.show();
+    function panelHost() {
+        return document.querySelector('[data-crm-lead-panel-host]');
+    }
 
-        fetch(panelUrl(leadId), {
+    function syncDrawerHeader(title, subtitle) {
+        var drawerTitle = document.getElementById('crmLeadDetailDrawerLabel');
+        var drawerSubtitle = document.querySelector('[data-crm-panel-subtitle]');
+        if (drawerTitle && title) drawerTitle.textContent = title;
+        if (drawerSubtitle) drawerSubtitle.textContent = subtitle || '';
+    }
+
+    function syncPanelHeaderFromHost(host) {
+        var titleEl = host.querySelector('[data-crm-panel-title]');
+        var email = host.querySelector('.crm-lead-panel__contact-chip');
+        syncDrawerHeader(
+            titleEl ? titleEl.textContent.trim() : 'Lead preview',
+            email ? email.textContent.trim() : 'Review and update without leaving the workspace'
+        );
+    }
+
+    function syncBoardCardPriority(leadId, priority) {
+        if (!priority) return;
+        page.querySelectorAll('[data-crm-board-card][data-lead-id="' + leadId + '"]').forEach(function (card) {
+            card.classList.remove(
+                'crm-board-card--priority-low',
+                'crm-board-card--priority-medium',
+                'crm-board-card--priority-high',
+                'crm-board-card--priority-urgent'
+            );
+            card.classList.add('crm-board-card--priority-' + priority);
+        });
+    }
+
+    function syncLeadDisplay(lead) {
+        if (!lead || !lead.id) return;
+        var leadId = String(lead.id);
+
+        page.querySelectorAll('[data-lead-id="' + leadId + '"] .crm-board-card__title').forEach(function (el) {
+            if (lead.full_name) el.textContent = lead.full_name;
+        });
+        page.querySelectorAll('[data-crm-list-row][data-lead-id="' + leadId + '"] .crm-list-row__name').forEach(function (el) {
+            if (lead.full_name) el.textContent = lead.full_name;
+        });
+        page.querySelectorAll('[data-lead-id="' + leadId + '"] .crm-board-card__meta, [data-crm-list-row][data-lead-id="' + leadId + '"] .crm-list-row__meta').forEach(function (el) {
+            if (lead.email || lead.phone) {
+                el.textContent = lead.email || lead.phone;
+            }
+        });
+        page.querySelectorAll('[data-lead-id="' + leadId + '"] .crm-lead-avatar').forEach(function (el) {
+            if (lead.full_name) {
+                var parts = lead.full_name.trim().split(/\s+/);
+                var initials = parts.slice(0, 2).map(function (p) { return p.charAt(0).toUpperCase(); }).join('');
+                el.textContent = initials || '?';
+            }
+        });
+
+        if (lead.lead_status) {
+            page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
+                el.setAttribute('data-current-status', lead.lead_status);
+            });
+        }
+        if (lead.priority) {
+            syncBoardCardPriority(leadId, lead.priority);
+        }
+    }
+
+    function fetchPanelHtml(url) {
+        return fetch(url, {
             headers: {
                 'Accept': 'text/html',
                 'X-Requested-With': 'XMLHttpRequest'
@@ -291,22 +355,123 @@
         }).then(function (response) {
             if (!response.ok) throw new Error('Failed to load lead panel');
             return response.text();
-        }).then(function (html) {
+        });
+    }
+
+    function loadPanelView(leadId, options) {
+        var host = panelHost();
+        var drawerEl = document.getElementById('crmLeadDetailDrawer');
+        if (!host || !leadId) return Promise.resolve();
+
+        host.innerHTML = panelLoadingMarkup();
+        if (options && options.showDrawer && drawerEl && window.bootstrap) {
+            window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl).show();
+        }
+
+        return fetchPanelHtml(panelUrl(leadId)).then(function (html) {
             host.innerHTML = html;
-            var titleEl = host.querySelector('[data-crm-panel-title]');
-            var drawerTitle = document.getElementById('crmLeadDetailDrawerLabel');
-            var drawerSubtitle = document.querySelector('[data-crm-panel-subtitle]');
-            if (titleEl && drawerTitle) {
-                drawerTitle.textContent = titleEl.textContent.trim();
-            }
-            if (drawerSubtitle) {
-                var email = host.querySelector('.crm-lead-panel__contact-chip');
-                drawerSubtitle.textContent = email ? email.textContent.trim() : 'Review and update without leaving the workspace';
-            }
+            syncPanelHeaderFromHost(host);
         }).catch(function () {
             host.innerHTML = '<div class="crm-lead-panel-loading"><span>Could not load lead details. Please try again.</span></div>';
             showToast('Could not load lead details.', true);
         });
+    }
+
+    function loadPanelEdit(leadId) {
+        var host = panelHost();
+        var drawerEl = document.getElementById('crmLeadDetailDrawer');
+        if (!host || !leadId) return;
+
+        if (drawerEl && window.bootstrap) {
+            window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl).show();
+        }
+
+        host.innerHTML = panelLoadingMarkup();
+        syncDrawerHeader('Edit lead', 'Update details without leaving the workspace');
+
+        fetchPanelHtml(panelEditUrl(leadId)).then(function (html) {
+            host.innerHTML = html;
+            var firstInput = host.querySelector('input[name="first_name"]');
+            if (firstInput) firstInput.focus();
+        }).catch(function () {
+            host.innerHTML = '<div class="crm-lead-panel-loading"><span>Could not load edit form. Please try again.</span></div>';
+            showToast('Could not load edit form.', true);
+        });
+    }
+
+    function showPanelEditErrors(form, errors) {
+        var box = form.querySelector('[data-crm-panel-edit-errors]');
+        if (!box) return;
+        var messages = [];
+        Object.keys(errors || {}).forEach(function (key) {
+            (errors[key] || []).forEach(function (msg) {
+                messages.push(msg);
+            });
+        });
+        if (!messages.length) {
+            box.hidden = true;
+            box.textContent = '';
+            return;
+        }
+        box.hidden = false;
+        box.innerHTML = messages.map(function (msg) {
+            return '<div>' + msg + '</div>';
+        }).join('');
+    }
+
+    function submitPanelEdit(form) {
+        var leadId = form.getAttribute('data-lead-id');
+        var saveBtn = form.querySelector('[data-crm-panel-save]');
+        var formData = new FormData(form);
+        formData.append('_method', 'PUT');
+
+        if (saveBtn) saveBtn.disabled = true;
+        showPanelEditErrors(form, {});
+
+        fetch(updateUrl(leadId), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData,
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, status: response.status, data: data };
+            }).catch(function () {
+                return { ok: response.ok, status: response.status, data: {} };
+            });
+        }).then(function (result) {
+            if (result.status === 422 && result.data && result.data.errors) {
+                showPanelEditErrors(form, result.data.errors);
+                showToast('Please fix the highlighted fields.', true);
+                return;
+            }
+            if (!result.ok) {
+                showToast((result.data && result.data.message) || 'Could not save lead.', true);
+                return;
+            }
+
+            syncLeadDisplay(result.data.lead || { id: leadId });
+            showToast((result.data && result.data.message) || 'Lead updated.', false);
+            loadPanelView(leadId);
+        }).catch(function () {
+            showToast('Could not save lead. Please try again.', true);
+        }).finally(function () {
+            if (saveBtn) saveBtn.disabled = false;
+        });
+    }
+
+    function panelLoadingMarkup() {
+        return '<div class="crm-lead-panel-loading"><div class="crm-lead-panel-loading__spinner"></div><span>Loading lead details…</span></div>';
+    }
+
+    function openLeadPanel(leadId) {
+        var drawerEl = document.getElementById('crmLeadDetailDrawer');
+        if (!leadId || !window.bootstrap || !drawerEl) return;
+        loadPanelView(leadId, { showDrawer: true });
     }
 
     function refreshBoardColumnCounts() {
@@ -355,6 +520,11 @@
     var canUpdateLeads = page.getAttribute('data-can-update') === '1';
 
     page.addEventListener('dragstart', function (event) {
+        if (event.target.closest('[data-crm-inline], .crm-board-card__quick-action')) {
+            event.preventDefault();
+            return;
+        }
+
         var item = draggableLeadItem(event.target);
         if (!item || !page.contains(item) || !canUpdateLeads) {
             event.preventDefault();
@@ -458,6 +628,24 @@
     refreshBoardColumnCounts();
 
     page.addEventListener('click', function (event) {
+        var editBtn = event.target.closest('[data-crm-panel-edit]');
+        if (editBtn && page.contains(editBtn)) {
+            event.preventDefault();
+            event.stopPropagation();
+            loadPanelEdit(editBtn.getAttribute('data-lead-id'));
+            return;
+        }
+
+        var cancelBtn = event.target.closest('[data-crm-panel-cancel]');
+        if (cancelBtn && page.contains(cancelBtn)) {
+            event.preventDefault();
+            event.stopPropagation();
+            var panel = cancelBtn.closest('[data-crm-lead-panel-edit]');
+            var leadId = panel ? panel.getAttribute('data-lead-id') : null;
+            if (leadId) loadPanelView(leadId);
+            return;
+        }
+
         var openTarget = event.target.closest('[data-crm-lead-open]');
         if (openTarget && page.contains(openTarget) && Date.now() >= suppressOpenUntil && !isInteractiveTarget(event.target)) {
             var leadId = openTarget.getAttribute('data-lead-id') || openTarget.closest('[data-lead-id]')?.getAttribute('data-lead-id');
@@ -546,6 +734,9 @@
                     page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
                         el.setAttribute('data-current-status', value);
                     });
+                }
+                if (field === 'priority') {
+                    syncBoardCardPriority(leadId, value);
                 }
                 showToast((result.data && result.data.message) || 'Updated.', false);
             }).catch(function () {
@@ -930,4 +1121,11 @@
 
         syncBulkUi();
     }
+
+    page.addEventListener('submit', function (event) {
+        var editForm = event.target.closest('[data-crm-panel-edit-form]');
+        if (!editForm || !page.contains(editForm)) return;
+        event.preventDefault();
+        submitPanelEdit(editForm);
+    });
 })();

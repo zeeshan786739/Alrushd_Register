@@ -106,10 +106,10 @@
 
     <div class="crm-lead-panel__toolbar">
         @can('update leads')
-            <a href="{{ route('admin.crm.leads.edit', $lead) }}" class="crm-lead-panel__tool">
+            <button type="button" class="crm-lead-panel__tool" data-crm-panel-edit data-lead-id="{{ $lead->id }}">
                 <iconify-icon icon="solar:pen-linear"></iconify-icon>
                 <span>Edit</span>
-            </a>
+            </button>
             @if($lead->email)
                 <a href="{{ route('admin.crm.leads.email.form', $lead) }}" class="crm-lead-panel__tool">
                     <iconify-icon icon="solar:letter-linear"></iconify-icon>

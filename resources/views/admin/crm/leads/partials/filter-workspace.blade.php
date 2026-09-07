@@ -9,7 +9,10 @@
     $isUnassigned = request('assigned_to') === 'unassigned';
     $isNewStatus = request('lead_status') === 'new';
     $isFollowUpToday = request('follow_up') === 'today';
+    $isFollowUpOverdue = request('follow_up') === 'overdue';
     $isHighPriority = request('priority') === 'high_urgent';
+    $isUrgentPriority = request('priority') === 'urgent';
+    $isMediumPriority = request('priority') === 'medium';
 
     $baseQuery = request()->except('page');
     $filterUrl = fn (array $merge = [], array $except = []) => route('admin.crm.leads.index', array_merge(
@@ -56,6 +59,15 @@
                 : $filterUrl(['follow_up' => 'today'], ['follow_up']),
         ],
         [
+            'key' => 'follow_up_overdue',
+            'label' => 'Overdue',
+            'icon' => 'solar:alarm-linear',
+            'active' => $isFollowUpOverdue,
+            'url' => $isFollowUpOverdue
+                ? $filterUrl([], ['follow_up'])
+                : $filterUrl(['follow_up' => 'overdue'], ['follow_up']),
+        ],
+        [
             'key' => 'high_priority',
             'label' => 'High priority',
             'icon' => 'solar:flag-linear',
@@ -63,6 +75,24 @@
             'url' => $isHighPriority
                 ? $filterUrl([], ['priority'])
                 : $filterUrl(['priority' => 'high_urgent'], ['priority']),
+        ],
+        [
+            'key' => 'urgent',
+            'label' => 'Urgent',
+            'icon' => 'solar:danger-linear',
+            'active' => $isUrgentPriority,
+            'url' => $isUrgentPriority
+                ? $filterUrl([], ['priority'])
+                : $filterUrl(['priority' => 'urgent'], ['priority']),
+        ],
+        [
+            'key' => 'medium',
+            'label' => 'Medium',
+            'icon' => 'solar:flag-2-linear',
+            'active' => $isMediumPriority,
+            'url' => $isMediumPriority
+                ? $filterUrl([], ['priority'])
+                : $filterUrl(['priority' => 'medium'], ['priority']),
         ],
     ];
 
@@ -79,12 +109,17 @@
             ! request()->filled('lead_status') || request('lead_status') === 'new'
         )
         && (
-            ! request()->filled('priority') || request('priority') === 'high_urgent'
+            ! request()->filled('priority')
+            || in_array(request('priority'), ['high_urgent', 'urgent', 'medium'], true)
         )
         && (
             ! request()->filled('assigned_to')
             || in_array(request('assigned_to'), ['me', 'unassigned'], true)
             || (string) request('assigned_to') === (string) $currentAdminId
+        )
+        && (
+            ! request()->filled('follow_up')
+            || in_array(request('follow_up'), ['today', 'overdue'], true)
         )
     );
     $expandAdvanced = $hasAdvancedValues && ! $onlyQuickFilters;

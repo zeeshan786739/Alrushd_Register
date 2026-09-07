@@ -41,6 +41,8 @@
 <div class="dashboard-main-body {{ ($viewMode ?? 'board') === 'list' ? 'crm-list-view' : 'crm-board-view' }}" id="crm-leads-page"
      data-inline-url-template="{{ url('admin/crm/leads') }}/__ID__/inline"
      data-panel-url-template="{{ url('admin/crm/leads') }}/__ID__/panel"
+     data-panel-edit-url-template="{{ url('admin/crm/leads') }}/__ID__/panel/edit"
+     data-update-url-template="{{ url('admin/crm/leads') }}/__ID__"
      data-filter-clear-url="{{ route('admin.crm.leads.filters.clear') }}"
      data-can-update="{{ auth('admin')->user()?->can('update leads') ? '1' : '0' }}"
      data-can-assign="{{ auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
@@ -59,8 +61,6 @@
             auth('admin')->user()?->can('create leads') ? ['label' => 'Add Lead', 'url' => route('admin.crm.leads.create'), 'icon' => 'solar:add-circle-linear', 'class' => 'btn-primary-600 radius-8 px-20 py-11'] : null,
         ]),
     ])
-
-    @include('admin.crm.partials.module-nav', ['active' => 'leads'])
 
     <div class="crm-leads-workspace crm-workspace-shell">
         @include('admin.crm.leads.partials.metrics-strip', ['stats' => $stats, 'viewMode' => $viewMode ?? 'board'])
@@ -158,43 +158,11 @@
                     </div>
                     <div class="crm-board-column__body">
                         @forelse($columnLeads as $lead)
-                            @php $followUp = \App\Support\LeadFollowUpState::forLead($lead); @endphp
-                            <article class="crm-board-card"
-                                     data-crm-board-card
-                                     data-crm-lead-open
-                                     data-lead-id="{{ $lead->id }}"
-                                     data-current-status="{{ $lead->lead_status }}"
-                                     tabindex="0"
-                                     role="button"
-                                     aria-label="Open lead {{ $lead->full_name }}"
-                                     draggable="{{ auth('admin')->user()?->can('update leads') ? 'true' : 'false' }}">
-                                <div class="crm-board-card__top">
-                                    <span class="crm-lead-avatar" aria-hidden="true">{{ \App\Support\UserManagementHelper::initials($lead->full_name) }}</span>
-                                    <div class="min-w-0">
-                                        <div class="crm-board-card__title">{{ $lead->full_name }}</div>
-                                        <div class="crm-board-card__meta text-truncate" title="{{ $lead->email ?? $lead->phone }}">{{ $lead->email ?? $lead->phone ?? 'No contact saved' }}</div>
-                                    </div>
-                                    @if($lead->is_converted)
-                                        <span class="crm-board-card__flag is-converted" title="Converted">✓</span>
-                                    @elseif($followUp->attention)
-                                        <span class="crm-board-card__flag is-attention" title="{{ $followUp->label }}">!</span>
-                                    @endif
-                                </div>
-                                <div class="crm-board-card__footer">
-                                    <div class="crm-board-card__footer-main">
-                                        @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
-                                        @if($lead->category)
-                                            <span class="crm-board-card__category">{{ $lead->category->name }}</span>
-                                        @endif
-                                    </div>
-                                    <div class="crm-board-card__footer-meta">
-                                        <span title="Assignee"><iconify-icon icon="solar:user-linear"></iconify-icon>{{ $lead->assignedAdmin?->name ?? 'Unassigned' }}</span>
-                                        @if($followUp->hasFollowUp())
-                                            <span class="crm-board-card__followup {{ $followUp->attention ? 'is-attention' : '' }}">{{ $followUp->label }}</span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </article>
+                            @include('admin.crm.leads.partials.board-card', [
+                                'lead' => $lead,
+                                'priorityInlineOptions' => $priorityInlineOptions,
+                                'assigneeInlineOptions' => $assigneeInlineOptions,
+                            ])
                         @empty
                             <div class="crm-board-empty">
                                 <iconify-icon icon="solar:inbox-line-linear"></iconify-icon>

@@ -40,7 +40,7 @@ class LeadController extends Controller
         $this->middleware('permission:view leads')->only(['index', 'show', 'panel']);
         $this->middleware('permission:create leads')->only(['create', 'store']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail',
+            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit',
         ]);
         $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate']);
         $this->middleware('permission:delete leads')->only(['destroy']);
@@ -177,6 +177,19 @@ class LeadController extends Controller
         return view('admin.crm.leads.partials.detail-panel', $this->leadDetailContext($lead));
     }
 
+    public function panelEdit(Lead $lead): View
+    {
+        $this->authorize('update', $lead);
+
+        return view('admin.crm.leads.partials.detail-panel-edit', [
+            'lead' => $lead,
+            'admins' => Admin::forCurrentOrganization()->orderBy('name')->get(),
+            'categories' => LeadCategorySchema::ready()
+                ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
+                : collect(),
+        ]);
+    }
+
     /** @return array<string, mixed> */
     private function leadDetailContext(Lead $lead): array
     {
@@ -221,6 +234,21 @@ class LeadController extends Controller
         }
 
         $lead->update($request->validated());
+        $lead->refresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Lead updated successfully.',
+                'lead' => [
+                    'id' => $lead->id,
+                    'full_name' => $lead->full_name,
+                    'email' => $lead->email,
+                    'phone' => $lead->phone,
+                    'lead_status' => $lead->lead_status,
+                    'priority' => $lead->priority,
+                ],
+            ]);
+        }
 
         return redirect()->route('admin.crm.leads.show', $lead)->with('success', 'Lead updated successfully.');
     }

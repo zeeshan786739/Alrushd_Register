@@ -37,13 +37,4 @@
             <strong>{{ number_format((int) ($stats['tiktok_this_week'] ?? 0)) }}</strong>
         </span>
     </div>
-    <div class="crm-metrics-strip__links">
-        @can('import leads')
-            <a href="{{ route('admin.crm.leads.import.create') }}" class="crm-metrics-strip__link">Import</a>
-        @endcan
-        <a href="{{ route('admin.crm.form-entries.index') }}" class="crm-metrics-strip__link">Forms</a>
-        @can('convert leads')
-            <a href="{{ route('admin.crm.customers.index') }}" class="crm-metrics-strip__link">Customers</a>
-        @endcan
-    </div>
 </div>

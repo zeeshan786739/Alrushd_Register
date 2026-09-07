@@ -43,6 +43,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::post('leads/{lead}/email', [LeadController::class, 'sendEmail'])->name('leads.email.send');
     Route::patch('leads/bulk', [LeadController::class, 'bulkUpdate'])->name('leads.bulk');
     Route::get('leads/{lead}/panel', [LeadController::class, 'panel'])->name('leads.panel');
+    Route::get('leads/{lead}/panel/edit', [LeadController::class, 'panelEdit'])->name('leads.panel.edit');
     Route::resource('leads', LeadController::class);
 
     Route::post('customers/{customer}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
