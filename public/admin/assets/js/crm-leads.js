@@ -14,36 +14,86 @@
     var buttons = toggle ? toggle.querySelectorAll('button[data-view]') : [];
 
     function applyView(view) {
-        page.classList.remove('crm-list-view', 'crm-grid-view');
-        page.classList.add(view === 'grid' ? 'crm-grid-view' : 'crm-list-view');
+        var normalized = view === 'list' ? 'list' : 'board';
+        page.classList.remove('crm-board-view', 'crm-list-view');
+        page.classList.add(normalized === 'list' ? 'crm-list-view' : 'crm-board-view');
 
         buttons.forEach(function (btn) {
-            btn.classList.toggle('is-active', btn.getAttribute('data-view') === view);
+            btn.classList.toggle('is-active', btn.getAttribute('data-view') === normalized);
+        });
+
+        page.querySelectorAll('[data-crm-view-input]').forEach(function (input) {
+            input.value = normalized;
         });
 
         try {
-            localStorage.setItem(STORAGE_KEY, view);
+            localStorage.setItem(STORAGE_KEY, normalized);
         } catch (e) {
             /* ignore storage errors */
         }
+
+        syncViewQuery(normalized);
     }
 
-    var savedView = 'list';
+    function syncViewQuery(view) {
+        try {
+            var url = new URL(window.location.href);
+            if (url.searchParams.get('view') === view) return;
+            url.searchParams.set('view', view);
+            window.history.replaceState({}, '', url.toString());
+        } catch (e) {
+            /* ignore history errors */
+        }
+    }
+
+    var initialView = page.getAttribute('data-initial-view') || 'board';
+    var savedView = initialView;
     try {
-        savedView = localStorage.getItem(STORAGE_KEY) || 'list';
+        var urlView = new URL(window.location.href).searchParams.get('view');
+        savedView = urlView || localStorage.getItem(STORAGE_KEY) || initialView;
     } catch (e) {
-        savedView = 'list';
+        savedView = initialView;
     }
 
-    applyView(savedView === 'grid' ? 'grid' : 'list');
+    applyView(savedView === 'list' ? 'list' : 'board');
 
     if (toggle) {
         toggle.addEventListener('click', function (event) {
             var button = event.target.closest('button[data-view]');
             if (!button) return;
-            applyView(button.getAttribute('data-view'));
+            var nextView = button.getAttribute('data-view') === 'list' ? 'list' : 'board';
+            applyView(nextView);
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.set('view', nextView);
+                window.location.href = url.toString();
+            } catch (e) {
+                /* fallback keeps local toggle only */
+            }
         });
     }
+
+    var advancedToggle = page.querySelector('[data-crm-toggle-advanced-filters]');
+    var advancedPanel = page.querySelector('[data-crm-advanced-filters]');
+    if (advancedToggle && advancedPanel) {
+        advancedToggle.addEventListener('click', function () {
+            var expanded = advancedToggle.getAttribute('aria-expanded') === 'true';
+            advancedToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            advancedPanel.hidden = expanded;
+        });
+    }
+
+    page.querySelectorAll('[data-crm-toggle-save-filter]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var form = document.getElementById('crm-save-filter-form');
+            if (!form) return;
+            form.hidden = !form.hidden;
+            if (!form.hidden) {
+                var input = form.querySelector('input[name="name"]');
+                if (input) input.focus();
+            }
+        });
+    });
 
     var filterForm = document.getElementById('crm-save-filter-form');
     if (filterForm) {
@@ -71,7 +121,20 @@
     }
 
     function isInteractiveTarget(target) {
-        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option');
+        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option, .crm-list-row__handle, .crm-list-action, .crm-list-status-drop, .crm-lead-panel__tool, .crm-lead-panel__contact-chip, .crm-lead-panel__note-form, .crm-lead-drawer__close, .crm-list-row__select, .crm-list-bulk-bar, [data-crm-bulk-clear], [data-crm-bulk-apply]');
+    }
+
+    function draggableLeadItem(fromTarget) {
+        var handle = fromTarget.closest('[data-crm-list-drag]');
+        if (handle) {
+            return handle.closest('[data-crm-list-row]');
+        }
+
+        return fromTarget.closest('[data-crm-board-card]');
+    }
+
+    function statusDropZone(fromTarget) {
+        return fromTarget.closest('[data-crm-dropzone], [data-crm-list-dropzone]');
     }
 
     function positionFixedMenu(control, menu) {
@@ -201,10 +264,207 @@
         return template.replace('__ID__', String(leadId));
     }
 
+    function panelUrl(leadId) {
+        var template = page.getAttribute('data-panel-url-template') || '';
+        return template.replace('__ID__', String(leadId));
+    }
+
+    function panelLoadingMarkup() {
+        return '<div class="crm-lead-panel-loading"><div class="crm-lead-panel-loading__spinner"></div><span>Loading lead details…</span></div>';
+    }
+
+    function openLeadPanel(leadId) {
+        var drawerEl = document.getElementById('crmLeadDetailDrawer');
+        var host = document.querySelector('[data-crm-lead-panel-host]');
+        if (!drawerEl || !host || !leadId || !window.bootstrap) return;
+
+        host.innerHTML = panelLoadingMarkup();
+        var drawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+        drawer.show();
+
+        fetch(panelUrl(leadId), {
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        }).then(function (response) {
+            if (!response.ok) throw new Error('Failed to load lead panel');
+            return response.text();
+        }).then(function (html) {
+            host.innerHTML = html;
+            var titleEl = host.querySelector('[data-crm-panel-title]');
+            var drawerTitle = document.getElementById('crmLeadDetailDrawerLabel');
+            var drawerSubtitle = document.querySelector('[data-crm-panel-subtitle]');
+            if (titleEl && drawerTitle) {
+                drawerTitle.textContent = titleEl.textContent.trim();
+            }
+            if (drawerSubtitle) {
+                var email = host.querySelector('.crm-lead-panel__contact-chip');
+                drawerSubtitle.textContent = email ? email.textContent.trim() : 'Review and update without leaving the workspace';
+            }
+        }).catch(function () {
+            host.innerHTML = '<div class="crm-lead-panel-loading"><span>Could not load lead details. Please try again.</span></div>';
+            showToast('Could not load lead details.', true);
+        });
+    }
+
+    function refreshBoardColumnCounts() {
+        page.querySelectorAll('[data-crm-dropzone]').forEach(function (column) {
+            var count = column.querySelectorAll('[data-crm-board-card]').length;
+            var countEl = column.querySelector('.crm-board-column__count');
+            var empty = column.querySelector('.crm-board-empty');
+            if (countEl) countEl.textContent = String(count);
+            if (empty) empty.hidden = count > 0;
+        });
+    }
+
+    function syncLeadStatusControls(leadId, value, data) {
+        page.querySelectorAll('[data-crm-inline][data-lead-id="' + leadId + '"][data-field="lead_status"]').forEach(function (control) {
+            control.setAttribute('data-previous', value);
+            applyControlVisual(control, data.tone, data.icon, data.label);
+            markSelected(control, value);
+        });
+    }
+
+    function updateLeadStatus(leadId, value) {
+        return fetch(inlineUrl(leadId), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ field: 'lead_status', value: value }),
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+            }).catch(function () {
+                return { ok: response.ok, data: {} };
+            });
+        });
+    }
+
+    var draggedItem = null;
+    var dragOrigin = null;
+    var dragNextSibling = null;
+    var dragMoved = false;
+    var suppressOpenUntil = 0;
+    var canUpdateLeads = page.getAttribute('data-can-update') === '1';
+
+    page.addEventListener('dragstart', function (event) {
+        var item = draggableLeadItem(event.target);
+        if (!item || !page.contains(item) || !canUpdateLeads) {
+            event.preventDefault();
+            return;
+        }
+
+        draggedItem = item;
+        dragOrigin = item.parentElement;
+        dragNextSibling = item.nextElementSibling;
+        dragMoved = false;
+        item.classList.add('is-dragging');
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', item.getAttribute('data-lead-id') || '');
+        }
+    });
+
+    page.addEventListener('drag', function () {
+        dragMoved = true;
+    });
+
+    page.addEventListener('dragover', function (event) {
+        var zone = statusDropZone(event.target);
+        if (!draggedItem || !zone || !page.contains(zone)) return;
+        event.preventDefault();
+        zone.classList.add('is-drag-over');
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    });
+
+    page.addEventListener('dragleave', function (event) {
+        var zone = statusDropZone(event.target);
+        if (!zone || zone.contains(event.relatedTarget)) return;
+        zone.classList.remove('is-drag-over');
+    });
+
+    page.addEventListener('drop', function (event) {
+        var zone = statusDropZone(event.target);
+        if (!draggedItem || !zone || !page.contains(zone)) return;
+        event.preventDefault();
+
+        var targetStatus = zone.getAttribute('data-status');
+        var item = draggedItem;
+        var origin = dragOrigin;
+        var nextSibling = dragNextSibling;
+        var leadId = item.getAttribute('data-lead-id');
+        var previousStatus = item.getAttribute('data-current-status');
+        var isBoardCard = item.hasAttribute('data-crm-board-card');
+        var targetBody = isBoardCard ? (zone.querySelector('.crm-board-column__body') || zone) : null;
+        var empty = targetBody ? targetBody.querySelector('.crm-board-empty') : null;
+
+        page.querySelectorAll('[data-crm-dropzone].is-drag-over, [data-crm-list-dropzone].is-drag-over').forEach(function (dropzone) {
+            dropzone.classList.remove('is-drag-over');
+        });
+
+        if (!targetStatus || !leadId || targetStatus === previousStatus) return;
+
+        if (isBoardCard && targetBody) {
+            targetBody.insertBefore(item, empty || null);
+            refreshBoardColumnCounts();
+        }
+
+        item.setAttribute('data-current-status', targetStatus);
+        item.classList.add('is-status-updated');
+        window.setTimeout(function () {
+            item.classList.remove('is-status-updated');
+        }, 900);
+
+        updateLeadStatus(leadId, targetStatus).then(function (result) {
+            if (!result.ok) {
+                item.setAttribute('data-current-status', previousStatus || '');
+                if (isBoardCard && origin) origin.insertBefore(item, nextSibling || null);
+                refreshBoardColumnCounts();
+                showToast((result.data && (result.data.message || result.data.error)) || 'Status update failed.', true);
+                return;
+            }
+
+            syncLeadStatusControls(leadId, targetStatus, result.data || {});
+            showToast((result.data && result.data.message) || 'Status updated.', false);
+        }).catch(function () {
+            item.setAttribute('data-current-status', previousStatus || '');
+            if (isBoardCard && origin) origin.insertBefore(item, nextSibling || null);
+            refreshBoardColumnCounts();
+            showToast('Status update failed. Please try again.', true);
+        });
+    });
+
+    page.addEventListener('dragend', function () {
+        if (draggedItem) draggedItem.classList.remove('is-dragging');
+        page.querySelectorAll('[data-crm-dropzone].is-drag-over, [data-crm-list-dropzone].is-drag-over').forEach(function (dropzone) {
+            dropzone.classList.remove('is-drag-over');
+        });
+        draggedItem = null;
+        dragOrigin = null;
+        dragNextSibling = null;
+        if (dragMoved) {
+            suppressOpenUntil = Date.now() + 250;
+        }
+        dragMoved = false;
+    });
+
+    refreshBoardColumnCounts();
+
     page.addEventListener('click', function (event) {
-        var row = event.target.closest('tr.crm-lead-row[data-href]');
-        if (row && page.contains(row) && !isInteractiveTarget(event.target)) {
-            window.location.href = row.getAttribute('data-href');
+        var openTarget = event.target.closest('[data-crm-lead-open]');
+        if (openTarget && page.contains(openTarget) && Date.now() >= suppressOpenUntil && !isInteractiveTarget(event.target)) {
+            var leadId = openTarget.getAttribute('data-lead-id') || openTarget.closest('[data-lead-id]')?.getAttribute('data-lead-id');
+            if (leadId) {
+                event.preventDefault();
+                openLeadPanel(leadId);
+            }
             return;
         }
 
@@ -282,6 +542,11 @@
                     (result.data && result.data.label) || label
                 );
                 markSelected(dropdown, value);
+                if (field === 'lead_status') {
+                    page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
+                        el.setAttribute('data-current-status', value);
+                    });
+                }
                 showToast((result.data && result.data.message) || 'Updated.', false);
             }).catch(function () {
                 applyControlVisual(dropdown, previousTone, previousIcon, previousLabel);
@@ -318,10 +583,10 @@
 
     page.addEventListener('keydown', function (event) {
         if (event.key !== 'Enter' && event.key !== ' ') return;
-        var row = event.target.closest('tr.crm-lead-row[data-href]');
-        if (!row || event.target !== row) return;
+        var openTarget = event.target.closest('[data-crm-lead-open], [data-crm-list-row]');
+        if (!openTarget || event.target !== openTarget) return;
         event.preventDefault();
-        window.location.href = row.getAttribute('data-href');
+        openLeadPanel(openTarget.getAttribute('data-lead-id'));
     });
 
     // Legacy native select support (if any remain)
@@ -487,4 +752,182 @@
             });
         }
     });
+
+    var canBulk = page.getAttribute('data-can-bulk') === '1';
+    var bulkUrl = page.getAttribute('data-bulk-url') || '';
+    var bulkBar = page.querySelector('[data-crm-bulk-bar]');
+    var selectAll = page.querySelector('[data-crm-select-all]');
+    var bulkCount = bulkBar ? bulkBar.querySelector('[data-crm-bulk-count]') : null;
+
+    function selectedLeadIds() {
+        return Array.prototype.map.call(
+            page.querySelectorAll('[data-crm-lead-select]:checked'),
+            function (cb) { return parseInt(cb.value, 10); }
+        ).filter(function (id) { return !isNaN(id); });
+    }
+
+    function bulkSelectForField(field) {
+        if (!bulkBar) return null;
+        if (field === 'lead_status') return bulkBar.querySelector('[data-crm-bulk-status]');
+        if (field === 'priority') return bulkBar.querySelector('[data-crm-bulk-priority]');
+        if (field === 'assigned_to') return bulkBar.querySelector('[data-crm-bulk-assignee]');
+        return null;
+    }
+
+    function syncBulkUi() {
+        if (!bulkBar) return;
+
+        var ids = selectedLeadIds();
+        var count = ids.length;
+        bulkBar.hidden = count === 0;
+        if (bulkCount) bulkCount.textContent = String(count);
+
+        page.querySelectorAll('[data-crm-list-row]').forEach(function (row) {
+            var cb = row.querySelector('[data-crm-lead-select]');
+            row.classList.toggle('is-selected', !!(cb && cb.checked));
+        });
+
+        if (selectAll) {
+            var all = page.querySelectorAll('[data-crm-lead-select]');
+            var checked = page.querySelectorAll('[data-crm-lead-select]:checked');
+            selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+            selectAll.checked = all.length > 0 && checked.length === all.length;
+        }
+
+        bulkBar.querySelectorAll('[data-crm-bulk-apply]').forEach(function (btn) {
+            var field = btn.getAttribute('data-crm-bulk-apply');
+            var select = bulkSelectForField(field);
+            btn.disabled = count === 0 || !select || !select.value;
+        });
+    }
+
+    function applyBulkControlVisual(leadId, field, data) {
+        page.querySelectorAll('[data-crm-inline][data-lead-id="' + leadId + '"][data-field="' + field + '"]').forEach(function (control) {
+            control.setAttribute('data-previous', data.value == null ? '' : String(data.value));
+            applyControlVisual(control, data.tone, data.icon, data.label);
+            markSelected(control, data.value == null ? '' : String(data.value));
+        });
+
+        if (field === 'lead_status' && data.value) {
+            page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
+                el.setAttribute('data-current-status', data.value);
+            });
+        }
+    }
+
+    if (canBulk && bulkBar) {
+        page.addEventListener('change', function (event) {
+            if (event.target.matches('[data-crm-lead-select], [data-crm-select-all]')) {
+                if (event.target.matches('[data-crm-select-all]')) {
+                    var checked = event.target.checked;
+                    page.querySelectorAll('[data-crm-lead-select]').forEach(function (cb) {
+                        cb.checked = checked;
+                    });
+                }
+                syncBulkUi();
+                return;
+            }
+
+            if (event.target.matches('[data-crm-bulk-status], [data-crm-bulk-priority], [data-crm-bulk-assignee]')) {
+                syncBulkUi();
+            }
+        });
+
+        page.addEventListener('click', function (event) {
+            var clearBtn = event.target.closest('[data-crm-bulk-clear]');
+            if (clearBtn && page.contains(clearBtn)) {
+                event.preventDefault();
+                page.querySelectorAll('[data-crm-lead-select]').forEach(function (cb) {
+                    cb.checked = false;
+                });
+                if (selectAll) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                }
+                bulkBar.querySelectorAll('select').forEach(function (select) {
+                    select.value = '';
+                });
+                syncBulkUi();
+                return;
+            }
+
+            var applyBtn = event.target.closest('[data-crm-bulk-apply]');
+            if (!applyBtn || !page.contains(applyBtn) || applyBtn.disabled) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            var field = applyBtn.getAttribute('data-crm-bulk-apply');
+            var select = bulkSelectForField(field);
+            if (!select || !select.value) return;
+
+            var value = select.value;
+            if (field === 'assigned_to' && value === '__unassigned__') {
+                value = '';
+            }
+
+            var ids = selectedLeadIds();
+            if (!ids.length || !bulkUrl) return;
+
+            applyBtn.disabled = true;
+
+            fetch(bulkUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    lead_ids: ids,
+                    field: field,
+                    value: value === '' ? null : value
+                }),
+                credentials: 'same-origin'
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                }).catch(function () {
+                    return { ok: response.ok, data: {} };
+                });
+            }).then(function (result) {
+                if (!result.ok) {
+                    showToast((result.data && result.data.message) || 'Bulk update failed.', true);
+                    return;
+                }
+
+                (result.data.results || []).forEach(function (item) {
+                    applyBulkControlVisual(item.id, field, item);
+                });
+
+                page.querySelectorAll('[data-crm-lead-select]:checked').forEach(function (cb) {
+                    var row = cb.closest('[data-crm-list-row]');
+                    cb.checked = false;
+                    if (row) row.classList.add('is-status-updated');
+                });
+
+                if (selectAll) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                }
+
+                select.value = '';
+                showToast((result.data && result.data.message) || 'Bulk update complete.', false);
+                syncBulkUi();
+
+                window.setTimeout(function () {
+                    page.querySelectorAll('.crm-list-row.is-status-updated').forEach(function (row) {
+                        row.classList.remove('is-status-updated');
+                    });
+                }, 900);
+            }).catch(function () {
+                showToast('Bulk update failed. Please try again.', true);
+            }).finally(function () {
+                syncBulkUi();
+            });
+        });
+
+        syncBulkUi();
+    }
 })();

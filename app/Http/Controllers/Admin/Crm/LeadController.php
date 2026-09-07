@@ -6,6 +6,7 @@ use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Exports\Crm\LeadsExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Crm\BulkUpdateLeadsRequest;
 use App\Http\Requests\Crm\InlineUpdateLeadRequest;
 use App\Http\Requests\Crm\StoreLeadRequest;
 use App\Http\Requests\Crm\UpdateLeadRequest;
@@ -36,12 +37,12 @@ class LeadController extends Controller
         private LeadConversionService $conversionService,
         private CrmTransactionalMailService $crmMail,
     ) {
-        $this->middleware('permission:view leads')->only(['index', 'show']);
+        $this->middleware('permission:view leads')->only(['index', 'show', 'panel']);
         $this->middleware('permission:create leads')->only(['create', 'store']);
         $this->middleware('permission:update leads')->only([
             'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail',
         ]);
-        $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate']);
+        $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate']);
         $this->middleware('permission:delete leads')->only(['destroy']);
         $this->middleware('permission:assign leads')->only(['assign']);
         $this->middleware('permission:convert leads')->only(['convert']);
@@ -50,9 +51,12 @@ class LeadController extends Controller
 
     public function index(Request $request): View
     {
-        $query = $this->filteredQuery($request);
+        $viewMode = $request->query('view') === 'list' ? 'list' : 'board';
+        $perPage = $viewMode === 'list'
+            ? min(50, max(10, (int) $request->query('per_page', 15)))
+            : min(100, max(20, (int) $request->query('per_page', 50)));
 
-        $leads = $query->paginate(15)->withQueryString();
+        $leads = $this->filteredQuery($request)->paginate($perPage)->withQueryString();
 
         $orgScope = Lead::forCurrentOrganization();
         $currentMonth = (clone $orgScope)->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year)->count();
@@ -81,6 +85,14 @@ class LeadController extends Controller
             ->where('module', 'leads')
             ->orderBy('name')
             ->get();
+        $workflowCounts = $this->filteredQuery($request)
+            ->reorder()
+            ->selectRaw('lead_status, COUNT(*) as total')
+            ->groupBy('lead_status')
+            ->pluck('total', 'lead_status')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+        $filteredTotal = (int) $this->filteredQuery($request)->count();
 
         $categories = collect();
         $segments = ['all' => ['total' => $stats['total'], 'new' => $stats['new']], 'uncategorized' => ['total' => 0, 'new' => 0], 'by_id' => []];
@@ -117,7 +129,7 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments'))
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal'))
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('platformOptions', [
                 'facebook' => 'Facebook',
@@ -154,14 +166,39 @@ class LeadController extends Controller
     public function show(Lead $lead): View
     {
         $this->authorize('view', $lead);
-        $lead->load(['assignedAdmin', 'notes.admin', 'activities.admin', 'customer', 'formEntry', 'metaLeadSubmission.formMapping', 'leadImport.uploader', 'category']);
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
-        $emailHistory = CrmEmailDeliverySummary::latestForLead(
-            (int) $lead->organization_id,
-            (int) $lead->id
-        );
 
-        return view('admin.crm.leads.show', compact('lead', 'admins', 'emailHistory'));
+        return view('admin.crm.leads.show', $this->leadDetailContext($lead));
+    }
+
+    public function panel(Lead $lead): View
+    {
+        $this->authorize('view', $lead);
+
+        return view('admin.crm.leads.partials.detail-panel', $this->leadDetailContext($lead));
+    }
+
+    /** @return array<string, mixed> */
+    private function leadDetailContext(Lead $lead): array
+    {
+        $lead->load([
+            'assignedAdmin',
+            'notes.admin',
+            'activities.admin',
+            'customer',
+            'formEntry',
+            'metaLeadSubmission.formMapping',
+            'leadImport.uploader',
+            'category',
+        ]);
+
+        return [
+            'lead' => $lead,
+            'admins' => Admin::forCurrentOrganization()->orderBy('name')->get(),
+            'emailHistory' => CrmEmailDeliverySummary::latestForLead(
+                (int) $lead->organization_id,
+                (int) $lead->id
+            ),
+        ];
     }
 
     public function edit(Lead $lead): View
@@ -296,6 +333,93 @@ class LeadController extends Controller
             'tone' => 'neutral',
             'icon' => 'solar:user-linear',
             'message' => 'Assignee updated.',
+        ]);
+    }
+
+    public function bulkUpdate(BulkUpdateLeadsRequest $request): JsonResponse
+    {
+        $field = $request->validated('field');
+        $value = $request->input('value');
+        $ids = array_values(array_unique(array_map('intval', $request->validated('lead_ids'))));
+
+        $leads = Lead::forCurrentOrganization()->whereIn('id', $ids)->get();
+
+        if ($leads->count() !== count($ids)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'One or more leads could not be found.',
+            ], 422);
+        }
+
+        $updated = 0;
+        $results = [];
+
+        foreach ($leads as $lead) {
+            if ($field === 'assigned_to') {
+                $this->authorize('assign', $lead);
+
+                if ($value === null || $value === '') {
+                    $lead->update(['assigned_to' => null]);
+                    $lead->logActivity('assigned', 'Lead unassigned (bulk update)');
+                    $results[] = [
+                        'id' => $lead->id,
+                        'value' => null,
+                        'label' => 'Unassigned',
+                        'tone' => 'neutral',
+                        'icon' => 'solar:user-linear',
+                    ];
+                } else {
+                    $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+                    $lead->update(['assigned_to' => $assignee->id]);
+                    $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name.' (bulk update)');
+                    $results[] = [
+                        'id' => $lead->id,
+                        'value' => (string) $assignee->id,
+                        'label' => $assignee->name,
+                        'tone' => 'neutral',
+                        'icon' => 'solar:user-linear',
+                    ];
+                }
+            } elseif ($field === 'lead_status') {
+                $this->authorize('update', $lead);
+                $lead->update(['lead_status' => $value]);
+                $lead->logActivity('status_changed', 'Status updated to '.$value.' (bulk update)');
+                $results[] = [
+                    'id' => $lead->id,
+                    'value' => $value,
+                    'label' => LeadStatus::tryFrom((string) $value)?->label() ?? $value,
+                    'tone' => CrmStatusTone::for((string) $value),
+                    'icon' => CrmStatusTone::icon((string) $value),
+                    'current_status' => $value,
+                ];
+            } else {
+                $this->authorize('update', $lead);
+                $lead->update(['priority' => $value]);
+                $lead->logActivity('priority_changed', 'Priority updated to '.$value.' (bulk update)');
+                $results[] = [
+                    'id' => $lead->id,
+                    'value' => $value,
+                    'label' => LeadPriority::tryFrom((string) $value)?->label() ?? $value,
+                    'tone' => CrmStatusTone::for((string) $value),
+                    'icon' => CrmStatusTone::icon((string) $value),
+                ];
+            }
+
+            $updated++;
+        }
+
+        $message = match ($field) {
+            'lead_status' => $updated.' lead'.($updated === 1 ? '' : 's').' moved to '.(LeadStatus::tryFrom((string) $value)?->label() ?? $value).'.',
+            'priority' => $updated.' lead'.($updated === 1 ? '' : 's').' set to '.(LeadPriority::tryFrom((string) $value)?->label() ?? $value).' priority.',
+            default => $updated.' lead'.($updated === 1 ? '' : 's').' reassigned.',
+        };
+
+        return response()->json([
+            'ok' => true,
+            'field' => $field,
+            'updated' => $updated,
+            'results' => $results,
+            'message' => $message,
         ]);
     }
 
@@ -516,8 +640,19 @@ class LeadController extends Controller
                 }
             })
             ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', $status))
-            ->when($request->priority, fn ($q, $priority) => $q->where('priority', $priority))
-            ->when($request->assigned_to, fn ($q, $assigned) => $q->where('assigned_to', $assigned))
+            ->when($request->priority === 'high_urgent', fn ($q) => $q->whereIn('priority', [
+                LeadPriority::High->value,
+                LeadPriority::Urgent->value,
+            ]))
+            ->when($request->priority && $request->priority !== 'high_urgent', fn ($q, $priority) => $q->where('priority', $priority))
+            ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
+            ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
+            ->when(
+                $request->assigned_to && ! in_array($request->assigned_to, ['me', 'unassigned'], true),
+                fn ($q, $assigned) => $q->where('assigned_to', $assigned)
+            )
+            ->when($request->follow_up === 'today', fn ($q) => $q->followUpToday())
+            ->when($request->follow_up === 'overdue', fn ($q) => $q->overdueFollowUp())
             ->when($request->source, fn ($q, $source) => $q->where('source', $source))
             ->when($request->advertising_platform, fn ($q, $platform) => $q->where('advertising_platform', $platform))
             ->when($request->campaign_name, fn ($q, $campaign) => $q->where('campaign_name', 'like', '%'.$campaign.'%'))

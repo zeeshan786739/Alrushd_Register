@@ -12,7 +12,7 @@ class LeadsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSiz
 {
     public function __construct(private Builder $query) {}
 
-    public function query()
+    public function query(): Builder
     {
         return $this->query->with('assignedAdmin');
     }

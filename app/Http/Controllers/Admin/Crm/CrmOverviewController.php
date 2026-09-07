@@ -74,7 +74,7 @@ class CrmOverviewController extends Controller
                     'type' => 'Lead follow-up overdue',
                     'label' => trim($lead->first_name.' '.$lead->last_name) ?: ('Lead #'.$lead->id),
                     'meta' => $state->label,
-                    'url' => route('admin.crm.leads.show', $lead),
+                    'url' => route('admin.crm.leads.index', ['follow_up' => 'overdue', 'view' => 'list']),
                 ]);
             }
             foreach ((clone $leads)->followUpToday()->orderBy('next_follow_up_date')->limit(5)->get() as $lead) {
@@ -84,7 +84,7 @@ class CrmOverviewController extends Controller
                     'type' => 'Lead follow-up today',
                     'label' => trim($lead->first_name.' '.$lead->last_name) ?: ('Lead #'.$lead->id),
                     'meta' => $state->label,
-                    'url' => route('admin.crm.leads.show', $lead),
+                    'url' => route('admin.crm.leads.index', ['follow_up' => 'today', 'view' => 'list']),
                 ]);
             }
         }
