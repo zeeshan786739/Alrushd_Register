@@ -6,20 +6,26 @@ use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Exports\Crm\LeadsExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Crm\BulkUpdateLeadsRequest;
 use App\Http\Requests\Crm\InlineUpdateLeadRequest;
 use App\Http\Requests\Crm\StoreLeadRequest;
 use App\Http\Requests\Crm\UpdateLeadRequest;
 use App\Models\Admin;
 use App\Models\Crm\Lead;
+use App\Models\Form;
+use App\Models\FormEntry;
 use App\Models\Crm\LeadCategory;
 use App\Models\Crm\SavedFilter;
 use App\Services\Crm\CrmTransactionalMailService;
 use App\Services\Crm\LeadConversionException;
 use App\Services\Crm\LeadConversionService;
+use App\Support\CrmFormStats;
 use App\Support\CrmEmailDeliverySummary;
+use App\Support\FormEntryContact;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
+use App\Support\LeadSmartSearch;
 use App\Support\LeadSourceOptions;
 use App\Support\OrganizationContext;
 use Carbon\Carbon;
@@ -36,12 +42,12 @@ class LeadController extends Controller
         private LeadConversionService $conversionService,
         private CrmTransactionalMailService $crmMail,
     ) {
-        $this->middleware('permission:view leads')->only(['index', 'show']);
+        $this->middleware('permission:view leads')->only(['index', 'show', 'panel']);
         $this->middleware('permission:create leads')->only(['create', 'store']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail',
+            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit',
         ]);
-        $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate']);
+        $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate']);
         $this->middleware('permission:delete leads')->only(['destroy']);
         $this->middleware('permission:assign leads')->only(['assign']);
         $this->middleware('permission:convert leads')->only(['convert']);
@@ -50,9 +56,12 @@ class LeadController extends Controller
 
     public function index(Request $request): View
     {
-        $query = $this->filteredQuery($request);
+        $viewMode = $request->query('view') === 'list' ? 'list' : 'board';
+        $perPage = $viewMode === 'list'
+            ? min(50, max(10, (int) $request->query('per_page', 15)))
+            : min(100, max(20, (int) $request->query('per_page', 50)));
 
-        $leads = $query->paginate(15)->withQueryString();
+        $leads = $this->filteredQuery($request)->paginate($perPage)->withQueryString();
 
         $orgScope = Lead::forCurrentOrganization();
         $currentMonth = (clone $orgScope)->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year)->count();
@@ -73,7 +82,16 @@ class LeadController extends Controller
                 ->where('source', 'tiktok_lead_ads')
                 ->where('created_at', '>=', Carbon::now()->subDays(7))
                 ->count(),
+            'form_leads' => (clone $orgScope)->where('source', 'form_submission')->count(),
+            'form_leads_week' => (clone $orgScope)
+                ->where('source', 'form_submission')
+                ->where('created_at', '>=', Carbon::now()->subDays(7))
+                ->count(),
         ];
+
+        $formStats = CrmFormStats::summary();
+        $forms = Form::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $formLeadCounts = CrmFormStats::leadCountsByForm();
 
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
         $savedFilters = SavedFilter::forCurrentOrganization()
@@ -81,6 +99,27 @@ class LeadController extends Controller
             ->where('module', 'leads')
             ->orderBy('name')
             ->get();
+        $workflowCounts = $this->filteredQuery($request)
+            ->reorder()
+            ->selectRaw('lead_status, COUNT(*) as total')
+            ->groupBy('lead_status')
+            ->pluck('total', 'lead_status')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+        $filteredTotal = (int) $this->filteredQuery($request)->count();
+
+        $pendingFormEntries = collect();
+        if ($this->shouldShowFormIntake($request)) {
+            $pendingFormEntries = $this->pendingFormEntriesQuery($request)
+                ->limit($viewMode === 'list' ? $perPage : 50)
+                ->get()
+                ->map(function (FormEntry $entry) {
+                    $entry->setAttribute('contact', FormEntryContact::fromEntry($entry));
+
+                    return $entry;
+                });
+            $filteredTotal += $pendingFormEntries->count();
+        }
 
         $categories = collect();
         $segments = ['all' => ['total' => $stats['total'], 'new' => $stats['new']], 'uncategorized' => ['total' => 0, 'new' => 0], 'by_id' => []];
@@ -117,8 +156,14 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments'))
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries'))
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
+            ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
+                $forms,
+                LeadCategorySchema::ready()
+                    ? LeadCategory::forCurrentOrganization()->active()->orderBy('name')->get()
+                    : collect()
+            ))
             ->with('platformOptions', [
                 'facebook' => 'Facebook',
                 'instagram' => 'Instagram',
@@ -154,14 +199,52 @@ class LeadController extends Controller
     public function show(Lead $lead): View
     {
         $this->authorize('view', $lead);
-        $lead->load(['assignedAdmin', 'notes.admin', 'activities.admin', 'customer', 'formEntry', 'metaLeadSubmission.formMapping', 'leadImport.uploader', 'category']);
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
-        $emailHistory = CrmEmailDeliverySummary::latestForLead(
-            (int) $lead->organization_id,
-            (int) $lead->id
-        );
 
-        return view('admin.crm.leads.show', compact('lead', 'admins', 'emailHistory'));
+        return view('admin.crm.leads.show', $this->leadDetailContext($lead));
+    }
+
+    public function panel(Lead $lead): View
+    {
+        $this->authorize('view', $lead);
+
+        return view('admin.crm.leads.partials.detail-panel', $this->leadDetailContext($lead));
+    }
+
+    public function panelEdit(Lead $lead): View
+    {
+        $this->authorize('update', $lead);
+
+        return view('admin.crm.leads.partials.detail-panel-edit', [
+            'lead' => $lead,
+            'admins' => Admin::forCurrentOrganization()->orderBy('name')->get(),
+            'categories' => LeadCategorySchema::ready()
+                ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
+                : collect(),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function leadDetailContext(Lead $lead): array
+    {
+        $lead->load([
+            'assignedAdmin',
+            'notes.admin',
+            'activities.admin',
+            'customer',
+            'formEntry.form',
+            'metaLeadSubmission.formMapping',
+            'leadImport.uploader',
+            'category',
+        ]);
+
+        return [
+            'lead' => $lead,
+            'admins' => Admin::forCurrentOrganization()->orderBy('name')->get(),
+            'emailHistory' => CrmEmailDeliverySummary::latestForLead(
+                (int) $lead->organization_id,
+                (int) $lead->id
+            ),
+        ];
     }
 
     public function edit(Lead $lead): View
@@ -184,6 +267,21 @@ class LeadController extends Controller
         }
 
         $lead->update($request->validated());
+        $lead->refresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Lead updated successfully.',
+                'lead' => [
+                    'id' => $lead->id,
+                    'full_name' => $lead->full_name,
+                    'email' => $lead->email,
+                    'phone' => $lead->phone,
+                    'lead_status' => $lead->lead_status,
+                    'priority' => $lead->priority,
+                ],
+            ]);
+        }
 
         return redirect()->route('admin.crm.leads.show', $lead)->with('success', 'Lead updated successfully.');
     }
@@ -198,24 +296,37 @@ class LeadController extends Controller
         return redirect()->route('admin.crm.leads.index')->with('success', 'Lead deleted successfully.');
     }
 
-    public function addNote(Request $request, Lead $lead): RedirectResponse
+    public function addNote(Request $request, Lead $lead): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $lead);
         $validated = $request->validate([
-            'note' => 'required|string',
+            'note' => 'required|string|max:10000',
             'is_important' => 'nullable|boolean',
         ]);
 
-        $lead->notes()->create([
+        $note = $lead->notes()->create([
             'organization_id' => $lead->organization_id,
             'admin_id' => auth('admin')->id(),
-            'note' => $validated['note'],
+            'note' => trim(strip_tags($validated['note'])),
             'is_important' => (bool) ($validated['is_important'] ?? false),
         ]);
 
-        $lead->logActivity('note_added', 'Note added');
+        $lead->logActivity('note_added', 'Comment added');
+        $note->load('admin');
+        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
 
-        return back()->with('success', 'Note added successfully.');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Comment added.',
+                'comment_html' => view('admin.crm.leads.partials.comment-item', [
+                    'note' => $note,
+                    'admins' => $admins,
+                ])->render(),
+                'comment_count' => $lead->notes()->count(),
+            ]);
+        }
+
+        return back()->with('success', 'Comment added successfully.');
     }
 
     public function updateStatus(Request $request, Lead $lead): RedirectResponse
@@ -296,6 +407,93 @@ class LeadController extends Controller
             'tone' => 'neutral',
             'icon' => 'solar:user-linear',
             'message' => 'Assignee updated.',
+        ]);
+    }
+
+    public function bulkUpdate(BulkUpdateLeadsRequest $request): JsonResponse
+    {
+        $field = $request->validated('field');
+        $value = $request->input('value');
+        $ids = array_values(array_unique(array_map('intval', $request->validated('lead_ids'))));
+
+        $leads = Lead::forCurrentOrganization()->whereIn('id', $ids)->get();
+
+        if ($leads->count() !== count($ids)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'One or more leads could not be found.',
+            ], 422);
+        }
+
+        $updated = 0;
+        $results = [];
+
+        foreach ($leads as $lead) {
+            if ($field === 'assigned_to') {
+                $this->authorize('assign', $lead);
+
+                if ($value === null || $value === '') {
+                    $lead->update(['assigned_to' => null]);
+                    $lead->logActivity('assigned', 'Lead unassigned (bulk update)');
+                    $results[] = [
+                        'id' => $lead->id,
+                        'value' => null,
+                        'label' => 'Unassigned',
+                        'tone' => 'neutral',
+                        'icon' => 'solar:user-linear',
+                    ];
+                } else {
+                    $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+                    $lead->update(['assigned_to' => $assignee->id]);
+                    $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name.' (bulk update)');
+                    $results[] = [
+                        'id' => $lead->id,
+                        'value' => (string) $assignee->id,
+                        'label' => $assignee->name,
+                        'tone' => 'neutral',
+                        'icon' => 'solar:user-linear',
+                    ];
+                }
+            } elseif ($field === 'lead_status') {
+                $this->authorize('update', $lead);
+                $lead->update(['lead_status' => $value]);
+                $lead->logActivity('status_changed', 'Status updated to '.$value.' (bulk update)');
+                $results[] = [
+                    'id' => $lead->id,
+                    'value' => $value,
+                    'label' => LeadStatus::tryFrom((string) $value)?->label() ?? $value,
+                    'tone' => CrmStatusTone::for((string) $value),
+                    'icon' => CrmStatusTone::icon((string) $value),
+                    'current_status' => $value,
+                ];
+            } else {
+                $this->authorize('update', $lead);
+                $lead->update(['priority' => $value]);
+                $lead->logActivity('priority_changed', 'Priority updated to '.$value.' (bulk update)');
+                $results[] = [
+                    'id' => $lead->id,
+                    'value' => $value,
+                    'label' => LeadPriority::tryFrom((string) $value)?->label() ?? $value,
+                    'tone' => CrmStatusTone::for((string) $value),
+                    'icon' => CrmStatusTone::icon((string) $value),
+                ];
+            }
+
+            $updated++;
+        }
+
+        $message = match ($field) {
+            'lead_status' => $updated.' lead'.($updated === 1 ? '' : 's').' moved to '.(LeadStatus::tryFrom((string) $value)?->label() ?? $value).'.',
+            'priority' => $updated.' lead'.($updated === 1 ? '' : 's').' set to '.(LeadPriority::tryFrom((string) $value)?->label() ?? $value).' priority.',
+            default => $updated.' lead'.($updated === 1 ? '' : 's').' reassigned.',
+        };
+
+        return response()->json([
+            'ok' => true,
+            'field' => $field,
+            'updated' => $updated,
+            'results' => $results,
+            'message' => $message,
         ]);
     }
 
@@ -441,6 +639,35 @@ class LeadController extends Controller
         return request()->expectsJson() || request()->ajax();
     }
 
+    public function smartSearchSuggest(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Lead::class);
+
+        $query = trim((string) $request->query('q', ''));
+        $forms = Form::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $categories = LeadCategorySchema::ready()
+            ? LeadCategory::forCurrentOrganization()->active()->orderBy('name')->get()
+            : collect();
+
+        $parsed = LeadSmartSearch::parse($query, $forms, $categories, (int) auth('admin')->id());
+        $viewMode = $request->query('view') === 'list' ? 'list' : 'board';
+        $params = array_merge(
+            $parsed['filters'],
+            array_filter(['search' => $parsed['search']]),
+            ['view' => $viewMode]
+        );
+
+        return response()->json([
+            'query' => $query,
+            'label' => $parsed['label'],
+            'confidence' => $parsed['confidence'],
+            'filters' => $parsed['filters'],
+            'search' => $parsed['search'],
+            'url' => route('admin.crm.leads.index', $params),
+            'suggestions' => LeadSmartSearch::suggestions($forms, $categories),
+        ]);
+    }
+
     public function export(Request $request): BinaryFileResponse
     {
         $this->authorize('export', Lead::class);
@@ -506,6 +733,7 @@ class LeadController extends Controller
         return Lead::forCurrentOrganization()
             ->with(array_filter([
                 'assignedAdmin',
+                'formEntry.form',
                 LeadCategorySchema::ready() ? 'category' : null,
             ]))
             ->when(LeadCategorySchema::ready() && $request->filled('lead_category_id'), function ($q) use ($request) {
@@ -516,9 +744,24 @@ class LeadController extends Controller
                 }
             })
             ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', $status))
-            ->when($request->priority, fn ($q, $priority) => $q->where('priority', $priority))
-            ->when($request->assigned_to, fn ($q, $assigned) => $q->where('assigned_to', $assigned))
+            ->when($request->priority === 'high_urgent', fn ($q) => $q->whereIn('priority', [
+                LeadPriority::High->value,
+                LeadPriority::Urgent->value,
+            ]))
+            ->when($request->priority && $request->priority !== 'high_urgent', fn ($q, $priority) => $q->where('priority', $priority))
+            ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
+            ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
+            ->when(
+                $request->assigned_to && ! in_array($request->assigned_to, ['me', 'unassigned'], true),
+                fn ($q, $assigned) => $q->where('assigned_to', $assigned)
+            )
+            ->when($request->follow_up === 'today', fn ($q) => $q->followUpToday())
+            ->when($request->follow_up === 'overdue', fn ($q) => $q->overdueFollowUp())
             ->when($request->source, fn ($q, $source) => $q->where('source', $source))
+            ->when($request->form_id, fn ($q, $formId) => $q->whereHas(
+                'formEntry',
+                fn ($entryQuery) => $entryQuery->where('form_id', (int) $formId)
+            ))
             ->when($request->advertising_platform, fn ($q, $platform) => $q->where('advertising_platform', $platform))
             ->when($request->campaign_name, fn ($q, $campaign) => $q->where('campaign_name', 'like', '%'.$campaign.'%'))
             ->when($request->search, function ($q, $search) {
@@ -530,5 +773,58 @@ class LeadController extends Controller
                 });
             })
             ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'));
+    }
+
+    private function shouldShowFormIntake(Request $request): bool
+    {
+        if (! $request->user('admin')?->can('view form submissions')) {
+            return false;
+        }
+
+        if ($request->filled('source') && $request->source !== 'form_submission') {
+            return false;
+        }
+
+        if ($request->filled('lead_status') && $request->lead_status !== 'new') {
+            return false;
+        }
+
+        if ($request->filled('priority')) {
+            return false;
+        }
+
+        if ($request->filled('follow_up')) {
+            return false;
+        }
+
+        if ($request->filled('lead_category_id')) {
+            return false;
+        }
+
+        if ($request->filled('advertising_platform') || $request->filled('campaign_name')) {
+            return false;
+        }
+
+        if ($request->filled('assigned_to') && $request->assigned_to !== 'unassigned') {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function pendingFormEntriesQuery(Request $request)
+    {
+        return FormEntry::forCurrentOrganization()
+            ->with('form')
+            ->where('status', 'pending')
+            ->whereDoesntHave('lead')
+            ->when($request->form_id, fn ($q, $formId) => $q->where('form_id', (int) $formId))
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('data', 'like', "%{$search}%")
+                        ->orWhereHas('form', fn ($formQuery) => $formQuery->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderByDesc('submitted_at');
     }
 }

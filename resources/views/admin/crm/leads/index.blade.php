@@ -2,6 +2,7 @@
 @section('title', 'Leads')
 @section('content')
 @include('admin.crm.partials.styles')
+@include('admin.crm.partials.workspace-shell')
 @include('admin.crm.leads.partials.premium-styles')
 @php
     $categoryFilterOptions = collect($categories ?? [])->pluck('name', 'id')->all();
@@ -32,15 +33,28 @@
             'icon' => 'solar:user-linear',
         ];
     }
+    $workflowStatuses = \App\Enums\LeadStatus::cases();
+    $activeFilters = collect(request()->only(['search','follow_up','lead_category_id','source','advertising_platform','campaign_name','lead_status','priority','assigned_to']))
+        ->filter(fn ($value) => $value !== null && $value !== '')
+        ->count();
 @endphp
-<div class="dashboard-main-body crm-list-view" id="crm-leads-page"
+<div class="dashboard-main-body {{ ($viewMode ?? 'board') === 'list' ? 'crm-list-view' : 'crm-board-view' }}" id="crm-leads-page"
      data-inline-url-template="{{ url('admin/crm/leads') }}/__ID__/inline"
+     data-panel-url-template="{{ url('admin/crm/leads') }}/__ID__/panel"
+     data-panel-edit-url-template="{{ url('admin/crm/leads') }}/__ID__/panel/edit"
+     data-submission-panel-url-template="{{ url('admin/crm/form-submissions') }}/__ID__/panel"
+     data-convert-submission-url-template="{{ url('admin/crm/form-submissions') }}/__ID__/convert-lead"
+     data-update-url-template="{{ url('admin/crm/leads') }}/__ID__"
      data-filter-clear-url="{{ route('admin.crm.leads.filters.clear') }}"
      data-can-update="{{ auth('admin')->user()?->can('update leads') ? '1' : '0' }}"
-     data-can-assign="{{ auth('admin')->user()?->can('assign leads') ? '1' : '0' }}">
+     data-can-assign="{{ auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
+     data-can-bulk="{{ auth('admin')->user()?->can('update leads') || auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
+     data-bulk-url="{{ route('admin.crm.leads.bulk') }}"
+     data-smart-search-url="{{ route('admin.crm.leads.smart-search') }}"
+     data-initial-view="{{ $viewMode ?? 'board' }}">
     @include('admin.partials.page-header', [
         'title' => 'Leads',
-        'subtitle' => 'Manage and track sales leads',
+        'subtitle' => 'Pipeline, follow-ups, and conversions in one workspace',
         'showBreadcrumb' => true,
         'breadcrumbs' => [['label' => 'CRM'], ['label' => 'Leads']],
         'actions' => array_filter([
@@ -51,206 +65,207 @@
         ]),
     ])
 
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-5 g-3 mb-24">
-        <div class="col">@include('admin.partials.dashboard-stat-card', ['label'=>'Total Leads','value'=>$stats['total'],'icon'=>'solar:users-group-rounded-linear','tone'=>'navy'])</div>
-        <div class="col">@include('admin.partials.dashboard-stat-card', ['label'=>'New','value'=>$stats['new'],'icon'=>'solar:user-plus-linear','tone'=>'green'])</div>
-        <div class="col">@include('admin.partials.dashboard-stat-card', ['label'=>'Facebook (7d)','value'=>$stats['facebook_this_week'],'icon'=>'logos:facebook','tone'=>'gold'])</div>
-        <div class="col">@include('admin.partials.dashboard-stat-card', ['label'=>'TikTok (7d)','value'=>$stats['tiktok_this_week'],'icon'=>'logos:tiktok-icon','tone'=>'purple'])</div>
-        <div class="col">@include('admin.partials.dashboard-stat-card', ['label'=>'Follow-up Today','value'=>$stats['follow_up_today'],'icon'=>'solar:calendar-linear','tone'=>'amber','badge'=>($stats['monthly_change']>=0?'+':'').$stats['monthly_change'].'%','badgeClass'=>$stats['monthly_change']>=0?'crm-stat-badge--up':'crm-stat-badge--down','footer'=>'vs last month'])</div>
-    </div>
+    <div class="crm-leads-workspace crm-workspace-shell">
+        @include('admin.crm.leads.partials.metrics-strip', ['stats' => $stats, 'formStats' => $formStats ?? [], 'viewMode' => $viewMode ?? 'board'])
 
-    @include('admin.crm.leads.partials.segments', ['categories' => $categories ?? collect(), 'segments' => $segments ?? []])
+        @include('admin.crm.leads.partials.filter-workspace', [
+            'viewMode' => $viewMode ?? 'board',
+            'categories' => $categories ?? collect(),
+            'forms' => $forms ?? collect(),
+            'formLeadCounts' => $formLeadCounts ?? [],
+            'segments' => $segments ?? [],
+            'categoryFilterOptions' => $categoryFilterOptions,
+            'sourceOptions' => $sourceOptions ?? [],
+            'platformOptions' => $platformOptions ?? [],
+            'admins' => $admins,
+        ])
 
-    @include('admin.partials.filter-bar', [
-        'action' => route('admin.crm.leads.index'),
-        'resetUrl' => route('admin.crm.leads.index'),
-        'fields' => array_values(array_filter([
-            ['name'=>'search','label'=>'Search','placeholder'=>'Name, email, phone'],
-            \App\Support\LeadCategorySchema::ready() ? ['name'=>'lead_category_id','label'=>'Category','type'=>'select','options'=>$categoryFilterOptions] : null,
-            ['name'=>'source','label'=>'Source','type'=>'select','options'=>$sourceOptions ?? []],
-            ['name'=>'advertising_platform','label'=>'Platform','type'=>'select','options'=>$platformOptions ?? []],
-            ['name'=>'campaign_name','label'=>'Campaign','placeholder'=>'Campaign name'],
-            ['name'=>'lead_status','label'=>'Status','type'=>'select','options'=>\App\Enums\LeadStatus::options()],
-            ['name'=>'priority','label'=>'Priority','type'=>'select','options'=>\App\Enums\LeadPriority::options()],
-            ['name'=>'assigned_to','label'=>'Assigned To','type'=>'select','options'=>$admins->pluck('name','id')->all()],
-        ])),
-    ])
-
-    <div class="d-flex justify-content-end mb-16">
-        <div class="crm-view-toggle" data-crm-view-toggle>
-            <button type="button" data-view="list" class="is-active" title="List view"><iconify-icon icon="solar:list-linear"></iconify-icon></button>
-            <button type="button" data-view="grid" title="Grid view"><iconify-icon icon="solar:widget-4-linear"></iconify-icon></button>
-        </div>
-    </div>
-
-    @can('view leads')
-    @if($savedFilters->isNotEmpty())
-    <div class="mb-16 d-flex flex-wrap gap-8 align-items-center" data-saved-filters>
-        <span class="text-sm text-secondary-light">Saved filters:</span>
-        @foreach($savedFilters as $filter)
-            <span class="crm-saved-filter-chip" data-saved-filter-id="{{ $filter->id }}">
-                <a href="{{ route('admin.crm.leads.index', $filter->filters) }}" class="crm-saved-filter-chip__link">{{ $filter->name }}</a>
-                <button type="button"
-                        class="crm-saved-filter-chip__remove"
-                        data-crm-remove-filter
-                        data-url="{{ route('admin.crm.leads.filters.destroy', $filter) }}"
-                        title="Remove saved filter"
-                        aria-label="Remove saved filter {{ $filter->name }}">
-                    <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
-                </button>
-            </span>
-        @endforeach
-        @if($savedFilters->count() >= 2)
-            <button type="button"
-                    class="btn btn-sm btn-outline-neutral-500 radius-8"
-                    data-crm-clear-filters>
-                Clear all
-            </button>
-        @endif
-    </div>
-    @endif
-    @endcan
-
-    <div class="card radius-12 shadow-2 border-0 crm-list-only">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Source</th>
-                            <th>Status</th>
-                            <th>Priority</th>
-                            <th>Assigned</th>
-                            <th>Follow-up</th>
-                            <th>Created</th>
-                            <th class="text-end pe-20">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($leads as $lead)
-                        @php $followUp = \App\Support\LeadFollowUpState::forLead($lead); @endphp
-                        <tr class="crm-lead-row"
-                            tabindex="0"
-                            data-href="{{ route('admin.crm.leads.show', $lead) }}"
-                            aria-label="Open lead {{ $lead->full_name }}">
-                            <td>
-                                <div class="crm-lead-identity">
-                                <span class="crm-lead-avatar" aria-hidden="true">{{ \App\Support\UserManagementHelper::initials($lead->full_name) }}</span>
-                                <div class="crm-lead-identity__text">
-                                <div class="crm-lead-name text-truncate" style="max-width:220px" title="{{ $lead->full_name }}">{{ $lead->full_name }}</div>
-                                <div class="crm-lead-meta text-truncate" style="max-width:220px" title="{{ $lead->email ?? $lead->phone }}">{{ $lead->email ?? $lead->phone ?? '—' }}</div>
-                                @if($lead->category)
-                                    <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}" title="{{ $lead->category->name }}">
-                                        <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
-                                        {{ $lead->category->name }}
-                                    </span>
-                                @endif
-                                </div>
-                                </div>
-                            </td>
-                            <td>@include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])</td>
-                            <td>
-                                @can('update leads')
-                                    @include('admin.crm.partials.inline-control', [
-                                        'field' => 'lead_status',
-                                        'value' => $lead->lead_status,
-                                        'recordId' => $lead->id,
-                                        'idAttr' => 'data-lead-id',
-                                        'options' => $statusInlineOptions,
-                                        'ariaLabel' => 'Status for '.$lead->full_name,
-                                    ])
-                                @else
-                                    @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
-                                @endcan
-                            </td>
-                            <td>
-                                @can('update leads')
-                                    @include('admin.crm.partials.inline-control', [
-                                        'field' => 'priority',
-                                        'value' => $lead->priority,
-                                        'recordId' => $lead->id,
-                                        'idAttr' => 'data-lead-id',
-                                        'options' => $priorityInlineOptions,
-                                        'ariaLabel' => 'Priority for '.$lead->full_name,
-                                    ])
-                                @else
-                                    @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
-                                @endcan
-                            </td>
-                            <td>
-                                @can('assign leads')
-                                    @include('admin.crm.partials.inline-control', [
-                                        'field' => 'assigned_to',
-                                        'value' => $lead->assigned_to ?? '',
-                                        'recordId' => $lead->id,
-                                        'idAttr' => 'data-lead-id',
-                                        'options' => $assigneeInlineOptions,
-                                        'owner' => true,
-                                        'ariaLabel' => 'Assignee for '.$lead->full_name,
-                                    ])
-                                @else
-                                    <span class="text-sm">{{ $lead->assignedAdmin?->name ?? '—' }}</span>
-                                @endcan
-                            </td>
-                            <td>
-                                @if($followUp->hasFollowUp())
-                                    <span class="{{ $followUp->badgeClass }}" title="{{ $followUp->detail }}">
-                                        @if($followUp->attention)<span class="crm-followup-dot" aria-hidden="true"></span>@endif
-                                        {{ $followUp->label }}
-                                    </span>
-                                @else
-                                    <span class="text-secondary-light">—</span>
-                                @endif
-                            </td>
-                            <td class="text-sm text-secondary-light">{{ $lead->created_at->format('M j, Y') }}</td>
-                            <td class="text-end pe-16">@include('admin.partials.table-actions', ['viewUrl'=>route('admin.crm.leads.show',$lead),'editUrl'=>auth('admin')->user()?->can('update leads')?route('admin.crm.leads.edit',$lead):null,'deleteId'=>$lead->id,'deleteRoute'=>route('admin.crm.leads.destroy',$lead),'canDelete'=>auth('admin')->user()?->can('delete leads')])</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="text-center py-40 text-secondary-light">No leads found.</td></tr>
-                    @endforelse
-                    </tbody>
-                </table>
+        <div class="crm-leads-toolbar">
+            <div class="crm-leads-toolbar__left">
+                <div class="crm-view-toggle" data-crm-view-toggle>
+                    <button type="button" data-view="board" @class(['is-active' => ($viewMode ?? 'board') === 'board']) title="Board view"><iconify-icon icon="solar:kanban-linear"></iconify-icon></button>
+                    <button type="button" data-view="list" @class(['is-active' => ($viewMode ?? 'board') === 'list']) title="List view"><iconify-icon icon="solar:list-linear"></iconify-icon></button>
+                </div>
+                <div class="crm-leads-toolbar__meta">
+                    <strong>{{ number_format($filteredTotal ?? $leads->total()) }} matching</strong>
+                    @if($activeFilters > 0)
+                        <span class="crm-leads-toolbar__filters">{{ $activeFilters }} filter{{ $activeFilters === 1 ? '' : 's' }}</span>
+                    @endif
+                    @if(($viewMode ?? 'board') === 'board')
+                        <span>{{ $leads->count() }} loaded on board</span>
+                    @elseif($leads->total() > $leads->count())
+                        <span>{{ $leads->firstItem() }}–{{ $leads->lastItem() }} of {{ number_format($leads->total()) }}</span>
+                    @endif
+                </div>
             </div>
-        </div>
-    </div>
-
-    <div class="crm-grid-only crm-card-grid mb-24">
-        @foreach($leads as $lead)
-            @php $followUp = \App\Support\LeadFollowUpState::forLead($lead); @endphp
-            <div class="crm-record-card">
-                <div class="d-flex justify-content-between align-items-start mb-8">
-                    <div><a href="{{ route('admin.crm.leads.show', $lead) }}" class="fw-semibold text-lg">{{ $lead->full_name }}</a><br><span class="text-sm text-secondary-light">{{ $lead->email ?? '—' }}</span></div>
-                    @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
-                </div>
-                <div class="text-sm text-secondary-light mb-12">
-                    @include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])
-                    @if($lead->category) · {{ $lead->category->name }}@endif
-                    · {{ ucfirst($lead->priority) }} · {{ $lead->assignedAdmin?->name ?? 'Unassigned' }}
-                </div>
-                @if($followUp->hasFollowUp())
-                    <div class="mb-12"><span class="{{ $followUp->badgeClass }}">{{ $followUp->label }}</span></div>
+            <div class="crm-leads-toolbar__right">
+                @can('view leads')
+                @if($savedFilters->isNotEmpty())
+                    <div class="crm-leads-toolbar__saved" data-saved-filters>
+                        @foreach($savedFilters as $filter)
+                            <span class="crm-saved-filter-chip" data-saved-filter-id="{{ $filter->id }}">
+                                <a href="{{ route('admin.crm.leads.index', array_merge($filter->filters, ['view' => $viewMode ?? 'board'])) }}" class="crm-saved-filter-chip__link">{{ $filter->name }}</a>
+                                <button type="button"
+                                        class="crm-saved-filter-chip__remove"
+                                        data-crm-remove-filter
+                                        data-url="{{ route('admin.crm.leads.filters.destroy', $filter) }}"
+                                        title="Remove saved filter"
+                                        aria-label="Remove saved filter {{ $filter->name }}">
+                                    <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+                                </button>
+                            </span>
+                        @endforeach
+                        @if($savedFilters->count() >= 2)
+                            <button type="button" class="btn btn-sm btn-outline-neutral-500 radius-8" data-crm-clear-filters>Clear all</button>
+                        @endif
+                    </div>
                 @endif
-                <a href="{{ route('admin.crm.leads.show', $lead) }}" class="btn btn-sm btn-outline-primary-600 radius-8">View Details</a>
+                @endcan
+                <button type="button" class="btn btn-sm btn-outline-neutral-500 radius-8" data-crm-toggle-save-filter>
+                    <iconify-icon icon="solar:bookmark-linear"></iconify-icon> Save filter
+                </button>
             </div>
-        @endforeach
+        </div>
+
+        @can('view leads')
+        <form method="POST" action="{{ route('admin.crm.leads.filters.save') }}" class="crm-save-filter-inline mb-16" id="crm-save-filter-form" hidden>
+            @csrf
+            <div class="crm-save-filter-inline__inner">
+                <input type="text" name="name" class="form-control radius-8" placeholder="Filter name" required>
+                <input type="hidden" name="filters[view]" value="{{ $viewMode ?? 'board' }}">
+                @foreach(request()->only(['search','follow_up','lead_category_id','source','advertising_platform','campaign_name','lead_status','priority','assigned_to','sort_by','sort_order']) as $key=>$value)
+                    @if($value !== null && $value !== '')<input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">@endif
+                @endforeach
+                <button type="submit" class="btn btn-outline-primary-600 radius-8">Save</button>
+                <button type="button" class="btn btn-outline-neutral-500 radius-8" data-crm-toggle-save-filter>Cancel</button>
+            </div>
+        </form>
+        @endcan
+
+        <div class="crm-board-only crm-workflow-board" data-crm-board>
+            @foreach($workflowStatuses as $status)
+                @php
+                    $columnLeads = $leads->getCollection()->where('lead_status', $status->value);
+                    $columnTotal = (int) ($workflowCounts[$status->value] ?? 0);
+                    $columnSubmissions = $status->value === 'new' ? ($pendingFormEntries ?? collect()) : collect();
+                    if ($status->value === 'new') {
+                        $columnTotal += $columnSubmissions->count();
+                    }
+                @endphp
+                <section class="crm-board-column"
+                         data-crm-dropzone
+                         data-status="{{ $status->value }}">
+                    <div class="crm-board-column__head">
+                        <div class="crm-board-column__title-wrap">
+                            <span class="crm-board-column__dot" aria-hidden="true"></span>
+                            <div>
+                                <span class="crm-board-column__kicker">{{ $status->label() }}</span>
+                                <strong>{{ number_format($columnTotal) }}</strong>
+                            </div>
+                        </div>
+                        <span class="crm-board-column__count" title="On this page">{{ $columnLeads->count() }}</span>
+                    </div>
+                    <div class="crm-board-column__body">
+                        @if($columnSubmissions->isNotEmpty())
+                            @foreach($columnSubmissions as $entry)
+                                @include('admin.crm.leads.partials.board-submission-card', ['entry' => $entry])
+                            @endforeach
+                        @endif
+                        @forelse($columnLeads as $lead)
+                            @include('admin.crm.leads.partials.board-card', [
+                                'lead' => $lead,
+                                'priorityInlineOptions' => $priorityInlineOptions,
+                                'assigneeInlineOptions' => $assigneeInlineOptions,
+                            ])
+                        @empty
+                            @if($columnSubmissions->isEmpty())
+                            <div class="crm-board-empty">
+                                <iconify-icon icon="solar:inbox-line-linear"></iconify-icon>
+                                <span>Drop leads here</span>
+                            </div>
+                            @endif
+                        @endforelse
+                    </div>
+                </section>
+            @endforeach
+        </div>
+
+        <div class="crm-list-only crm-leads-list-shell">
+            @can('update leads')
+                <div class="crm-list-status-rail" data-crm-list-status-rail>
+                    <div class="crm-list-status-rail__label">
+                        <iconify-icon icon="solar:transfer-horizontal-linear"></iconify-icon>
+                        Drag a lead onto a status to update pipeline stage
+                    </div>
+                    <div class="crm-list-status-rail__zones">
+                        @foreach($workflowStatuses as $status)
+                            <div class="crm-list-status-drop"
+                                 data-crm-list-dropzone
+                                 data-status="{{ $status->value }}">
+                                {{ $status->label() }}
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endcan
+
+            @include('admin.crm.leads.partials.list-bulk-bar', ['admins' => $admins])
+
+            <div class="crm-leads-list-head" aria-hidden="true">
+                @canany(['update leads', 'assign leads'])
+                    <span class="crm-leads-list-head__select">
+                        <input type="checkbox"
+                               class="crm-list-select-all"
+                               data-crm-select-all
+                               aria-label="Select all leads on this page">
+                    </span>
+                @else
+                    <span></span>
+                @endcanany
+                <span></span>
+                <span>Lead</span>
+                <span>Status</span>
+                <span>Priority</span>
+                <span>Assigned</span>
+                <span>Follow-up</span>
+                <span>Created</span>
+                <span></span>
+            </div>
+
+            <div class="crm-leads-list" data-crm-leads-list>
+                @if(($pendingFormEntries ?? collect())->isNotEmpty())
+                    @foreach($pendingFormEntries as $entry)
+                        @include('admin.crm.leads.partials.list-submission-row', ['entry' => $entry])
+                    @endforeach
+                @endif
+                @forelse($leads as $lead)
+                    @include('admin.crm.leads.partials.list-row', [
+                        'lead' => $lead,
+                        'statusInlineOptions' => $statusInlineOptions,
+                        'priorityInlineOptions' => $priorityInlineOptions,
+                        'assigneeInlineOptions' => $assigneeInlineOptions,
+                    ])
+                @empty
+                    @if(($pendingFormEntries ?? collect())->isEmpty())
+                    <div class="crm-leads-list-empty">
+                        <iconify-icon icon="solar:inbox-line-linear"></iconify-icon>
+                        <strong>No leads found</strong>
+                        <span>Adjust your filters or import a new spreadsheet to populate this list.</span>
+                    </div>
+                    @endif
+                @endforelse
+            </div>
+        </div>
+
+        @include('admin.crm.leads.partials.pagination', ['paginator' => $leads, 'viewMode' => $viewMode ?? 'board'])
     </div>
 
-    <form method="POST" action="{{ route('admin.crm.leads.filters.save') }}" class="card radius-12 border-0 shadow-2 mb-24" id="crm-save-filter-form">
-        @csrf
-        <div class="card-body p-20 d-flex flex-wrap gap-12 align-items-end">
-            <div class="flex-grow-1"><label class="form-label text-sm">Save current filter</label><input type="text" name="name" class="form-control radius-8" placeholder="Filter name" required></div>
-            @foreach(request()->only(['search','lead_category_id','source','advertising_platform','campaign_name','lead_status','priority','assigned_to','sort_by','sort_order']) as $key=>$value)
-                @if($value !== null && $value !== '')<input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">@endif
-            @endforeach
-            <button type="submit" class="btn btn-outline-primary-600 radius-8 px-20 py-11">Save Filter</button>
-        </div>
-    </form>
-
-    {{ $leads->links() }}
     <div class="crm-toast-slot" data-crm-toast-slot aria-live="polite"></div>
+
+    @include('admin.crm.leads.partials.detail-drawer')
 </div>
 @endsection
+
 @section('script')
 <script src="{{ asset('admin/assets/js/crm-leads.js') }}?v={{ filemtime(public_path('admin/assets/js/crm-leads.js')) }}"></script>
 @endsection

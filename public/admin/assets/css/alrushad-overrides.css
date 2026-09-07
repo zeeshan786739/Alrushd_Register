@@ -5955,6 +5955,57 @@ label.form-label {
     color: #475569 !important;
 }
 
+
+/* ── CRM module navigation & workspace shell ── */
+.crm-module-nav {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-bottom: 24px;
+}
+.crm-module-nav__link {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px;
+    text-decoration: none; font-size: var(--crm-text-sm); font-weight: 600; color: var(--crm-text-muted);
+    border: 1.5px solid var(--crm-border); background: var(--crm-surface);
+    transition: color var(--crm-duration) var(--crm-ease), border-color var(--crm-duration) var(--crm-ease),
+                background var(--crm-duration) var(--crm-ease), transform var(--crm-duration) var(--crm-ease);
+}
+.crm-module-nav__link:hover {
+    color: var(--crm-link, var(--crm-brand));
+    border-color: rgba(15, 39, 74, 0.22);
+    transform: translateY(-1px);
+}
+.crm-module-nav__link iconify-icon {
+    font-size: 18px; width: 18px; height: 18px; flex-shrink: 0;
+    color: inherit; --iconify-color: currentColor;
+}
+.crm-module-nav__link.is-active {
+    background: var(--crm-brand); border-color: var(--crm-brand); color: #fff;
+    box-shadow: 0 4px 12px var(--crm-brand-glow);
+}
+.crm-module-nav__link.is-active iconify-icon {
+    color: #fff !important; --iconify-color: #fff;
+}
+.crm-module-nav__link.is-active:hover { color: #fff; transform: none; }
+
+.crm-workspace-shell {
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--crm-shadow-sm);
+}
+
+#crm-leads-page .crm-leads-workspace,
+#crm-overview-page .crm-overview-workspace {
+    background: var(--crm-surface);
+}
+
+@media (max-width: 767px) {
+    .crm-module-nav__link { flex: 1 1 calc(50% - 5px); justify-content: center; }
+}
+@media (max-width: 480px) {
+    .crm-module-nav__link { flex: 1 1 100%; }
+}
+
 .fc-pro-page-header-compact .crm-page-header p.text-secondary-light,
 .fc-v2-page-header .crm-page-header p.text-secondary-light {
     display: block !important;

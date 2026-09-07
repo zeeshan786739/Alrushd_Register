@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 
 class FormEntry extends Model
@@ -29,6 +30,11 @@ class FormEntry extends Model
     public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
+    }
+
+    public function lead(): HasOne
+    {
+        return $this->hasOne(\App\Models\Crm\Lead::class, 'form_entry_id');
     }
 
     public function scopeForCurrentOrganization(Builder $query): Builder

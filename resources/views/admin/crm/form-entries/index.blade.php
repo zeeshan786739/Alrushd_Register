@@ -2,14 +2,18 @@
 @section('title', 'Form Submissions')
 @section('content')
 @include('admin.crm.partials.styles')
+@include('admin.crm.partials.workspace-shell')
 <div class="dashboard-main-body">
     @include('admin.partials.page-header', [
-        'title'=>'Form Submissions','subtitle'=>'CRM view of form entries','showBreadcrumb'=>true,
+        'title'=>'Form Submissions','subtitle'=>'Review intake, convert to leads, and track pipeline sources','showBreadcrumb'=>true,
         'breadcrumbs'=>[['label'=>'CRM'],['label'=>'Form Submissions']],
         'actions'=>array_filter([
             auth('admin')->user()?->can('export form submissions')?['label'=>'Export','url'=>route('admin.crm.form-entries.export',request()->query()),'icon'=>'solar:export-linear','class'=>'btn-outline-neutral-500 radius-8 px-20 py-11']:null,
         ]),
     ])
+    @include('admin.crm.partials.module-nav', ['active' => 'form-submissions'])
+
+    <div class="crm-workspace-shell">
     <div class="row g-3 mb-24">
         <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Total','value'=>$stats['total'],'icon'=>'solar:documents-linear','tone'=>'navy'])</div>
         <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Pending','value'=>$stats['pending'],'icon'=>'solar:clock-circle-linear','tone'=>'amber'])</div>
@@ -43,5 +47,6 @@
         @empty<tr><td colspan="6" class="text-center py-40 text-secondary-light">No submissions found.</td></tr>@endforelse</tbody>
     </table></div></div></div>
     <div class="mt-24">{{ $entries->links() }}</div>
+    </div>
 </div>
 @endsection
