@@ -123,12 +123,12 @@
     <div>
         <span class="eyebrow">Free Trial</span>
         <h1 class="display" style="font-size: clamp(32px, 4vw, 46px);">Your school's new home is <span class="grad-text">two minutes away</span></h1>
-        <p class="lede" style="margin: 20px 0 32px;">Create your school workspace, invite your team, and start capturing leads today.</p>
+        <p class="lede" style="margin: 20px 0 32px;">Apply in two minutes. We’ll confirm by email, then unlock your workspace once approved.</p>
         <ul class="trust" style="list-style:none; padding:0;">
-            <li>Full access to every feature during the trial</li>
+            <li>Confirmation email as soon as you apply</li>
+            <li>Full access to every feature once approved</li>
             <li>No credit card required to start</li>
             <li>Your data is private to your school — always</li>
-            <li>Friendly humans on support if you get stuck</li>
         </ul>
         <img src="{{ asset('frontend/assets/img/saas/saas-hero-dashboard.png') }}" alt="{{ $saasName }} dashboard"
              style="border-radius: 14px; box-shadow: var(--shadow-lg); border: 1px solid var(--line); margin-top: 16px;">
@@ -214,10 +214,10 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">Create My School →</button>
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">Request Free Trial →</button>
         <p class="signup-footnote">
-            By signing up you agree to fair use of the platform. Prefer a guided setup?
-            <a href="{{ route('saas.demo.create') }}">Book a demo</a>.
+            You’ll get a confirmation email right away. Access is unlocked after our team approves your request.
+            Prefer a guided setup? <a href="{{ route('saas.demo.create') }}">Book a demo</a>.
         </p>
     </form>
 </div>

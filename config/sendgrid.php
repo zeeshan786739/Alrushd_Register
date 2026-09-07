@@ -6,8 +6,10 @@ return [
     | SendGrid (global delivery provider)
     |--------------------------------------------------------------------------
     |
-    | API key and webhook secrets MUST stay in environment variables.
-    | Never store the API key in the database or organization settings UI.
+    | Default API key comes from the environment. Platform owner settings
+    | (Super Admin → Settings) may override it for SaaS transactional mail
+    | via PlatformMailService. Tenant email marketing still prefers per-org
+    | mailbox keys where configured.
     |
     */
     'api_key' => env('SENDGRID_API_KEY'),

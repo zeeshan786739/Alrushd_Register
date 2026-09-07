@@ -72,7 +72,12 @@
                                 <td class="text-secondary-light text-sm">{{ $admin->last_login_at?->diffForHumans() ?? 'Never' }}</td>
                                 <td class="text-end pe-24">
                                     <form method="POST" action="{{ route('platform.schools.impersonate', [$organization, $admin]) }}"
-                                          onsubmit="return confirm('Log in as {{ $admin->name }}? You will enter their school panel.');">
+                                          data-confirm
+                                          data-confirm-title="Log in as {{ $admin->name }}?"
+                                          data-confirm-text="You will enter their school panel as this admin."
+                                          data-confirm-label="Impersonate"
+                                          data-confirm-icon="question"
+                                          data-confirm-tone="primary">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
                                             <iconify-icon icon="solar:login-2-linear"></iconify-icon> Login as

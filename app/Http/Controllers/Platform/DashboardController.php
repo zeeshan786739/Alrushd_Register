@@ -7,6 +7,7 @@ use App\Models\DemoRequest;
 use App\Models\Organization;
 use App\Models\PlatformActivityLog;
 use App\Models\SaasSubscription;
+use App\Models\TrialSignupRequest;
 
 class DashboardController extends Controller
 {
@@ -28,6 +29,7 @@ class DashboardController extends Controller
             });
 
         $openDemoRequests = DemoRequest::whereIn('status', ['new', 'contacted', 'demo_scheduled'])->count();
+        $pendingTrialRequests = TrialSignupRequest::where('status', 'pending')->count();
 
         return view('platform.dashboard', [
             'totalSchools' => $totalSchools,
@@ -37,8 +39,10 @@ class DashboardController extends Controller
             'mrr' => $mrr,
             'paidSubscriptions' => $currentSubscriptions->filter(fn ($sub) => $sub->status->value !== 'complimentary')->count(),
             'openDemoRequests' => $openDemoRequests,
+            'pendingTrialRequests' => $pendingTrialRequests,
             'recentSchools' => Organization::with('currentSubscription.plan')->latest()->take(6)->get(),
             'recentDemoRequests' => DemoRequest::latest()->take(6)->get(),
+            'recentTrialRequests' => TrialSignupRequest::with('plan')->latest()->take(6)->get(),
             'recentActivity' => PlatformActivityLog::with(['admin', 'organization'])->latest('created_at')->take(10)->get(),
         ]);
     }

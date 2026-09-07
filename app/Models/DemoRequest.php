@@ -11,14 +11,21 @@ class DemoRequest extends Model
     protected $fillable = [
         'name', 'email', 'phone', 'organization_name', 'organization_type',
         'country', 'students_count', 'message', 'status', 'internal_notes',
-        'handled_by', 'converted_organization_id', 'source',
+        'handled_by', 'converted_organization_id', 'access_granted_at', 'source',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => DemoRequestStatus::class,
+            'access_granted_at' => 'datetime',
         ];
+    }
+
+    public function canGrantAccess(): bool
+    {
+        return ! $this->access_granted_at
+            && ! in_array($this->status, [DemoRequestStatus::Approved, DemoRequestStatus::Converted, DemoRequestStatus::Closed], true);
     }
 
     public function handler(): BelongsTo

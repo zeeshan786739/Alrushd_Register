@@ -129,7 +129,8 @@ function updateButton({ buttonEl, isDark }) {
 
   const icon = buttonEl.querySelector(".crm-theme-icon");
   if (icon) {
-    icon.setAttribute("icon", isDark ? "solar:moon-linear" : "solar:sun-linear");
+    // Same icons as school admin: moon-stars in dark, sun-2 in light
+    icon.setAttribute("icon", isDark ? "solar:moon-stars-bold" : "solar:sun-2-bold");
   }
 }
 

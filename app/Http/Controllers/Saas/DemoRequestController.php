@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Saas;
 
 use App\Http\Controllers\Controller;
 use App\Models\DemoRequest;
+use App\Services\Platform\AccessApprovalService;
 use Illuminate\Http\Request;
 
 class DemoRequestController extends Controller
@@ -13,7 +14,7 @@ class DemoRequestController extends Controller
         return view('saas.book-demo');
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AccessApprovalService $approvals)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -26,9 +27,21 @@ class DemoRequestController extends Controller
             'message' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        DemoRequest::create($data + ['source' => 'landing']);
+        $demo = DemoRequest::create($data + ['source' => 'landing']);
 
-        return redirect()->route('saas.demo.create')
-            ->with('demo_submitted', true);
+        $mailResult = ['applicant' => false, 'owner' => false, 'errors' => ['Mail notify threw an exception']];
+        try {
+            $mailResult = $approvals->notifyDemoSubmitted($demo);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $redirect = redirect()->route('saas.demo.create')->with('demo_submitted', true);
+
+        if (! ($mailResult['applicant'] ?? false)) {
+            $redirect->with('mail_warning', 'Your request was saved, but the confirmation email could not be sent. Our team still received it and will follow up.');
+        }
+
+        return $redirect;
     }
 }

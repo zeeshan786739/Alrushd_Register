@@ -26,6 +26,14 @@
         </a>
     </li>
 
+    <li>
+        <a href="{{ route('platform.trial-requests.index') }}"
+           class="{{ request()->routeIs('platform.trial-requests.*') ? 'active-page' : '' }}" title="Free Trial Requests">
+            <iconify-icon icon="solar:gift-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+            <span>Trial Requests</span>
+        </a>
+    </li>
+
     <li class="sidebar-menu-group-title" role="presentation">Billing</li>
 
     <li>

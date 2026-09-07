@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Platform;
 use App\Enums\Platform\DemoRequestStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DemoRequest;
+use App\Models\SaasPlan;
+use App\Services\Platform\AccessApprovalService;
 use App\Services\Platform\PlatformActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -39,6 +41,7 @@ class DemoRequestController extends Controller
         return view('platform.demo-requests.show', [
             'demoRequest' => $demoRequest->load(['handler', 'convertedOrganization']),
             'statuses' => DemoRequestStatus::cases(),
+            'plans' => SaasPlan::active()->ordered()->get(),
         ]);
     }
 
@@ -58,6 +61,33 @@ class DemoRequestController extends Controller
         PlatformActivityLogger::log('demo_request.updated', "Demo request from {$demoRequest->email} → " . DemoRequestStatus::from($data['status'])->label());
 
         return back()->with('success', 'Demo request updated.');
+    }
+
+    public function approve(Request $request, DemoRequest $demoRequest, AccessApprovalService $approvals)
+    {
+        if (! $demoRequest->canGrantAccess()) {
+            return back()->with('error', 'Demo access has already been granted or this request is closed.');
+        }
+
+        $data = $request->validate([
+            'saas_plan_id' => ['nullable', 'exists:saas_plans,id'],
+        ]);
+
+        $plan = ! empty($data['saas_plan_id'])
+            ? SaasPlan::find($data['saas_plan_id'])
+            : null;
+
+        try {
+            $result = $approvals->approveDemo($demoRequest, $plan);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('platform.schools.show', $result['organization'])
+            ->with('success', 'Demo access approved. A set-password link was emailed to '.$demoRequest->email.'.');
     }
 
     public function destroy(DemoRequest $demoRequest)

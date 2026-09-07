@@ -41,7 +41,11 @@
         <div class="success-box">
             <div style="font-size: 52px; margin-bottom: 12px;">🎉</div>
             <h2 class="headline" style="font-size: 26px;">Request received!</h2>
-            <p style="color: var(--muted); margin-bottom: 24px;">Thanks for your interest — our team will reach out within one business day to schedule your demo.</p>
+            <p style="color: var(--muted); margin-bottom: 16px;">Thanks for your interest — a confirmation email is on its way.</p>
+            <p style="color: var(--muted); margin-bottom: 24px; font-size: 14px;">Our team will review your request and email you again once demo access is approved.</p>
+            @if(session('mail_warning'))
+            <p style="color: #b45309; margin-bottom: 24px; font-size: 14px;">{{ session('mail_warning') }}</p>
+            @endif
             <a href="{{ route('saas.landing') }}" class="btn btn-primary">Back to Home</a>
         </div>
         @else

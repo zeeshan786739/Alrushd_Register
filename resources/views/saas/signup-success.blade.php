@@ -2,7 +2,7 @@
 
 @php $saasName = \App\Models\PlatformSetting::get('platform_name', config('saas.name')); @endphp
 
-@section('title', 'Welcome to ' . $saasName)
+@section('title', ($pendingApproval ?? false) ? 'Request received — ' . $saasName : 'Welcome to ' . $saasName)
 
 @section('page_css')
         .success-wrap { max-width: 600px; margin: 0 auto; padding: 100px 24px; text-align: center; }
@@ -13,41 +13,82 @@
 
 @section('content')
 <div class="success-wrap">
-    @if(($checkoutCancelled ?? false))
+    @if($pendingApproval ?? false)
+        <div class="big-icon">✉️</div>
+        <h1 class="headline">We've got your free trial request</h1>
+        <p class="lede" style="margin: 0 auto 24px;">
+            A confirmation email is on its way
+            @if(!empty($applicantEmail)) to <strong>{{ $applicantEmail }}</strong>@endif.
+            Our team will review your application and email you again once your free trial access is approved.
+        </p>
+        @if(session('mail_warning'))
+        <p style="color:#b45309; margin: 0 auto 24px; max-width: 480px;">{{ session('mail_warning') }}</p>
+        @endif
+        <div class="next-steps">
+            <strong style="display:block; margin-bottom: 14px; font-size: 16px;">What happens next</strong>
+            <ol style="padding-left: 20px;">
+                <li>Check your inbox for the confirmation email (and spam, just in case).</li>
+                <li>We review your request — usually within one business day.</li>
+                <li>You'll receive a second email when access is ready, then sign in with the password you chose.</li>
+            </ol>
+        </div>
+        <a href="{{ route('saas.landing') }}" class="btn btn-primary btn-lg">Back to Home</a>
+    @elseif(($checkoutCancelled ?? false))
         <div class="big-icon">🕐</div>
         <h1 class="headline">Payment postponed — your trial is still on!</h1>
         <p class="lede" style="margin: 0 auto 24px;">
             No worries — {{ $organization?->name ?? 'your school' }} is created and your free trial is active.
             You can add payment any time from the Billing page inside your admin panel.
         </p>
+        <div class="next-steps">
+            <strong style="display:block; margin-bottom: 14px; font-size: 16px;">Next steps</strong>
+            <ol style="padding-left: 20px;">
+                <li>Log in to your admin panel with the email and password you created.</li>
+                <li>Customize your website in Website CMS and add forms in Form Center.</li>
+                <li>Invite your team and connect your lead channels.</li>
+            </ol>
+        </div>
+        <a href="{{ route('admin.login') }}" class="btn btn-primary btn-lg">Go to My Admin Panel →</a>
     @elseif(($paid ?? false))
         <div class="big-icon">🎉</div>
         <h1 class="headline">You're all set{{ $organization ? ', ' . $organization->name : '' }}!</h1>
         <p class="lede" style="margin: 0 auto 24px;">
             Your subscription is active. Welcome aboard — let's fill some classrooms.
         </p>
+        <div class="next-steps">
+            <strong style="display:block; margin-bottom: 14px; font-size: 16px;">Next steps</strong>
+            @if($organization)
+            <p style="font-size:14px; color:var(--ink-soft); margin-bottom:12px;">
+                Your public website: <a href="{{ $organization->publicWebsiteUrl() }}" target="_blank" rel="noopener"><strong>{{ $organization->publicWebsiteUrl() }}</strong></a>
+            </p>
+            @endif
+            <ol style="padding-left: 20px;">
+                <li>Log in to your admin panel with the email and password you just created.</li>
+                <li>Customize your website in Website CMS and add forms in Form Center.</li>
+                <li>Invite your team and connect your lead channels.</li>
+            </ol>
+        </div>
+        <a href="{{ route('admin.login') }}" class="btn btn-primary btn-lg">Go to My Admin Panel →</a>
     @else
         <div class="big-icon">🚀</div>
         <h1 class="headline">Welcome to {{ $saasName }}{{ $organization ? ', ' . $organization->name : '' }}!</h1>
         <p class="lede" style="margin: 0 auto 24px;">
             Your school workspace is ready and your free trial has started.
         </p>
+        <div class="next-steps">
+            <strong style="display:block; margin-bottom: 14px; font-size: 16px;">Next steps</strong>
+            @if($organization)
+            <p style="font-size:14px; color:var(--ink-soft); margin-bottom:12px;">
+                Your public website: <a href="{{ $organization->publicWebsiteUrl() }}" target="_blank" rel="noopener"><strong>{{ $organization->publicWebsiteUrl() }}</strong></a>
+            </p>
+            @endif
+            <ol style="padding-left: 20px;">
+                <li>Log in to your admin panel with the email and password you just created.</li>
+                <li>Customize your website in Website CMS and add forms in Form Center.</li>
+                <li>Invite your team and connect your lead channels.</li>
+            </ol>
+        </div>
+        <a href="{{ route('admin.login') }}" class="btn btn-primary btn-lg">Go to My Admin Panel →</a>
     @endif
-
-    <div class="next-steps">
-        <strong style="display:block; margin-bottom: 14px; font-size: 16px;">Next steps</strong>
-        @if($organization)
-        <p style="font-size:14px; color:var(--ink-soft); margin-bottom:12px;">
-            Your public website: <a href="{{ $organization->publicWebsiteUrl() }}" target="_blank" rel="noopener"><strong>{{ $organization->publicWebsiteUrl() }}</strong></a>
-        </p>
-        @endif
-        <ol style="padding-left: 20px;">
-            <li>Log in to your admin panel with the email and password you just created.</li>
-            <li>Customize your website in Website CMS and add forms in Form Center.</li>
-            <li>Invite your team and connect your lead channels.</li>
-        </ol>
-    </div>
-
-    <a href="{{ route('admin.login') }}" class="btn btn-primary btn-lg">Go to My Admin Panel →</a>
 </div>
 @endsection

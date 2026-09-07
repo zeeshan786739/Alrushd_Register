@@ -43,11 +43,25 @@
 }
 
 [data-theme="dark"] {
-    --crm-surface: var(--neutral-100, #1e293b);
-    --crm-surface-sunken: var(--neutral-50, #0f172a);
-    --crm-border: rgba(255, 255, 255, 0.08);
-    --crm-text: #f1f5f9;
-    --crm-text-muted: #94a3b8;
+    --crm-surface: #1c2738;
+    --crm-surface-sunken: #131c29;
+    --crm-border: #39485c;
+    --crm-border-strong: #65758a;
+    --crm-text: #e7edf5;
+    --crm-text-muted: #afbdd0;
+    --crm-brand: #30629e;
+    --crm-brand-hover: #3d7ab8;
+    --crm-brand-soft: rgba(48, 98, 158, 0.22);
+    --crm-brand-glow: rgba(48, 98, 158, 0.28);
+    --crm-accent: #C5A86D;
+    --crm-accent-hover: #b8995f;
+    --crm-accent-soft: rgba(197, 168, 109, 0.18);
+    --crm-link: #a7ceff;
+    --primary-600: #30629e;
+    --dt-hover: #2a3b52;
+    --dt-selected: #30496a;
+    --dt-input: #152132;
+    --dt-link: #a7ceff;
 }
 
 /* ── Shell & page transitions ── */
@@ -588,6 +602,10 @@ td:has(.delete-btn), td:has(.w-32-px) {
 .table tbody tr:nth-child(2) { animation-delay: 0.04s; }
 .table tbody tr:nth-child(3) { animation-delay: 0.06s; }
 .table tbody tr:hover td { background: rgba(69, 105, 230, 0.04); }
+html[data-theme="dark"] .table tbody tr:hover td {
+    background: rgba(148, 163, 184, 0.1) !important;
+    color: #fff !important;
+}
 
 @keyframes crmRowIn {
     from { opacity: 0; transform: translateX(-4px); }

@@ -2,17 +2,18 @@
    colors. Keep filled-brand colors separate from readable accent text. */
 html[data-theme="dark"] {
     color-scheme: dark;
+    /* Match school admin dark palette */
     --crm-surface: #1c2738;
     --crm-surface-sunken: #131c29;
     --crm-border: #39485c;
     --crm-border-strong: #65758a;
     --crm-text: #e7edf5;
     --crm-text-muted: #afbdd0;
-    --crm-brand: #254d7f;
-    --crm-brand-hover: #30629e;
-    --crm-brand-soft: #243a54;
-    --crm-accent: #dfc487;
-    --crm-accent-soft: #3b3a33;
+    --crm-brand: #30629e;
+    --crm-brand-hover: #3d7ab8;
+    --crm-brand-soft: rgba(48, 98, 158, 0.22);
+    --crm-accent: #C5A86D;
+    --crm-accent-soft: rgba(197, 168, 109, 0.18);
     --dt-link: #a7ceff;
     --crm-link: #a7ceff;
     --dt-hover: #2a3b52;
@@ -25,6 +26,7 @@ html[data-theme="dark"] {
     --crm-shadow-sm: 0 1px 3px #0003;
     --crm-shadow-md: 0 5px 18px #0003;
     --crm-shadow-lg: 0 12px 30px #0004;
+    --brand: #30629e;
 }
 html[data-theme="dark"] body { color: var(--crm-text); background: var(--crm-surface-sunken); }
 html[data-theme="dark"] :is(.sidebar,.navbar-header,.d-footer) { background: var(--crm-surface) !important; border-color: var(--crm-border) !important; }
@@ -33,13 +35,39 @@ html[data-theme="dark"] :is(.crm-brand-tag,.d-footer,.d-footer p,.sidebar-menu-g
 html[data-theme="dark"] .sidebar-menu li a { color: #d3deec !important; }
 html[data-theme="dark"] .sidebar-menu li a:is(:hover,:focus-visible) { background: var(--dt-hover) !important; color: #fff !important; }
 html[data-theme="dark"] .sidebar-menu li a.active-page,
-html[data-theme="dark"] .sidebar-menu li a.active-page:is(:hover,:focus-visible) { background: var(--dt-selected) !important; color: #fff !important; box-shadow: inset 3px 0 var(--crm-accent); }
-html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a { background: #254d7f !important; color: #fff !important; }
-html[data-theme="dark"] .sidebar-menu li a :is(iconify-icon,i,span),
-html[data-theme="dark"] .sidebar-menu li a:is(:hover,:focus-visible) :is(iconify-icon,i,span) { color: inherit !important; }
+html[data-theme="dark"] .sidebar-menu li a.active-page:is(:hover,:focus-visible),
+html[data-theme="dark"] .sidebar-menu > li > a.active-page,
+html[data-theme="dark"] .sidebar-menu > li > a.active-page:hover,
+html[data-theme="dark"] .sidebar-menu > li > a.active-page:focus-visible,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page:hover,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page:focus-visible {
+    background: var(--dt-selected) !important;
+    color: #fff !important;
+    box-shadow: inset 3px 0 0 var(--crm-accent) !important;
+}
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a,
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a:hover,
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a:focus-visible {
+    background: #254d7f !important;
+    color: #fff !important;
+}
+html[data-theme="dark"] .sidebar-menu li a :is(iconify-icon,i,span,.menu-icon),
+html[data-theme="dark"] .sidebar-menu li a:is(:hover,:focus-visible) :is(iconify-icon,i,span,.menu-icon),
+html[data-theme="dark"] .sidebar-menu li a.active-page :is(iconify-icon,i,span,.menu-icon),
+html[data-theme="dark"] .sidebar-menu li a.active-page:hover :is(iconify-icon,i,span,.menu-icon),
+html[data-theme="dark"] .sidebar-menu li a.active-page:focus-visible :is(iconify-icon,i,span,.menu-icon) {
+    color: inherit !important;
+}
+html[data-theme="dark"] .sidebar-menu > li:not(.open):not(.dropdown-open) > a:not(.active-page):hover,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a:not(.active-page):hover {
+    background: var(--dt-hover) !important;
+    color: #fff !important;
+}
 html[data-theme="dark"] .sidebar-badge { background: #385b84 !important; color: #fff !important; }
 html[data-theme="dark"] :is(.sidebar-toggle,.sidebar-close-btn,.crm-nav-btn) { color: #d3deec !important; }
 html[data-theme="dark"] :is(.sidebar-toggle,.crm-nav-btn):hover { background: var(--dt-hover) !important; color: #fff !important; }
+html[data-theme="dark"] .crm-theme-icon { color: #e2e8f0 !important; }
 
 /* Shared UI surfaces: dashboard, team/access, CRM, marketing and account. */
 html[data-theme="dark"] :is(.card,.modal-content,.dropdown-menu,.offcanvas,.swal2-popup,
@@ -89,9 +117,15 @@ html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditabl
     --bs-table-color: #e7edf5; --bs-table-bg: #1c2738; --bs-table-hover-bg: #2a3b52;
     --bs-table-hover-color: #fff; --bs-table-striped-bg: #202e42; color: var(--crm-text) !important;
 }
-html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) > :not(caption) > * > * { background-color: var(--crm-surface); color: inherit; border-color: var(--crm-border) !important; }
-html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) thead th { color: #bdcce0 !important; background: #243247 !important; }
-html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) tbody tr:hover > * { background: var(--dt-hover) !important; }
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) > :not(caption) > * > * {
+    background-color: var(--crm-surface) !important; color: inherit !important; border-color: var(--crm-border) !important;
+}
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) thead th {
+    color: #bdcce0 !important; background: #243247 !important;
+}
+html[data-theme="dark"] .table:not(.crm-doc-preview-sheet *):not([contenteditable] *) tbody tr:hover > * {
+    background: var(--dt-hover) !important; color: #fff !important;
+}
 html[data-theme="dark"] .pagination .page-link { background: var(--crm-surface); border-color: var(--crm-border); color: var(--dt-link); }
 html[data-theme="dark"] .pagination :is(.active .page-link,.page-link:hover) { background: var(--dt-selected); color: #fff; }
 
@@ -176,3 +210,160 @@ html[data-theme="dark"] :is(.wcm-field-label,.wcm-nav-group-label) { color: var(
 html[data-theme="dark"] :is(.enroll-add,.enroll-panel__count,.enroll-setup__nav-item em) { background: var(--crm-surface); color: var(--crm-text); border-color: var(--crm-border); }
 html[data-theme="dark"] :is(.enroll-add__input,.enroll-add__status,.enroll-inline-form__input,.enroll-inline-form__status) { background: var(--dt-input); color: var(--crm-text); border-color: var(--crm-border-strong); }
 html[data-theme="dark"] :is(.enroll-setup__nav-head,.enroll-setup__nav-item iconify-icon) { color: var(--dt-link); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Dark mode polish — same look as school admin panel
+   ═══════════════════════════════════════════════════════════════ */
+html[data-theme="dark"] .sidebar-menu > li > a.active-page,
+html[data-theme="dark"] .sidebar-menu > li > a.active-page:hover,
+html[data-theme="dark"] .sidebar-menu > li > a.active-page:focus-visible,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page:hover,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page:focus-visible,
+html[data-theme="dark"] .sidebar.active .sidebar-menu > li > a.active-page,
+html[data-theme="dark"] .sidebar.active .sidebar-menu > li > a.active-page:hover,
+html[data-theme="dark"] .sidebar.active .sidebar-menu > li > a.active-page:focus-visible {
+    background: var(--dt-selected) !important;
+    color: #fff !important;
+    box-shadow: inset 3px 0 0 var(--crm-accent) !important;
+    font-weight: 600 !important;
+}
+html[data-theme="dark"] .sidebar-menu > li > a.active-page :is(.menu-icon, iconify-icon, span, i),
+html[data-theme="dark"] .sidebar-menu > li > a.active-page:hover :is(.menu-icon, iconify-icon, span, i),
+html[data-theme="dark"] .sidebar-menu > li > a.active-page:focus-visible :is(.menu-icon, iconify-icon, span, i),
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page :is(.menu-icon, iconify-icon, span, i),
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a.active-page:hover :is(.menu-icon, iconify-icon, span, i) {
+    color: #fff !important;
+}
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a,
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a:hover,
+html[data-theme="dark"] .sidebar-menu li.dropdown:is(.open,.dropdown-open) > a:focus-visible {
+    background: #254d7f !important;
+    color: #fff !important;
+}
+html[data-theme="dark"] .sidebar-menu > li:not(.open):not(.dropdown-open) > a:not(.active-page):hover,
+html[data-theme="dark"] .sidebar-menu .sidebar-submenu li a:not(.active-page):hover,
+html[data-theme="dark"] .sidebar-menu li a:not(.active-page):hover {
+    background: var(--dt-hover) !important;
+    color: #fff !important;
+}
+html[data-theme="dark"] .sidebar-menu > li:not(.open):not(.dropdown-open) > a:not(.active-page):hover :is(.menu-icon, iconify-icon, span, i),
+html[data-theme="dark"] .sidebar-menu li a:not(.active-page):hover :is(.menu-icon, iconify-icon, span, i) {
+    color: #fff !important;
+}
+html[data-theme="dark"] .sidebar-menu li a {
+    color: #d3deec !important;
+}
+html[data-theme="dark"] .sidebar-menu li a :is(.menu-icon, iconify-icon) {
+    color: #afbdd0 !important;
+}
+html[data-theme="dark"] .crm-brand-name {
+    color: #fff !important;
+}
+html[data-theme="dark"] .crm-brand-tag {
+    color: #afbdd0 !important;
+}
+
+/* Tables — match school dark surfaces */
+html[data-theme="dark"] .table,
+html[data-theme="dark"] .table > :not(caption) > * > *,
+html[data-theme="dark"] .table tbody td,
+html[data-theme="dark"] .table tbody th,
+html[data-theme="dark"] .table thead th,
+html[data-theme="dark"] .card .table,
+html[data-theme="dark"] .card-body .table td,
+html[data-theme="dark"] .card-body .table th {
+    background-color: var(--crm-surface) !important;
+    color: var(--crm-text) !important;
+    border-color: var(--crm-border) !important;
+    --bs-table-bg: var(--crm-surface) !important;
+    --bs-table-color: var(--crm-text) !important;
+    --bs-table-hover-bg: var(--dt-hover) !important;
+    --bs-table-hover-color: #fff !important;
+    --bs-table-striped-bg: #202e42 !important;
+}
+html[data-theme="dark"] .table thead th,
+html[data-theme="dark"] .card .table thead th {
+    background-color: #243247 !important;
+    color: #bdcce0 !important;
+}
+html[data-theme="dark"] .table tbody tr:hover > *,
+html[data-theme="dark"] .table tbody tr:hover td,
+html[data-theme="dark"] .table tbody tr:hover th,
+html[data-theme="dark"] .card .table tbody tr:hover td {
+    background-color: var(--dt-hover) !important;
+    color: #fff !important;
+}
+html[data-theme="dark"] .table a,
+html[data-theme="dark"] .table .text-primary-600 {
+    color: var(--dt-link) !important;
+}
+html[data-theme="dark"] .table .text-secondary-light {
+    color: var(--crm-text-muted) !important;
+}
+
+html[data-theme="dark"] .bg-base,
+html[data-theme="dark"] .card-header.bg-base,
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .card-footer {
+    background-color: var(--crm-surface) !important;
+    color: var(--crm-text) !important;
+    border-color: var(--crm-border) !important;
+}
+html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3,
+html[data-theme="dark"] h4, html[data-theme="dark"] h5, html[data-theme="dark"] h6,
+html[data-theme="dark"] .fw-semibold, html[data-theme="dark"] .fw-bold {
+    color: var(--crm-text);
+}
+
+html[data-theme="dark"] .btn-outline-primary,
+html[data-theme="dark"] .btn-outline-success,
+html[data-theme="dark"] .btn-outline-secondary,
+html[data-theme="dark"] .btn-outline-danger {
+    background: transparent !important;
+}
+html[data-theme="dark"] .btn-outline-primary { color: #bdd9ff !important; border-color: #6088b8 !important; }
+html[data-theme="dark"] .btn-outline-success { color: #91e5b9 !important; border-color: #3d8062 !important; }
+html[data-theme="dark"] .btn-outline-secondary { color: #cbd5e1 !important; border-color: #65758a !important; }
+html[data-theme="dark"] .btn-outline-danger { color: #ffb6bf !important; border-color: #a05b6a !important; }
+html[data-theme="dark"] .btn-outline-primary:hover { background: var(--dt-hover) !important; color: #fff !important; }
+html[data-theme="dark"] .btn-outline-success:hover { background: #183d32 !important; color: #fff !important; }
+
+/* Theme toggle — same control style as school admin */
+[data-theme-toggle] {
+    font-size: inherit !important;
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+[data-theme-toggle]::after {
+    content: none !important;
+    display: none !important;
+}
+[data-theme-toggle] .crm-theme-icon {
+    display: block !important;
+    color: inherit !important;
+    width: 22px;
+    height: 22px;
+}
+html[data-theme="dark"] [data-theme-toggle] {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+}
+html[data-theme="dark"] [data-theme-toggle]:hover {
+    background: var(--dt-hover) !important;
+    color: #fff !important;
+}
+html[data-theme="light"] [data-theme-toggle] {
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+}
+html[data-theme="light"] [data-theme-toggle]:hover {
+    background: #e2e8f0 !important;
+}

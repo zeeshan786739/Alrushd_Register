@@ -75,7 +75,12 @@
                                 </a>
                                 @if($school->allowsAccess())
                                 <form method="POST" action="{{ route('platform.schools.status', $school) }}"
-                                      onsubmit="return confirm('Deactivate {{ $school->name }}? Their admins will be locked out.');">
+                                      data-confirm
+                                      data-confirm-title="Deactivate {{ $school->name }}?"
+                                      data-confirm-text="Their admins will be locked out of the school panel."
+                                      data-confirm-label="Yes, deactivate"
+                                      data-confirm-icon="warning"
+                                      data-confirm-tone="danger">
                                     @csrf
                                     <input type="hidden" name="status" value="inactive">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Deactivate">

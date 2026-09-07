@@ -8,6 +8,7 @@ use App\Models\Admin;
 use App\Models\DemoRequest;
 use App\Models\Organization;
 use App\Models\SaasPlan;
+use App\Services\Platform\AccessApprovalService;
 use App\Services\Platform\PlatformActivityLogger;
 use App\Services\Platform\StripeBillingService;
 use App\Services\Platform\SubscriptionProvisioner;
@@ -64,7 +65,7 @@ class SchoolController extends Controller
         ]);
     }
 
-    public function store(Request $request, TenantProvisioner $provisioner, SubscriptionProvisioner $subscriptions)
+    public function store(Request $request, TenantProvisioner $provisioner, SubscriptionProvisioner $subscriptions, AccessApprovalService $approvals)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -133,6 +134,17 @@ class SchoolController extends Controller
 
             return $organization;
         });
+
+        if (! empty($data['demo_request_id'])) {
+            $demo = DemoRequest::find($data['demo_request_id']);
+            if ($demo) {
+                try {
+                    $approvals->notifyDemoConverted($demo, $organization, $data['admin_password']);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        }
 
         PlatformActivityLogger::log('school.created', "School \"{$organization->name}\" created", $organization, [
             'admin_email' => $data['admin_email'],

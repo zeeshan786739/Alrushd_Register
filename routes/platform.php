@@ -7,6 +7,7 @@ use App\Http\Controllers\Platform\PlanController;
 use App\Http\Controllers\Platform\SchoolController;
 use App\Http\Controllers\Platform\SettingController;
 use App\Http\Controllers\Platform\SubscriptionController;
+use App\Http\Controllers\Platform\TrialSignupRequestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,11 +55,21 @@ Route::prefix('superadmin')->name('platform.')
         Route::get('demo-requests', [DemoRequestController::class, 'index'])->name('demo-requests.index');
         Route::get('demo-requests/{demoRequest}', [DemoRequestController::class, 'show'])->name('demo-requests.show');
         Route::put('demo-requests/{demoRequest}', [DemoRequestController::class, 'update'])->name('demo-requests.update');
+        Route::post('demo-requests/{demoRequest}/approve', [DemoRequestController::class, 'approve'])->name('demo-requests.approve');
         Route::delete('demo-requests/{demoRequest}', [DemoRequestController::class, 'destroy'])->name('demo-requests.destroy');
+
+        // Free trial signup requests (owner approval queue)
+        Route::get('trial-requests', [TrialSignupRequestController::class, 'index'])->name('trial-requests.index');
+        Route::get('trial-requests/{trialRequest}', [TrialSignupRequestController::class, 'show'])->name('trial-requests.show');
+        Route::put('trial-requests/{trialRequest}', [TrialSignupRequestController::class, 'update'])->name('trial-requests.update');
+        Route::post('trial-requests/{trialRequest}/approve', [TrialSignupRequestController::class, 'approve'])->name('trial-requests.approve');
+        Route::post('trial-requests/{trialRequest}/reject', [TrialSignupRequestController::class, 'reject'])->name('trial-requests.reject');
+        Route::delete('trial-requests/{trialRequest}', [TrialSignupRequestController::class, 'destroy'])->name('trial-requests.destroy');
 
         // Platform settings
         Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('settings/test-mail', [SettingController::class, 'testMail'])->name('settings.test-mail');
     });
 
 // Leave impersonation — executed while logged in as the tenant admin.

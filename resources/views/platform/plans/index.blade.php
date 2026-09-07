@@ -99,7 +99,13 @@
                     <button type="submit" class="btn btn-sm btn-outline-info">Sync Stripe</button>
                 </form>
                 @if($plan->subscriptions_count === 0 && ! $plan->is_default)
-                <form method="POST" action="{{ route('platform.plans.destroy', $plan) }}" onsubmit="return confirm('Delete {{ $plan->name }}?');">@csrf @method('DELETE')
+                <form method="POST" action="{{ route('platform.plans.destroy', $plan) }}"
+                      data-confirm
+                      data-confirm-title="Delete {{ $plan->name }}?"
+                      data-confirm-text="Schools on this plan may need reassignment."
+                      data-confirm-label="Yes, delete"
+                      data-confirm-icon="warning"
+                      data-confirm-tone="danger">@csrf @method('DELETE')
                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                 </form>
                 @endif

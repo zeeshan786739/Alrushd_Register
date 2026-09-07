@@ -184,7 +184,7 @@
 
                     <button type="button" data-theme-toggle class="crm-nav-btn" title="Toggle theme"
                         aria-label="Toggle theme">
-                        <iconify-icon icon="solar:sun-linear" class="crm-theme-icon" width="22" height="22"></iconify-icon>
+                        <iconify-icon icon="solar:sun-2-bold" class="crm-theme-icon" width="22" height="22"></iconify-icon>
                     </button>
 
                     <div class="dropdown">

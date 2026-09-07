@@ -57,11 +57,13 @@
         <div class="card h-100 radius-12 border-0 shadow-sm">
             <div class="card-body p-20 d-flex align-items-center gap-3">
                 <div class="kpi-icon bg-warning-focus text-warning-main">
-                    <iconify-icon icon="solar:calendar-linear"></iconify-icon>
+                    <iconify-icon icon="solar:inbox-linear"></iconify-icon>
                 </div>
                 <div>
-                    <span class="text-secondary-light text-sm d-block">Open Demo Requests</span>
-                    <h5 class="fw-bold mb-0">{{ $openDemoRequests }}</h5>
+                    <span class="text-secondary-light text-sm d-block">Awaiting Approval</span>
+                    <h5 class="fw-bold mb-0">{{ $openDemoRequests + $pendingTrialRequests }}
+                        <small class="text-secondary-light fw-normal">({{ $openDemoRequests }} demos · {{ $pendingTrialRequests }} trials)</small>
+                    </h5>
                 </div>
             </div>
         </div>
@@ -136,6 +138,48 @@
                             </tr>
                             @empty
                             <tr><td colspan="4" class="text-center py-24 text-secondary-light">No demo requests yet.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card radius-12 border-0 shadow-sm">
+            <div class="card-header bg-base py-16 px-24 d-flex align-items-center justify-content-between">
+                <h6 class="text-lg fw-semibold mb-0">Latest Trial Requests</h6>
+                <a href="{{ route('platform.trial-requests.index') }}" class="text-primary-600 text-sm fw-medium">View all</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-24">School</th>
+                                <th>Admin</th>
+                                <th>Plan</th>
+                                <th>Status</th>
+                                <th>Received</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($recentTrialRequests as $trial)
+                            <tr>
+                                <td class="ps-24">
+                                    <a href="{{ route('platform.trial-requests.show', $trial) }}" class="fw-medium text-primary-600">{{ $trial->school_name }}</a>
+                                </td>
+                                <td>
+                                    <div>{{ $trial->admin_name }}</div>
+                                    <div class="text-secondary-light text-sm">{{ $trial->admin_email }}</div>
+                                </td>
+                                <td>{{ $trial->plan?->name ?? '—' }}</td>
+                                <td><span class="badge platform-badge {{ $trial->status?->badgeClass() }}">{{ $trial->status?->label() }}</span></td>
+                                <td class="text-secondary-light text-sm">{{ $trial->created_at->diffForHumans() }}</td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="5" class="text-center py-24 text-secondary-light">No trial requests yet.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

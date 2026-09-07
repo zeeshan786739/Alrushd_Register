@@ -47,9 +47,11 @@
                 </thead>
                 <tbody>
                     @forelse($demoRequests as $demo)
-                    <tr>
+                    <tr class="platform-row-link" role="link" tabindex="0"
+                        data-href="{{ route('platform.demo-requests.show', $demo) }}"
+                        style="cursor:pointer">
                         <td class="ps-24">
-                            <a href="{{ route('platform.demo-requests.show', $demo) }}" class="fw-medium text-primary-600">{{ $demo->name }}</a>
+                            <span class="fw-medium text-primary-600">{{ $demo->name }}</span>
                             <div class="text-secondary-light text-sm">{{ $demo->email }}@if($demo->phone) · {{ $demo->phone }}@endif</div>
                         </td>
                         <td>{{ $demo->organization_name ?? '—' }}
@@ -59,7 +61,7 @@
                         <td><span class="badge platform-badge {{ $demo->status?->badgeClass() }}">{{ $demo->status?->label() }}</span></td>
                         <td class="text-sm text-secondary-light">{{ $demo->handler?->name ?? '—' }}</td>
                         <td class="text-sm text-secondary-light">{{ $demo->created_at->format('d M Y') }}</td>
-                        <td class="text-end pe-24">
+                        <td class="text-end pe-24" data-row-ignore>
                             <div class="d-inline-flex gap-2">
                                 <a href="{{ route('platform.demo-requests.show', $demo) }}" class="btn btn-sm btn-outline-primary">Open</a>
                                 @if($demo->status?->value !== 'converted')

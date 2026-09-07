@@ -10,9 +10,15 @@
             <h1 class="plan-hub__title">Subscriptions</h1>
             <p class="plan-hub__desc">Every school subscription — free, trial, complimentary, or Stripe-managed.</p>
         </div>
-        <form method="POST" action="{{ route('platform.subscriptions.normalize') }}">
+        <form method="POST" action="{{ route('platform.subscriptions.normalize') }}"
+              data-confirm
+              data-confirm-title="Normalize free subscriptions?"
+              data-confirm-text="Free Starter subscriptions will be marked complimentary."
+              data-confirm-label="Yes, normalize"
+              data-confirm-icon="question"
+              data-confirm-tone="primary">
             @csrf
-            <button type="submit" class="btn btn-outline-secondary plan-hub__cta" onclick="return confirm('Normalize free Starter subscriptions to complimentary status?');">
+            <button type="submit" class="btn btn-outline-secondary plan-hub__cta">
                 <iconify-icon icon="solar:refresh-linear"></iconify-icon> Fix free plans
             </button>
         </form>
@@ -112,7 +118,12 @@
                                 @endif
                                 @if($subscription->status?->isCurrent() && ! $subscription->isFreeAccess())
                                 <form method="POST" action="{{ route('platform.subscriptions.cancel', $subscription) }}"
-                                      onsubmit="return confirm('Cancel this subscription?');">
+                                      data-confirm
+                                      data-confirm-title="Cancel this subscription?"
+                                      data-confirm-text="The school may lose paid plan access depending on status."
+                                      data-confirm-label="Yes, cancel"
+                                      data-confirm-icon="warning"
+                                      data-confirm-tone="danger">
                                     @csrf
                                     <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
                                 </form>
