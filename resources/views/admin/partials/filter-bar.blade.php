@@ -1,4 +1,4 @@
-<form method="GET" action="{{ $action }}" @if(!empty($formId)) id="{{ $formId }}" @endif class="crm-filter-bar mb-24">
+<form method="GET" action="{{ $action }}" class="crm-filter-bar mb-24">
     <div class="crm-filter-bar__grid">
         @foreach($fields as $field)
             <div class="crm-filter-field">
