@@ -30,7 +30,9 @@
     @if(!empty($actions))
         <div class="d-flex flex-wrap align-items-center gap-10">
             @foreach($actions as $action)
-                <a href="{{ $action['url'] }}" class="btn {{ $action['class'] ?? 'btn-outline-neutral-500 radius-8 px-20 py-11' }} fc-btn">
+                <a href="{{ $action['url'] }}"
+                   class="btn {{ $action['class'] ?? 'btn-outline-neutral-500 radius-8 px-20 py-11' }} fc-btn"
+                   @foreach($action['attrs'] ?? [] as $attr => $value) {{ $attr }}="{{ $value }}" @endforeach>
                     @if(!empty($action['icon']))
                         <iconify-icon icon="{{ $action['icon'] }}"></iconify-icon>
                     @endif

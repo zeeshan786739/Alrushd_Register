@@ -31,16 +31,17 @@
     @if($import->canUndo())
         <div class="crm-import-undo-banner">
             <div>
-                <h6>Wrong import? You can undo this batch any time.</h6>
+                <h6>Wrong import? Remove all leads from this batch.</h6>
                 <p>All {{ $import->imported_rows }} imported lead(s) will disappear from the CRM board and list. Nothing is permanently deleted — records stay safely in the database.</p>
             </div>
             <button type="button"
                     class="btn btn-outline-danger-600 radius-8 px-20 py-11"
                     data-crm-import-undo
                     data-import-filename="{{ $import->original_filename }}"
+                    data-import-count="{{ $import->leads()->count() }}"
                     data-url="{{ route('admin.crm.leads.import.undo', $import) }}">
-                <iconify-icon icon="solar:undo-left-round-linear"></iconify-icon>
-                Undo this import
+                <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                Remove all imported leads
             </button>
         </div>
     @elseif($status->value === 'undone')

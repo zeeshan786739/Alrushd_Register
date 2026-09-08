@@ -22,7 +22,7 @@ class InlineUpdateLeadRequest extends FormRequest
 
         return match ($field) {
             'assigned_to' => $admin->can('assign', $lead),
-            'lead_status', 'priority' => $admin->can('update', $lead),
+            'lead_status', 'priority', 'full_name' => $admin->can('update', $lead),
             default => false,
         };
     }
@@ -31,7 +31,7 @@ class InlineUpdateLeadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'field' => ['required', Rule::in(['lead_status', 'priority', 'assigned_to'])],
+            'field' => ['required', Rule::in(['lead_status', 'priority', 'assigned_to', 'full_name'])],
             'value' => ['nullable'],
         ];
     }
@@ -57,6 +57,12 @@ class InlineUpdateLeadRequest extends FormRequest
             if ($field === 'assigned_to' && $value !== null && $value !== '') {
                 if (! is_numeric($value)) {
                     $validator->errors()->add('value', 'Invalid assignee.');
+                }
+            }
+
+            if ($field === 'full_name') {
+                if (trim((string) $value) === '') {
+                    $validator->errors()->add('value', 'Name is required.');
                 }
             }
         });

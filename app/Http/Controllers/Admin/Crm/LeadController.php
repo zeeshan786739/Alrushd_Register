@@ -43,7 +43,7 @@ class LeadController extends Controller
         private CrmTransactionalMailService $crmMail,
     ) {
         $this->middleware('permission:view leads')->only(['index', 'show', 'panel']);
-        $this->middleware('permission:create leads')->only(['create', 'store']);
+        $this->middleware('permission:create leads')->only(['create', 'store', 'createPanel']);
         $this->middleware('permission:update leads')->only([
             'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit',
         ]);
@@ -173,17 +173,25 @@ class LeadController extends Controller
             ]);
     }
 
-    public function create(): View
+    public function create(): View|RedirectResponse
+    {
+        return redirect()->route('admin.crm.leads.index', ['open_create' => 1]);
+    }
+
+    public function createPanel(): View
     {
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
         $categories = LeadCategorySchema::ready()
             ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
             : collect();
 
-        return view('admin.crm.leads.create', compact('admins', 'categories'));
+        return view('admin.crm.leads.partials.create-panel', array_merge(
+            compact('admins', 'categories'),
+            \App\Support\LeadFormOptions::for($admins, $categories),
+        ));
     }
 
-    public function store(StoreLeadRequest $request): RedirectResponse
+    public function store(StoreLeadRequest $request): RedirectResponse|JsonResponse
     {
         $lead = Lead::create(array_merge($request->validated(), [
             'organization_id' => OrganizationContext::idOrFail(),
@@ -192,6 +200,20 @@ class LeadController extends Controller
         ]));
 
         $lead->logActivity('created', 'Lead created manually');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Lead created successfully.',
+                'lead' => [
+                    'id' => $lead->id,
+                    'full_name' => $lead->full_name,
+                    'email' => $lead->email,
+                    'phone' => $lead->phone,
+                    'lead_status' => $lead->lead_status,
+                    'priority' => $lead->priority,
+                ],
+            ], 201);
+        }
 
         return redirect()->route('admin.crm.leads.show', $lead)->with('success', 'Lead created successfully.');
     }
@@ -214,13 +236,19 @@ class LeadController extends Controller
     {
         $this->authorize('update', $lead);
 
-        return view('admin.crm.leads.partials.detail-panel-edit', [
-            'lead' => $lead,
-            'admins' => Admin::forCurrentOrganization()->orderBy('name')->get(),
-            'categories' => LeadCategorySchema::ready()
-                ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
-                : collect(),
-        ]);
+        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $categories = LeadCategorySchema::ready()
+            ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
+            : collect();
+
+        return view('admin.crm.leads.partials.detail-panel-edit', array_merge(
+            [
+                'lead' => $lead->load('leadImport'),
+                'admins' => $admins,
+                'categories' => $categories,
+            ],
+            \App\Support\LeadFormOptions::for($admins, $categories),
+        ));
     }
 
     /** @return array<string, mixed> */
@@ -393,6 +421,34 @@ class LeadController extends Controller
                 'tone' => CrmStatusTone::for((string) $value),
                 'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Priority updated.',
+            ]);
+        }
+
+        if ($field === 'full_name') {
+            $this->authorize('update', $lead);
+            $name = trim((string) $value);
+            $parts = preg_split('/\s+/', $name, 2) ?: [];
+            $lead->update([
+                'first_name' => $parts[0],
+                'last_name' => $parts[1] ?? null,
+            ]);
+            $lead->refresh();
+            $lead->logActivity('lead_renamed', 'Renamed to '.$lead->full_name);
+
+            return response()->json([
+                'ok' => true,
+                'field' => $field,
+                'value' => $lead->full_name,
+                'full_name' => $lead->full_name,
+                'lead' => [
+                    'id' => $lead->id,
+                    'full_name' => $lead->full_name,
+                    'email' => $lead->email,
+                    'phone' => $lead->phone,
+                    'lead_status' => $lead->lead_status,
+                    'priority' => $lead->priority,
+                ],
+                'message' => 'Lead renamed.',
             ]);
         }
 

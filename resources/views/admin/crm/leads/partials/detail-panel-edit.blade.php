@@ -1,128 +1,123 @@
 @php
     $categories = $categories ?? collect();
+    $displayName = trim(old('first_name', $lead->first_name).' '.old('last_name', $lead->last_name)) ?: $lead->full_name;
 @endphp
-<div class="crm-lead-panel crm-lead-panel--edit" data-crm-lead-panel-edit data-lead-id="{{ $lead->id }}">
-    <header class="crm-lead-panel__header crm-lead-panel__header--edit">
-        <div>
-            <div class="crm-lead-panel__ref">Lead #{{ $lead->id }}</div>
-            <h2 class="crm-lead-panel__title">Edit lead</h2>
-            <p class="crm-lead-panel__edit-subtitle">Update details without leaving the workspace.</p>
-        </div>
-    </header>
-
+<div class="crm-lead-panel crm-lead-ticket crm-lead-ticket--form" data-crm-lead-panel-edit data-lead-id="{{ $lead->id }}">
     <form method="POST"
           action="{{ route('admin.crm.leads.update', $lead) }}"
-          class="crm-lead-panel__edit-form"
+          class="crm-lead-ticket__form"
           data-crm-panel-edit-form
           data-lead-id="{{ $lead->id }}">
         @csrf
         @method('PUT')
 
-        <div class="crm-lead-panel__edit-body">
-            <div class="crm-lead-panel__edit-grid">
-                <label class="crm-lead-panel__field">
-                    <span>Title</span>
-                    <input type="text" name="title" class="form-control" value="{{ old('title', $lead->title) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>First name *</span>
-                    <input type="text" name="first_name" class="form-control" value="{{ old('first_name', $lead->first_name) }}" required autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Last name</span>
-                    <input type="text" name="last_name" class="form-control" value="{{ old('last_name', $lead->last_name) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Email</span>
-                    <input type="email" name="email" class="form-control" value="{{ old('email', $lead->email) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Phone</span>
-                    <input type="text" name="phone" class="form-control" value="{{ old('phone', $lead->phone) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Company</span>
-                    <input type="text" name="company" class="form-control" value="{{ old('company', $lead->company) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Source</span>
-                    <input type="text" name="lead_source" class="form-control" value="{{ old('lead_source', $lead->lead_source) }}" autocomplete="off">
-                </label>
-                @if($categories->isNotEmpty())
-                    <label class="crm-lead-panel__field">
-                        <span>Category</span>
-                        <select name="lead_category_id" class="form-select">
-                            <option value="">Uncategorized</option>
-                            @foreach($categories as $category)
-                                <option value="{{ $category->id }}" @selected((string) old('lead_category_id', $lead->lead_category_id) === (string) $category->id)>{{ $category->name }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                @endif
-                <label class="crm-lead-panel__field">
-                    <span>Status</span>
-                    <select name="lead_status" class="form-select" required>
-                        @foreach(\App\Enums\LeadStatus::cases() as $status)
-                            <option value="{{ $status->value }}" @selected(old('lead_status', $lead->lead_status) === $status->value)>{{ $status->label() }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Priority</span>
-                    <select name="priority" class="form-select" required>
-                        @foreach(\App\Enums\LeadPriority::cases() as $priority)
-                            <option value="{{ $priority->value }}" @selected(old('priority', $lead->priority) === $priority->value)>{{ $priority->label() }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Assigned to</span>
-                    <select name="assigned_to" class="form-select">
-                        <option value="">Unassigned</option>
-                        @foreach($admins as $admin)
-                            <option value="{{ $admin->id }}" @selected((string) old('assigned_to', $lead->assigned_to) === (string) $admin->id)>{{ $admin->name }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Estimated value</span>
-                    <input type="number" step="0.01" min="0" name="estimated_value" class="form-control" value="{{ old('estimated_value', $lead->estimated_value) }}">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Probability (%)</span>
-                    <input type="number" min="0" max="100" name="probability" class="form-control" value="{{ old('probability', $lead->probability) }}">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Follow-up date</span>
-                    <input type="date" name="next_follow_up_date" class="form-control" value="{{ old('next_follow_up_date', optional($lead->next_follow_up_date)->format('Y-m-d')) }}">
-                </label>
-                <label class="crm-lead-panel__field crm-lead-panel__field--wide">
-                    <span>Address</span>
-                    <input type="text" name="address" class="form-control" value="{{ old('address', $lead->address) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>City</span>
-                    <input type="text" name="city" class="form-control" value="{{ old('city', $lead->city) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field">
-                    <span>Postal code</span>
-                    <input type="text" name="postal_code" class="form-control" value="{{ old('postal_code', $lead->postal_code) }}" autocomplete="off">
-                </label>
-                <label class="crm-lead-panel__field crm-lead-panel__field--wide">
-                    <span>Description</span>
-                    <textarea name="lead_description" class="form-control" rows="4">{{ old('lead_description', $lead->lead_description) }}</textarea>
-                </label>
+        <header class="crm-lead-ticket__header">
+            <div class="crm-lead-ticket__identity">
+                <span class="crm-lead-avatar crm-lead-avatar--panel" aria-hidden="true">{{ \App\Support\UserManagementHelper::initials($displayName) }}</span>
+                <div class="min-w-0">
+                    <div class="crm-lead-ticket__ref">Lead #{{ $lead->id }} · Editing</div>
+                    <h2 class="crm-lead-ticket__title" data-crm-panel-title>{{ $displayName }}</h2>
+                    <p class="crm-lead-ticket__form-hint">Update details — same layout as view mode.</p>
+                </div>
             </div>
 
-            <div class="crm-lead-panel__edit-errors" data-crm-panel-edit-errors hidden></div>
+            <div class="crm-lead-ticket__controls crm-lead-ticket__controls--form">
+                @include('admin.crm.leads.partials.form-tag-select', [
+                    'name' => 'lead_status',
+                    'value' => old('lead_status', $lead->lead_status),
+                    'options' => $statusFormOptions,
+                    'required' => true,
+                    'ariaLabel' => 'Status',
+                ])
+                @include('admin.crm.leads.partials.form-tag-select', [
+                    'name' => 'priority',
+                    'value' => old('priority', $lead->priority),
+                    'options' => $priorityFormOptions,
+                    'required' => true,
+                    'ariaLabel' => 'Priority',
+                ])
+                @if($categories->isNotEmpty())
+                    @include('admin.crm.leads.partials.form-tag-select', [
+                        'name' => 'lead_category_id',
+                        'value' => old('lead_category_id', $lead->lead_category_id ?? ''),
+                        'options' => $categoryFormOptions,
+                        'ariaLabel' => 'Category',
+                    ])
+                @endif
+            </div>
+        </header>
+
+        <div class="crm-lead-ticket__layout">
+            <div class="crm-lead-ticket__main">
+                <section class="crm-lead-ticket__block crm-lead-form-block">
+                    <h3 class="crm-lead-ticket__block-title"><iconify-icon icon="solar:user-linear"></iconify-icon> Contact</h3>
+                    <div class="crm-lead-form-grid">
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'First name', 'name' => 'first_name', 'value' => old('first_name', $lead->first_name), 'required' => true])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Last name', 'name' => 'last_name', 'value' => old('last_name', $lead->last_name)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Email', 'name' => 'email', 'type' => 'email', 'value' => old('email', $lead->email)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Phone', 'name' => 'phone', 'value' => old('phone', $lead->phone)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Company', 'name' => 'company', 'value' => old('company', $lead->company)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Source', 'name' => 'lead_source', 'value' => old('lead_source', $lead->lead_source)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Description', 'name' => 'lead_description', 'type' => 'textarea', 'value' => old('lead_description', $lead->lead_description), 'wide' => true])
+                    </div>
+                </section>
+
+                <details class="crm-lead-ticket__block crm-lead-ticket__block--collapsible crm-lead-form-block">
+                    <summary class="crm-lead-ticket__block-head crm-lead-ticket__block-head--toggle">
+                        <h3 class="crm-lead-ticket__block-title"><iconify-icon icon="solar:settings-linear"></iconify-icon> More fields</h3>
+                        <span class="crm-lead-ticket__block-meta">Address, follow-up, value</span>
+                    </summary>
+                    <div class="crm-lead-form-grid">
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Title', 'name' => 'title', 'value' => old('title', $lead->title)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Estimated value', 'name' => 'estimated_value', 'type' => 'number', 'value' => old('estimated_value', $lead->estimated_value)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Probability (%)', 'name' => 'probability', 'type' => 'number', 'value' => old('probability', $lead->probability)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Follow-up date', 'name' => 'next_follow_up_date', 'type' => 'date', 'value' => old('next_follow_up_date', optional($lead->next_follow_up_date)->format('Y-m-d'))])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Address', 'name' => 'address', 'value' => old('address', $lead->address), 'wide' => true])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'City', 'name' => 'city', 'value' => old('city', $lead->city)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Postal code', 'name' => 'postal_code', 'value' => old('postal_code', $lead->postal_code)])
+                    </div>
+                </details>
+
+                <div class="crm-lead-panel__edit-errors d-none" data-crm-panel-edit-errors></div>
+            </div>
+
+            <aside class="crm-lead-ticket__sidebar">
+                <h3 class="crm-lead-ticket__sidebar-title">Details</h3>
+                <dl class="crm-lead-ticket__properties">
+                    <div class="crm-lead-ticket__property">
+                        <dt>Assigned</dt>
+                        <dd>
+                            @include('admin.crm.leads.partials.form-tag-select', [
+                                'name' => 'assigned_to',
+                                'value' => old('assigned_to', $lead->assigned_to ?? ''),
+                                'options' => $assigneeFormOptions,
+                                'owner' => true,
+                                'ariaLabel' => 'Assigned to',
+                            ])
+                        </dd>
+                    </div>
+                    <div class="crm-lead-ticket__property">
+                        <dt>Created</dt>
+                        <dd>{{ optional($lead->created_at)->format('M j, Y') ?? '—' }}</dd>
+                    </div>
+                    @if($lead->leadImport)
+                        <div class="crm-lead-ticket__property">
+                            <dt>Import file</dt>
+                            <dd class="crm-lead-ticket__import-chips">
+                                <span class="crm-field-chip crm-field-chip--neutral crm-field-chip--value-only">{{ Str::limit($lead->leadImport->original_filename, 36) }}</span>
+                            </dd>
+                        </div>
+                    @endif
+                </dl>
+            </aside>
         </div>
 
-        <div class="crm-lead-panel__edit-actions">
-            <button type="button" class="crm-lead-panel__tool" data-crm-panel-cancel>
+        <div class="crm-lead-ticket__toolbar crm-lead-ticket__toolbar--form">
+            <button type="button" class="crm-lead-ticket__tool" data-crm-panel-cancel>
                 <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
                 <span>Cancel</span>
             </button>
-            <button type="submit" class="crm-lead-panel__tool crm-lead-panel__tool--primary" data-crm-panel-save>
+            <button type="submit" class="crm-lead-ticket__tool crm-lead-ticket__tool--primary" data-crm-panel-save>
                 <iconify-icon icon="solar:diskette-linear"></iconify-icon>
                 <span>Save changes</span>
             </button>

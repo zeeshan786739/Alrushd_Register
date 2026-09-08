@@ -413,6 +413,7 @@
         var iconEl = modalEl.querySelector('[data-crm-confirm-icon]');
         var submitBtn = modalEl.querySelector('[data-crm-confirm-submit]');
         var pendingForm = null;
+        var pendingResolve = null;
         var opener = null;
 
         var toneBtnClass = {
@@ -439,34 +440,58 @@
             }
         }
 
-        function openForForm(form) {
-            pendingForm = form;
-            opener = document.activeElement;
-
-            var title = form.getAttribute('data-confirm-title') || 'Confirm action?';
-            var message = form.getAttribute('data-confirm-message') || '';
-            var note = form.getAttribute('data-confirm-note') || '';
-            var label = form.getAttribute('data-confirm-label') || 'Confirm';
-            var tone = form.getAttribute('data-confirm-tone') || 'info';
-            var icon = form.getAttribute('data-confirm-icon') || 'solar:info-circle-linear';
-
-            if (titleEl) titleEl.textContent = title;
-            if (messageEl) messageEl.textContent = message;
+        function populateModal(options) {
+            options = options || {};
+            if (titleEl) titleEl.textContent = options.title || 'Confirm action?';
+            if (messageEl) messageEl.textContent = options.message || '';
             if (noteWrap && noteEl) {
-                if (note) {
-                    noteEl.textContent = note;
+                if (options.note) {
+                    noteEl.textContent = options.note;
                     noteWrap.classList.remove('d-none');
                 } else {
                     noteEl.textContent = '';
                     noteWrap.classList.add('d-none');
                 }
             }
-            if (iconEl) iconEl.setAttribute('icon', icon);
-            if (submitBtn) submitBtn.textContent = label;
-            applyTone(tone);
+            if (iconEl) iconEl.setAttribute('icon', options.icon || 'solar:info-circle-linear');
+            if (submitBtn) submitBtn.textContent = options.label || 'Confirm';
+            applyTone(options.tone || 'info');
+        }
+
+        function openForForm(form) {
+            pendingForm = form;
+            pendingResolve = null;
+            opener = document.activeElement;
+
+            populateModal({
+                title: form.getAttribute('data-confirm-title') || 'Confirm action?',
+                message: form.getAttribute('data-confirm-message') || '',
+                note: form.getAttribute('data-confirm-note') || '',
+                label: form.getAttribute('data-confirm-label') || 'Confirm',
+                tone: form.getAttribute('data-confirm-tone') || 'info',
+                icon: form.getAttribute('data-confirm-icon') || 'solar:info-circle-linear',
+            });
             resetSubmitButton();
             modal.show();
         }
+
+        window.CrmUI = window.CrmUI || {};
+        window.CrmUI.confirm = function (options) {
+            return new Promise(function (resolve) {
+                if (!modalEl || typeof bootstrap === 'undefined') {
+                    var fallback = [options && options.title, options && options.message].filter(Boolean).join('\n\n');
+                    resolve(window.confirm(fallback || 'Are you sure?'));
+                    return;
+                }
+
+                pendingForm = null;
+                pendingResolve = resolve;
+                opener = document.activeElement;
+                populateModal(options || {});
+                resetSubmitButton();
+                modal.show();
+            });
+        };
 
         document.addEventListener('submit', function (event) {
             var form = event.target.closest('form[data-crm-confirm]');
@@ -482,19 +507,36 @@
 
         if (submitBtn) {
             submitBtn.addEventListener('click', function () {
-                if (!pendingForm || submitBtn.disabled) return;
-                submitBtn.disabled = true;
-                submitBtn.classList.add('is-loading');
-                var form = pendingForm;
-                pendingForm = null;
-                form.setAttribute('data-crm-confirm-approved', '1');
-                modal.hide();
-                // Native submit() does not re-fire the submit event — avoids confirm loop.
-                HTMLFormElement.prototype.submit.call(form);
+                if (submitBtn.disabled) return;
+
+                if (pendingForm) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('is-loading');
+                    var form = pendingForm;
+                    pendingForm = null;
+                    form.setAttribute('data-crm-confirm-approved', '1');
+                    modal.hide();
+                    HTMLFormElement.prototype.submit.call(form);
+                    return;
+                }
+
+                if (pendingResolve) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('is-loading');
+                    var resolve = pendingResolve;
+                    pendingResolve = null;
+                    modal.hide();
+                    resolve(true);
+                }
             });
         }
 
         modalEl.addEventListener('hidden.bs.modal', function () {
+            if (pendingResolve) {
+                var resolve = pendingResolve;
+                pendingResolve = null;
+                resolve(false);
+            }
             pendingForm = null;
             resetSubmitButton();
             if (opener && typeof opener.focus === 'function') {
@@ -504,10 +546,11 @@
         });
     }
 
-    window.CrmUI = {
+    window.CrmUI = window.CrmUI || {};
+    Object.assign(window.CrmUI, {
         showLoader: showLoader,
         hideLoader: hideLoader,
         reinitPage: reinitPage,
         syncSidebarActive: syncSidebarActive,
-    };
+    });
 })();

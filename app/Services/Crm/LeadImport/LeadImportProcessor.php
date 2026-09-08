@@ -165,10 +165,17 @@ class LeadImportProcessor
     private function resolveAssignee(LeadImport $import, array $fields, array $options, LeadImportRow $row): ?int
     {
         $default = $options['default_assigned_to'] ?? null;
+        $query = Admin::query()->where('organization_id', $import->organization_id);
+
+        if ($default) {
+            $exists = (clone $query)->whereKey($default)->exists();
+            if ($exists) {
+                return (int) $default;
+            }
+        }
+
         $email = trim((string) ($fields['assigned_to_email'] ?? ''));
         $name = trim((string) ($fields['assigned_to_name'] ?? ''));
-
-        $query = Admin::query()->where('organization_id', $import->organization_id);
 
         if ($email !== '') {
             $match = (clone $query)->whereRaw('LOWER(email) = ?', [mb_strtolower($email)])->first();
@@ -186,16 +193,6 @@ class LeadImportProcessor
             $warnings[] = 'Agent "'.$name.'" could not be matched in this organization; lead left unassigned';
             $row->warnings = $warnings;
             $row->save();
-        }
-
-        if ($default) {
-            $exists = Admin::query()
-                ->where('organization_id', $import->organization_id)
-                ->whereKey($default)
-                ->exists();
-            if ($exists) {
-                return (int) $default;
-            }
         }
 
         return null;

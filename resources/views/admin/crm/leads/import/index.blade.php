@@ -2,7 +2,9 @@
 @section('title', 'Import History')
 @section('content')
 @include('admin.crm.partials.styles')
-<div class="dashboard-main-body" id="crm-import-history-page" data-csrf="{{ csrf_token() }}">
+<div class="dashboard-main-body" id="crm-import-history-page"
+     data-csrf="{{ csrf_token() }}"
+     data-undo-all-url="{{ route('admin.crm.leads.import.undo-all') }}">
     @include('admin.partials.page-header', [
         'title' => 'Import History',
         'subtitle' => 'Review past imports and undo wrong batches safely',
@@ -18,8 +20,31 @@
     ])
 
     <div class="alert alert-light border radius-8 mb-20">
-        <strong>Safe delete rule:</strong> Removing a lead or undoing an import only hides records from the CRM — nothing is permanently deleted from the database.
+        <strong>Safe delete rule:</strong> Removing imported leads only hides them from the CRM board and list — nothing is permanently deleted from the database.
     </div>
+
+    @if(($importRemoval['active_leads'] ?? 0) > 0)
+        <div class="card radius-12 border-0 shadow-2 mb-20">
+            <div class="card-body p-20 d-flex flex-wrap align-items-center justify-content-between gap-14">
+                <div>
+                    <h6 class="fw-semibold mb-4">Remove imported leads</h6>
+                    <p class="text-sm text-secondary-light mb-0">
+                        {{ number_format($importRemoval['active_leads']) }} imported lead(s) are still visible across
+                        {{ $importRemoval['undoable_batches'] }} completed batch(es).
+                        Remove them all at once, or remove one batch at a time from the table below.
+                    </p>
+                </div>
+                <button type="button"
+                        class="btn btn-outline-danger-600 radius-8 px-20 py-11"
+                        data-crm-import-undo-all
+                        data-active-leads="{{ $importRemoval['active_leads'] }}"
+                        data-batch-count="{{ $importRemoval['undoable_batches'] }}">
+                    <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                    Remove all imported leads
+                </button>
+            </div>
+        </div>
+    @endif
 
     @if(($categories ?? collect())->isNotEmpty())
         @include('admin.partials.filter-bar', [
@@ -67,8 +92,9 @@
                                             class="btn btn-sm btn-outline-danger-600 radius-8"
                                             data-crm-import-undo
                                             data-url="{{ route('admin.crm.leads.import.undo', $batch) }}"
-                                            data-import-filename="{{ $batch->original_filename }}">
-                                        Undo
+                                            data-import-filename="{{ $batch->original_filename }}"
+                                            data-import-count="{{ $batch->leads_count }}">
+                                        Remove all
                                     </button>
                                 @endif
                             </td>

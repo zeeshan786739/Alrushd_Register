@@ -88,7 +88,7 @@ class CrmRouteRenderingTest extends CrmTestCase
 
         $routes = [
             route('admin.crm.leads.index'),
-            route('admin.crm.leads.create'),
+            route('admin.crm.leads.create.panel'),
             route('admin.crm.leads.show', $lead),
             route('admin.crm.leads.edit', $lead),
             route('admin.crm.leads.email.form', $lead),

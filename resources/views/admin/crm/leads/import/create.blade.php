@@ -105,15 +105,13 @@
 
     <div class="crm-import-hero">
         <div class="crm-import-hero__main">
-            <span class="crm-import-hero__eyebrow"><iconify-icon icon="solar:shield-check-linear"></iconify-icon> Simple 4-step import</span>
+            <span class="crm-import-hero__eyebrow"><iconify-icon icon="solar:shield-check-linear"></iconify-icon> Simple 2-step import</span>
             <h2>Pick a category, drop your spreadsheet, and bring every lead into CRM.</h2>
-            <p>Start with where leads should live (icon &amp; color), then upload your administration sheet or any Excel/CSV file. Columns, comments, checkboxes, and team assignees are preserved.</p>
+            <p>Administration sheets auto-map every column — Application Form, Lead Status, checkboxes, comments, and team assignees are preserved. Optionally assign the whole batch to one teammate.</p>
         </div>
         <div class="crm-import-steps">
-            <div class="crm-import-step is-active" data-crm-import-step="1"><span>1</span><div><strong>Category</strong><small>Select an existing category or create a new one with icon and color.</small></div></div>
-            <div class="crm-import-step" data-crm-import-step="2"><span>2</span><div><strong>Upload</strong><small>Drag &amp; drop your Excel or CSV file — administration sheets auto-map.</small></div></div>
-            <div class="crm-import-step" data-crm-import-step="3"><span>3</span><div><strong>Map columns</strong><small>Confirm mapping; extra columns stay as custom lead information.</small></div></div>
-            <div class="crm-import-step" data-crm-import-step="4"><span>4</span><div><strong>Preview &amp; import</strong><small>Review duplicates and warnings, then import clean leads.</small></div></div>
+            <div class="crm-import-step is-active" data-crm-import-step="1"><span>1</span><div><strong>Category &amp; upload</strong><small>Select category, assign a default owner, and drag &amp; drop your sheet.</small></div></div>
+            <div class="crm-import-step" data-crm-import-step="2"><span>2</span><div><strong>Preview &amp; import</strong><small>Administration sheets skip mapping — review duplicates and import.</small></div></div>
         </div>
     </div>
 
@@ -192,12 +190,26 @@
 
                 @error('file')<div class="invalid-feedback d-block mt-12">{{ $message }}</div>@enderror
                 @error('lead_category_id')<div class="invalid-feedback d-block mt-12">{{ $message }}</div>@enderror
+                @error('default_assigned_to')<div class="invalid-feedback d-block mt-12">{{ $message }}</div>@enderror
+
+                <div class="row g-3 mt-16">
+                    <div class="col-md-6">
+                        <label class="form-label" for="default_assigned_to">Assign all imported leads to</label>
+                        <select name="default_assigned_to" id="default_assigned_to" class="form-select radius-8">
+                            <option value="">Use sheet assignee column (or unassigned)</option>
+                            @foreach($admins as $admin)
+                                <option value="{{ $admin->id }}" @selected((string) old('default_assigned_to') === (string) $admin->id)>{{ $admin->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">When set, every imported lead is assigned to this teammate (sheet column A is ignored).</div>
+                    </div>
+                </div>
 
                 <div class="crm-import-actions">
-                    <span class="text-sm text-secondary-light">Team names in column A are matched to CRM users automatically.</span>
+                    <span class="text-sm text-secondary-light">Administration sheets skip the mapping step automatically.</span>
                     <button type="submit" class="btn btn-primary-600 radius-8 px-24 py-12" data-crm-import-submit @disabled($categoryReady && ! $selectedCategoryId)>
                         <iconify-icon icon="solar:upload-linear"></iconify-icon>
-                        Upload and continue
+                        Upload and preview
                     </button>
                 </div>
             </form>

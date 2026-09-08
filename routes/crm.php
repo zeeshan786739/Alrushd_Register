@@ -29,6 +29,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::post('leads/import/{leadImport}/map', [LeadImportController::class, 'saveMap'])->name('leads.import.map.save');
     Route::get('leads/import/{leadImport}/preview', [LeadImportController::class, 'preview'])->name('leads.import.preview');
     Route::post('leads/import/{leadImport}/confirm', [LeadImportController::class, 'confirm'])->name('leads.import.confirm');
+    Route::post('leads/import/undo-all', [LeadImportController::class, 'undoAll'])->name('leads.import.undo-all');
     Route::post('leads/import/{leadImport}/undo', [LeadImportController::class, 'undo'])->name('leads.import.undo');
     Route::get('leads/import/{leadImport}/failed-rows', [LeadImportController::class, 'failedRows'])->name('leads.import.failed-rows');
     Route::get('leads/import/{leadImport}', [LeadImportController::class, 'show'])->name('leads.import.show');
@@ -46,6 +47,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('leads/{lead}/email', [LeadController::class, 'emailForm'])->name('leads.email.form');
     Route::post('leads/{lead}/email', [LeadController::class, 'sendEmail'])->name('leads.email.send');
     Route::patch('leads/bulk', [LeadController::class, 'bulkUpdate'])->name('leads.bulk');
+    Route::get('leads/create/panel', [LeadController::class, 'createPanel'])->name('leads.create.panel');
     Route::get('leads/{lead}/panel', [LeadController::class, 'panel'])->name('leads.panel');
     Route::get('leads/{lead}/panel/edit', [LeadController::class, 'panelEdit'])->name('leads.panel.edit');
     Route::resource('leads', LeadController::class);

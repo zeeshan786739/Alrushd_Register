@@ -18,6 +18,9 @@ class UploadLeadImportRequest extends FormRequest
         if ($this->input('lead_category_id') === '') {
             $this->merge(['lead_category_id' => null]);
         }
+        if ($this->input('default_assigned_to') === '') {
+            $this->merge(['default_assigned_to' => null]);
+        }
     }
 
     /** @return array<string, mixed> */
@@ -32,6 +35,8 @@ class UploadLeadImportRequest extends FormRequest
         if (LeadCategorySchema::ready()) {
             $rules['lead_category_id'] = ['required', 'integer', CrmOrgRules::leadCategoryId(true)];
         }
+
+        $rules['default_assigned_to'] = ['nullable', 'integer', CrmOrgRules::adminId()];
 
         return $rules;
     }

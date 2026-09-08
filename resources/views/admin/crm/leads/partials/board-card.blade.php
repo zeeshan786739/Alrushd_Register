@@ -84,6 +84,7 @@
         </div>
 
         <div class="crm-board-card__tags">
+            @include('admin.crm.leads.partials.admission-tags', ['lead' => $lead, 'compact' => true, 'limit' => 5])
             @if($lead->source || $lead->formEntry)
                 @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
                 @if($lead->formEntry?->form)

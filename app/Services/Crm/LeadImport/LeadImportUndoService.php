@@ -57,6 +57,64 @@ class LeadImportUndoService
         return $stats;
     }
 
+    /**
+     * Undo every completed import batch for the current organization.
+     *
+     * @return array{batches: int, undone: int, skipped_converted: int, already_removed: int, failed_batches: int}
+     */
+    public function undoAll(Admin $admin): array
+    {
+        $imports = LeadImport::forCurrentOrganization()
+            ->where('status', LeadImportStatus::Completed->value)
+            ->where('imported_rows', '>', 0)
+            ->orderBy('id')
+            ->get();
+
+        $totals = [
+            'batches' => 0,
+            'undone' => 0,
+            'skipped_converted' => 0,
+            'already_removed' => 0,
+            'failed_batches' => 0,
+        ];
+
+        foreach ($imports as $import) {
+            try {
+                $stats = $this->undo($import->fresh(), $admin);
+                $totals['batches']++;
+                $totals['undone'] += $stats['undone'];
+                $totals['skipped_converted'] += $stats['skipped_converted'];
+                $totals['already_removed'] += $stats['already_removed'];
+            } catch (RuntimeException) {
+                $totals['failed_batches']++;
+            }
+        }
+
+        if ($totals['batches'] === 0 && $totals['failed_batches'] === 0) {
+            throw new RuntimeException('There are no completed imports with leads to remove.');
+        }
+
+        return $totals;
+    }
+
+    /** @return array{active_leads: int, undoable_batches: int} */
+    public function removableSummary(): array
+    {
+        $undoableBatches = LeadImport::forCurrentOrganization()
+            ->where('status', LeadImportStatus::Completed->value)
+            ->where('imported_rows', '>', 0)
+            ->count();
+
+        $activeLeads = Lead::forCurrentOrganization()
+            ->fromImport()
+            ->count();
+
+        return [
+            'active_leads' => $activeLeads,
+            'undoable_batches' => $undoableBatches,
+        ];
+    }
+
     /** @param array{undone: int, skipped_converted: int, already_removed: int} $stats */
     private function undoRow(LeadImportRow $row, array &$stats): void
     {

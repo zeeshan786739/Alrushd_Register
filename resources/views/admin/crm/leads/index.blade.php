@@ -42,6 +42,8 @@
      data-inline-url-template="{{ url('admin/crm/leads') }}/__ID__/inline"
      data-panel-url-template="{{ url('admin/crm/leads') }}/__ID__/panel"
      data-panel-edit-url-template="{{ url('admin/crm/leads') }}/__ID__/panel/edit"
+     data-create-panel-url="{{ route('admin.crm.leads.create.panel') }}"
+     data-store-url="{{ route('admin.crm.leads.store') }}"
      data-submission-panel-url-template="{{ url('admin/crm/form-submissions') }}/__ID__/panel"
      data-convert-submission-url-template="{{ url('admin/crm/form-submissions') }}/__ID__/convert-lead"
      data-update-url-template="{{ url('admin/crm/leads') }}/__ID__"
@@ -61,7 +63,7 @@
             auth('admin')->user()?->can('import leads') ? ['label' => 'Import History', 'url' => route('admin.crm.leads.import.index'), 'icon' => 'solar:history-linear', 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11'] : null,
             auth('admin')->user()?->can('import leads') ? ['label' => 'Import Leads', 'url' => route('admin.crm.leads.import.create'), 'icon' => 'solar:import-linear', 'class' => 'btn-outline-primary-600 radius-8 px-20 py-11'] : null,
             auth('admin')->user()?->can('export leads') ? ['label' => 'Export', 'url' => route('admin.crm.leads.export', request()->query()), 'icon' => 'solar:export-linear', 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11'] : null,
-            auth('admin')->user()?->can('create leads') ? ['label' => 'Add Lead', 'url' => route('admin.crm.leads.create'), 'icon' => 'solar:add-circle-linear', 'class' => 'btn-primary-600 radius-8 px-20 py-11'] : null,
+            auth('admin')->user()?->can('create leads') ? ['label' => 'Add Lead', 'url' => '#', 'icon' => 'solar:add-circle-linear', 'class' => 'btn-primary-600 radius-8 px-20 py-11', 'attrs' => ['data-crm-lead-create-open' => '1']] : null,
         ]),
     ])
 

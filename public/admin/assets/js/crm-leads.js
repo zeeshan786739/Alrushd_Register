@@ -86,6 +86,7 @@
     initSmartSearch();
     initModalMaximize();
     initLeadRemove();
+    bootLeadModalFromQuery();
 
     page.querySelectorAll('[data-crm-toggle-save-filter]').forEach(function (button) {
         button.addEventListener('click', function () {
@@ -286,6 +287,14 @@
     function panelEditUrl(leadId) {
         var template = page.getAttribute('data-panel-edit-url-template') || '';
         return template.replace('__ID__', String(leadId));
+    }
+
+    function createPanelUrl() {
+        return page.getAttribute('data-create-panel-url') || '';
+    }
+
+    function storeUrl() {
+        return page.getAttribute('data-store-url') || '';
     }
 
     function updateUrl(leadId) {
@@ -593,6 +602,161 @@
         if (!host) return;
         initCommentEditor(host);
         initShowMore(host);
+        initFormTagSelects(host);
+        initLeadNameEdit(host);
+    }
+
+    function updateLeadName(leadId, fullName) {
+        return fetch(inlineUrl(leadId), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ field: 'full_name', value: fullName }),
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, status: response.status, data: data };
+            }).catch(function () {
+                return { ok: response.ok, status: response.status, data: {} };
+            });
+        });
+    }
+
+    function initLeadNameEdit(root) {
+        root.querySelectorAll('[data-crm-lead-rename]').forEach(function (titleEl) {
+            if (titleEl.getAttribute('data-bound') === '1') return;
+            titleEl.setAttribute('data-bound', '1');
+
+            function openEditor() {
+                if (titleEl.classList.contains('is-editing') || titleEl.classList.contains('is-busy')) return;
+
+                var panel = titleEl.closest('[data-crm-lead-panel]');
+                var leadId = panel ? panel.getAttribute('data-lead-id') : null;
+                if (!leadId) return;
+
+                var original = titleEl.textContent.trim();
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'crm-lead-ticket__title-input';
+                input.value = original;
+                input.setAttribute('aria-label', 'Lead name');
+
+                titleEl.classList.add('is-editing');
+                titleEl.textContent = '';
+                titleEl.appendChild(input);
+                input.focus();
+                input.select();
+
+                var committed = false;
+
+                function closeEditor(revert) {
+                    if (committed) return;
+                    committed = true;
+                    titleEl.classList.remove('is-editing');
+                    titleEl.textContent = revert ? original : (input.value.trim() || original);
+                }
+
+                function commit() {
+                    if (committed) return;
+                    var next = input.value.trim();
+                    if (next === '' || next === original) {
+                        closeEditor(true);
+                        return;
+                    }
+
+                    committed = true;
+                    titleEl.classList.remove('is-editing');
+                    titleEl.classList.add('is-busy');
+                    titleEl.textContent = next;
+
+                    updateLeadName(leadId, next).then(function (result) {
+                        titleEl.classList.remove('is-busy');
+                        if (!result.ok) {
+                            titleEl.textContent = original;
+                            showToast((result.data && result.data.message) || 'Could not rename lead.', true);
+                            return;
+                        }
+
+                        var lead = (result.data && result.data.lead) || { id: leadId, full_name: result.data.value || next };
+                        titleEl.textContent = lead.full_name || next;
+                        syncLeadDisplay(lead);
+                        syncModalHeader(lead.full_name || next, 'Review and update without leaving the workspace');
+                        showToast((result.data && result.data.message) || 'Lead renamed.', false);
+                    }).catch(function () {
+                        titleEl.classList.remove('is-busy');
+                        titleEl.textContent = original;
+                        showToast('Could not rename lead. Please try again.', true);
+                    });
+                }
+
+                input.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        commit();
+                    } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeEditor(true);
+                    }
+                });
+
+                input.addEventListener('blur', function () {
+                    window.setTimeout(commit, 0);
+                });
+            }
+
+            titleEl.addEventListener('click', openEditor);
+            titleEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openEditor();
+                }
+            });
+        });
+    }
+
+    function syncFormTagSelect(wrapper) {
+        var select = wrapper.querySelector('.crm-form-tag-select__native');
+        var face = wrapper.querySelector('.crm-form-tag-select__face');
+        if (!select || !face) return;
+
+        var option = select.options[select.selectedIndex];
+        var tone = option ? (option.getAttribute('data-tone') || 'neutral') : 'neutral';
+        var icon = option ? (option.getAttribute('data-icon') || 'solar:menu-dots-linear') : 'solar:menu-dots-linear';
+        var label = option ? (option.getAttribute('data-label') || option.textContent.trim()) : '';
+
+        wrapper.setAttribute('data-tone', tone);
+        var iconEl = face.querySelector('.crm-form-tag-select__icon');
+        var labelEl = face.querySelector('.crm-form-tag-select__label');
+        if (iconEl) iconEl.setAttribute('icon', icon);
+        if (labelEl) labelEl.textContent = label;
+    }
+
+    function initFormTagSelects(root) {
+        root.querySelectorAll('[data-crm-form-tag-select]').forEach(function (wrapper) {
+            if (wrapper.getAttribute('data-bound') === '1') return;
+            wrapper.setAttribute('data-bound', '1');
+
+            var select = wrapper.querySelector('.crm-form-tag-select__native');
+            if (!select) return;
+
+            syncFormTagSelect(wrapper);
+
+            select.addEventListener('change', function () {
+                syncFormTagSelect(wrapper);
+            });
+
+            select.addEventListener('focus', function () {
+                wrapper.classList.add('is-open');
+            });
+
+            select.addEventListener('blur', function () {
+                wrapper.classList.remove('is-open');
+            });
+        });
     }
 
     function initModalMaximize() {
@@ -658,6 +822,18 @@
                 el.textContent = initials || '?';
             }
         });
+        var host = panelHost();
+        if (host && lead.full_name) {
+            host.querySelectorAll('[data-crm-panel-title]').forEach(function (el) {
+                if (!el.classList.contains('is-editing')) {
+                    el.textContent = lead.full_name;
+                }
+            });
+        }
+        var modalTitle = document.getElementById('crmLeadDetailModalLabel');
+        if (modalTitle && lead.full_name) {
+            modalTitle.textContent = lead.full_name;
+        }
 
         if (lead.lead_status) {
             page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
@@ -711,6 +887,8 @@
 
         fetchPanelHtml(panelEditUrl(leadId)).then(function (html) {
             host.innerHTML = html;
+            initFormTagSelects(host);
+            syncPanelHeaderFromHost(host);
             var firstInput = host.querySelector('input[name="first_name"]');
             if (firstInput) firstInput.focus();
         }).catch(function () {
@@ -730,10 +908,12 @@
         });
         if (!messages.length) {
             box.hidden = true;
+            box.classList.add('d-none');
             box.textContent = '';
             return;
         }
         box.hidden = false;
+        box.classList.remove('d-none');
         box.innerHTML = messages.map(function (msg) {
             return '<div>' + msg + '</div>';
         }).join('');
@@ -791,6 +971,85 @@
     function openLeadPanel(leadId) {
         if (!leadId || !window.bootstrap || !leadDetailModal()) return;
         loadPanelView(leadId, { showModal: true });
+    }
+
+    function loadCreatePanel() {
+        var host = panelHost();
+        var url = createPanelUrl();
+        if (!host || !url) return Promise.resolve();
+
+        host.innerHTML = panelLoadingMarkup();
+        syncModalHeader('Create lead', 'Add a lead without leaving the board');
+        showLeadModal();
+
+        return fetchPanelHtml(url).then(function (html) {
+            host.innerHTML = html;
+            initFormTagSelects(host);
+            syncModalHeader('Create lead', 'Add a lead without leaving the board');
+            var firstInput = host.querySelector('input[name="first_name"]');
+            if (firstInput) firstInput.focus();
+        }).catch(function () {
+            host.innerHTML = '<div class="crm-lead-panel-loading"><span>Could not load create form. Please try again.</span></div>';
+            showToast('Could not load create form.', true);
+        });
+    }
+
+    function openCreateLeadPanel() {
+        if (!window.bootstrap || !leadDetailModal()) return;
+        loadCreatePanel();
+    }
+
+    function submitPanelCreate(form) {
+        var saveBtn = form.querySelector('[data-crm-panel-save]');
+        var formData = new FormData(form);
+
+        if (saveBtn) saveBtn.disabled = true;
+        showPanelEditErrors(form, {});
+
+        fetch(storeUrl() || form.getAttribute('action'), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData,
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, status: response.status, data: data };
+            }).catch(function () {
+                return { ok: response.ok, status: response.status, data: {} };
+            });
+        }).then(function (result) {
+            if (result.status === 422 && result.data && result.data.errors) {
+                showPanelEditErrors(form, result.data.errors);
+                showToast('Please fix the highlighted fields.', true);
+                return;
+            }
+            if (!result.ok) {
+                showToast((result.data && result.data.message) || 'Could not create lead.', true);
+                return;
+            }
+
+            showToast((result.data && result.data.message) || 'Lead created.', false);
+
+            var leadId = result.data && result.data.lead && result.data.lead.id;
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('open_create');
+                if (leadId) {
+                    url.searchParams.set('open_lead', String(leadId));
+                }
+                window.location.href = url.toString();
+            } catch (e) {
+                window.location.reload();
+            }
+        }).catch(function () {
+            showToast('Could not create lead. Please try again.', true);
+        }).finally(function () {
+            if (saveBtn) saveBtn.disabled = false;
+        });
     }
 
     function loadSubmissionPanel(entryId, options) {
@@ -1016,6 +1275,13 @@
     refreshBoardColumnCounts();
 
     page.addEventListener('click', function (event) {
+        var createBtn = event.target.closest('[data-crm-lead-create-open]');
+        if (createBtn && page.contains(createBtn)) {
+            event.preventDefault();
+            openCreateLeadPanel();
+            return;
+        }
+
         var editBtn = event.target.closest('[data-crm-panel-edit]');
         if (editBtn && page.contains(editBtn)) {
             event.preventDefault();
@@ -1546,6 +1812,13 @@
     }
 
     page.addEventListener('submit', function (event) {
+        var createForm = event.target.closest('[data-crm-lead-create-form]');
+        if (createForm && page.contains(createForm)) {
+            event.preventDefault();
+            submitPanelCreate(createForm);
+            return;
+        }
+
         var editForm = event.target.closest('[data-crm-panel-edit-form]');
         if (!editForm || !page.contains(editForm)) return;
         event.preventDefault();
@@ -1687,6 +1960,51 @@
         });
     }
 
+    function bootLeadModalFromQuery() {
+        try {
+            var bootUrl = new URL(window.location.href);
+            if (bootUrl.searchParams.get('open_create') === '1') {
+                openCreateLeadPanel();
+                bootUrl.searchParams.delete('open_create');
+                window.history.replaceState({}, '', bootUrl.toString());
+                return;
+            }
+            var openLeadId = bootUrl.searchParams.get('open_lead');
+            if (openLeadId) {
+                openLeadPanel(openLeadId);
+                bootUrl.searchParams.delete('open_lead');
+                window.history.replaceState({}, '', bootUrl.toString());
+            }
+        } catch (e) {
+            /* ignore malformed URLs */
+        }
+    }
+
+    function confirmLeadRemove(form) {
+        var card = form.closest('[data-crm-board-card], [data-crm-list-row]');
+        var leadName = card
+            ? (card.querySelector('.crm-board-card__title, .crm-list-row__name')?.textContent || '').trim()
+            : '';
+        var message = leadName
+            ? '“' + leadName + '” will disappear from the board and list.'
+            : 'This lead will disappear from the board and list.';
+
+        if (window.CrmUI && typeof window.CrmUI.confirm === 'function') {
+            return window.CrmUI.confirm({
+                title: 'Remove lead from view?',
+                message: message,
+                note: 'Nothing is permanently deleted — the record stays safely in the database.',
+                label: 'Remove from view',
+                tone: 'danger',
+                icon: 'solar:trash-bin-minimalistic-linear',
+            });
+        }
+
+        return Promise.resolve(window.confirm(
+            'Remove this lead from view?\n\nIt will disappear from the board and list, but stays safely in the database.'
+        ));
+    }
+
     function initLeadRemove() {
         page.querySelectorAll('[data-crm-lead-delete]').forEach(function (form) {
             if (form.getAttribute('data-bound') === '1') return;
@@ -1696,55 +2014,54 @@
                 event.preventDefault();
                 event.stopPropagation();
 
-                var confirmed = window.confirm(
-                    'Remove this lead from view?\n\nIt will disappear from the board and list, but stays safely in the database.'
-                );
-                if (!confirmed) return;
+                confirmLeadRemove(form).then(function (confirmed) {
+                    if (!confirmed) return;
 
-                var button = form.querySelector('button');
-                if (button) {
-                    button.disabled = true;
-                }
-
-                fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: new FormData(form),
-                }).then(function (response) {
-                    return response.json().then(function (data) {
-                        return { ok: response.ok, data: data };
-                    });
-                }).then(function (result) {
-                    if (button) button.disabled = false;
-
-                    if (!result.ok) {
-                        showToast((result.data && result.data.message) || 'Could not remove lead.', true);
-                        return;
+                    var button = form.querySelector('button');
+                    if (button) {
+                        button.disabled = true;
                     }
 
-                    var card = form.closest('[data-crm-board-card], [data-crm-list-row]');
-                    if (card) {
-                        card.classList.add('crm-lead-removing');
-                        setTimeout(function () { card.remove(); }, 180);
-                    }
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: new FormData(form),
+                    }).then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, data: data };
+                        });
+                    }).then(function (result) {
+                        if (button) button.disabled = false;
 
-                    var modal = document.getElementById('crmLeadDetailModal');
-                    if (modal && modal.classList.contains('show')) {
-                        var modalLeadId = modal.querySelector('[data-lead-id]');
-                        var removedId = form.action.split('/').filter(Boolean).pop();
-                        if (modalLeadId && String(modalLeadId.getAttribute('data-lead-id')) === String(removedId)) {
-                            bootstrap.Modal.getOrCreateInstance(modal).hide();
+                        if (!result.ok) {
+                            showToast((result.data && result.data.message) || 'Could not remove lead.', true);
+                            return;
                         }
-                    }
 
-                    showToast(result.data.message || 'Lead removed from view.');
-                }).catch(function () {
-                    if (button) button.disabled = false;
-                    showToast('Could not remove lead. Please try again.', true);
+                        var card = form.closest('[data-crm-board-card], [data-crm-list-row]');
+                        if (card) {
+                            card.classList.add('crm-lead-removing');
+                            setTimeout(function () { card.remove(); }, 180);
+                        }
+
+                        var modal = document.getElementById('crmLeadDetailModal');
+                        if (modal && modal.classList.contains('show')) {
+                            var modalLeadId = modal.querySelector('[data-lead-id]');
+                            var removedId = form.action.split('/').filter(Boolean).pop();
+                            if (modalLeadId && String(modalLeadId.getAttribute('data-lead-id')) === String(removedId)) {
+                                bootstrap.Modal.getOrCreateInstance(modal).hide();
+                            }
+                        }
+
+                        showToast(result.data.message || 'Lead removed from view.');
+                    }).catch(function () {
+                        if (button) button.disabled = false;
+                        showToast('Could not remove lead. Please try again.', true);
+                    });
                 });
             });
         });
