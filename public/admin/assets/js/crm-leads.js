@@ -307,7 +307,8 @@
     }
 
     function syncModalHeader(title, subtitle) {
-        var modalTitle = document.getElementById('crmLeadDetailModalLabel');
+        var modalTitle = document.getElementById('crmLeadDetailModalLabel')
+            || document.getElementById('crmLeadDetailDrawerLabel');
         var modalSubtitle = document.querySelector('[data-crm-panel-subtitle]');
         if (modalTitle && title) modalTitle.textContent = title;
         if (modalSubtitle) modalSubtitle.textContent = subtitle || '';
@@ -325,14 +326,40 @@
         );
     }
 
+    function leadDetailShell() {
+        return document.getElementById('crmLeadDetailModal')
+            || document.getElementById('crmLeadDetailDrawer');
+    }
+
+    function leadDetailShellUsesOffcanvas(shell) {
+        shell = shell || leadDetailShell();
+        return !!(shell && (shell.id === 'crmLeadDetailDrawer' || shell.classList.contains('offcanvas')));
+    }
+
     function leadDetailModal() {
-        return document.getElementById('crmLeadDetailModal');
+        return leadDetailShell();
     }
 
     function showLeadModal() {
-        var modalEl = leadDetailModal();
-        if (modalEl && window.bootstrap) {
-            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        var shell = leadDetailShell();
+        if (!shell || !window.bootstrap) return;
+
+        if (leadDetailShellUsesOffcanvas(shell)) {
+            window.bootstrap.Offcanvas.getOrCreateInstance(shell).show();
+        } else {
+            window.bootstrap.Modal.getOrCreateInstance(shell).show();
+        }
+    }
+
+    function hideLeadPanelShell() {
+        var shell = leadDetailShell();
+        if (!shell || !window.bootstrap || !shell.classList.contains('show')) return;
+
+        if (leadDetailShellUsesOffcanvas(shell)) {
+            var offcanvas = window.bootstrap.Offcanvas.getInstance(shell);
+            if (offcanvas) offcanvas.hide();
+        } else {
+            window.bootstrap.Modal.getOrCreateInstance(shell).hide();
         }
     }
 
@@ -830,7 +857,8 @@
                 }
             });
         }
-        var modalTitle = document.getElementById('crmLeadDetailModalLabel');
+        var modalTitle = document.getElementById('crmLeadDetailModalLabel')
+            || document.getElementById('crmLeadDetailDrawerLabel');
         if (modalTitle && lead.full_name) {
             modalTitle.textContent = lead.full_name;
         }
@@ -2048,12 +2076,12 @@
                             setTimeout(function () { card.remove(); }, 180);
                         }
 
-                        var modal = document.getElementById('crmLeadDetailModal');
-                        if (modal && modal.classList.contains('show')) {
-                            var modalLeadId = modal.querySelector('[data-lead-id]');
+                        var shell = leadDetailShell();
+                        if (shell && shell.classList.contains('show')) {
+                            var modalLeadId = shell.querySelector('[data-lead-id]');
                             var removedId = form.action.split('/').filter(Boolean).pop();
                             if (modalLeadId && String(modalLeadId.getAttribute('data-lead-id')) === String(removedId)) {
-                                bootstrap.Modal.getOrCreateInstance(modal).hide();
+                                hideLeadPanelShell();
                             }
                         }
 

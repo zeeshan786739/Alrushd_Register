@@ -1,17 +1,39 @@
-<div class="offcanvas offcanvas-end crm-lead-drawer" tabindex="-1" id="crmLeadDetailDrawer" aria-labelledby="crmLeadDetailDrawerLabel">
-    <div class="offcanvas-header crm-lead-drawer__header">
-        <div class="crm-lead-drawer__heading min-w-0">
-            <div class="crm-lead-drawer__eyebrow" id="crmLeadDetailDrawerLabel">Lead preview</div>
-            <div class="crm-lead-drawer__subtitle" data-crm-panel-subtitle>Select a lead to inspect details</div>
-        </div>
-        <button type="button" class="crm-lead-drawer__close" data-bs-dismiss="offcanvas" aria-label="Close">
-            <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
-        </button>
-    </div>
-    <div class="offcanvas-body crm-lead-drawer__body" data-crm-lead-panel-host>
-        <div class="crm-lead-panel-loading">
-            <div class="crm-lead-panel-loading__spinner"></div>
-            <span>Loading lead details…</span>
+<div class="modal fade crm-lead-modal"
+     id="crmLeadDetailModal"
+     tabindex="-1"
+     aria-labelledby="crmLeadDetailModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="true"
+     data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl crm-lead-modal__dialog">
+        <div class="modal-content crm-lead-modal__content">
+            <div class="modal-header crm-lead-modal__header">
+                <div class="crm-lead-modal__heading min-w-0">
+                    <div class="crm-lead-modal__eyebrow" id="crmLeadDetailModalLabel">Lead preview</div>
+                    <div class="crm-lead-modal__subtitle" data-crm-panel-subtitle>Select a lead to inspect details</div>
+                </div>
+                <div class="crm-lead-modal__actions">
+                    <button type="button"
+                            class="crm-lead-modal__action"
+                            data-crm-modal-maximize
+                            aria-label="Maximize"
+                            title="Maximize">
+                        <iconify-icon icon="solar:maximize-square-linear" data-crm-maximize-icon></iconify-icon>
+                    </button>
+                    <button type="button"
+                            class="crm-lead-modal__action"
+                            data-bs-dismiss="modal"
+                            aria-label="Close">
+                        <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body crm-lead-modal__body" data-crm-lead-panel-host>
+                <div class="crm-lead-panel-loading">
+                    <div class="crm-lead-panel-loading__spinner"></div>
+                    <span>Loading lead details…</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
