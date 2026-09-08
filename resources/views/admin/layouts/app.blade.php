@@ -1,11 +1,19 @@
 <!-- meta tags and other links -->
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+@php
+    $adminUser = auth()->guard('admin')->user();
+    $crmOrganization = $adminUser?->organization;
+    $crmSetting = !$crmOrganization || in_array($crmOrganization->slug, ['default', 'al-rushd'], true)
+        ? \App\Models\Setting::first() : null;
+    $crmBrandName = $crmOrganization?->name ?: ($crmSetting?->company_name ?: config('app.name'));
+    $crmWebsiteUrl = $crmOrganization?->publicWebsiteUrl() ?? url('/');
+@endphp
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@yield('title') — AL-Rushd</title>
+    <title>@yield('title') — {{ $crmBrandName }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
         // Apply the saved preference before styles paint, including full reloads.
@@ -85,12 +93,11 @@
 <body>
 
 @php
-    $crmSetting = \App\Models\Setting::first();
     $crmDefaultLogo = asset('frontend/assets/img/logo.png');
     $crmLogoUrl = $crmDefaultLogo;
 
-    if ($crmSetting?->header_logo) {
-        $logoPath = $crmSetting->header_logo;
+    if ($crmOrganization?->logo_path || $crmSetting?->header_logo) {
+        $logoPath = $crmOrganization?->logo_path ?: $crmSetting->header_logo;
         if (\Illuminate\Support\Facades\Storage::disk('public')->exists($logoPath)) {
             $crmLogoUrl = asset('storage/' . ltrim($logoPath, '/'));
         } elseif (str_starts_with($logoPath, 'http://') || str_starts_with($logoPath, 'https://')) {
@@ -98,7 +105,6 @@
         }
     }
 
-    $crmBrandName = $crmSetting?->company_name ?? 'AL-Rushd';
 
     $adminUser = auth()->guard('admin')->user();
     $adminAvatarDefault = asset('admin/assets/images/user.png');
@@ -177,8 +183,8 @@
             </div>
             <div class="col-auto">
                 <div class="d-flex flex-wrap align-items-center gap-3 crm-navbar-actions">
-                    <a href="{{ url('/') }}" target="_blank" rel="noopener"
-                        class="crm-nav-btn" title="View website">
+                    <a href="{{ $crmWebsiteUrl }}" target="_blank" rel="noopener"
+                        class="crm-nav-btn" title="View {{ $crmBrandName }} website" aria-label="View {{ $crmBrandName }} website">
                         <iconify-icon icon="mdi:web" width="22" height="22"></iconify-icon>
                     </a>
 
@@ -222,11 +228,9 @@
 
                                     <form method="POST" action="{{ route('admin.logout') }}">
                                         @csrf
-                                        <a onclick="event.preventDefault();
-                                            this.closest('form').submit();" class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-danger d-flex align-items-center gap-3"
-                                            href="{{route('admin.logout')}}">
-                                            <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log
-                                            Out</a>
+                                        <button type="submit" class="dropdown-item crm-logout-button">
+                                            <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log Out
+                                        </button>
                                     </form>
 
 
@@ -628,10 +632,10 @@
     <footer class="d-footer">
         <div class="row align-items-center justify-content-between">
             <div class="col-auto">
-                <p class="mb-0">© {{date('Y')}} {{ optional(\App\Models\Setting::first())->company_name ? \App\Models\Setting::first()->company_name : '' }}. All Rights Reserved.</p>
+                <p class="mb-0">© {{date('Y')}} {{ $crmBrandName }}. All Rights Reserved.</p>
             </div>
             <div class="col-auto">
-                <p class="mb-0">Made by <span class="text-primary-600">{{ optional(\App\Models\Setting::first())->company_name ? \App\Models\Setting::first()->company_name : '' }}</span></p>
+                <p class="mb-0">Made by <span class="text-primary-600">{{ $crmBrandName }}</span></p>
             </div>
         </div>
     </footer>

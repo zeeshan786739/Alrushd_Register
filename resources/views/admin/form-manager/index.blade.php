@@ -162,10 +162,10 @@
                                     <span class="fc-form-icon" style="background: {{ $color }}18; color: {{ $color }};">
                                         <iconify-icon icon="{{ $icon }}"></iconify-icon>
                                     </span>
-                                    <div>
+                                    <div class="fc-form-identity">
                                         <h6 class="text-md fw-semibold mb-4">{{ $form->name }}</h6>
-                                        <span class="fc-table-url text-sm">/{{ $form->slug }}</span>
-                                        @if($form->legacy_route)
+                                        <span class="fc-table-url text-sm" title="/{{ $form->slug }}">/{{ $form->slug }}</span>
+                                        @if($form->legacy_route && trim($form->legacy_route, '/') !== $form->slug)
                                         <span class="fc-table-url text-xs d-block mt-2">{{ $form->legacy_route }}</span>
                                         @endif
                                     </div>
@@ -218,14 +218,14 @@
                                        class="fc-action-icon view"
                                        title="Preview live form"
                                        aria-label="Preview live form">
-                                        <i class="ri-eye-fill" aria-hidden="true"></i>
+                                        <x-form-action-icon name="view" />
                                     </a>
                                     @endif
                                     <a href="{{ route('admin.form-manager.edit', $form) }}"
                                        class="fc-action-icon edit"
                                        title="Customize form"
                                        aria-label="Customize form">
-                                        <i class="ri-pencil-fill" aria-hidden="true"></i>
+                                        <x-form-action-icon name="edit" />
                                     </a>
                                     <button type="button"
                                             class="fc-action-icon settings border-0"
@@ -235,14 +235,14 @@
                                             data-form-name="{{ $form->name }}"
                                             data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
                                             data-placements="{{ implode(',', $form->placements()) }}">
-                                        <i class="ri-settings-3-fill" aria-hidden="true"></i>
+                                        <x-form-action-icon name="settings" />
                                     </button>
                                     <button type="button"
                                             class="fc-action-icon link border-0"
                                             title="Copy form URL"
                                             aria-label="Copy form URL"
                                             data-copy-form-url="{{ $form->routePath() }}">
-                                        <i class="ri-link-m" aria-hidden="true"></i>
+                                        <x-form-action-icon name="link" />
                                     </button>
                                     <form action="{{ route('admin.form-manager.duplicate', $form) }}" method="POST" class="d-inline">
                                         @csrf
@@ -250,7 +250,7 @@
                                                 class="fc-action-icon duplicate"
                                                 title="Duplicate form"
                                                 aria-label="Duplicate form">
-                                            <i class="ri-file-copy-2-fill" aria-hidden="true"></i>
+                                            <x-form-action-icon name="duplicate" />
                                         </button>
                                     </form>
                                     <button type="button"
@@ -258,7 +258,7 @@
                                             title="Delete form"
                                             aria-label="Delete form"
                                             data-delete-form>
-                                        <i class="ri-delete-bin-fill" aria-hidden="true"></i>
+                                        <x-form-action-icon name="delete" />
                                     </button>
                                     <a href="{{ route('admin.form-manager.entries', $form) }}"
                                        class="btn btn-sm fc-submissions-btn radius-8 px-12 py-8 fc-btn"
@@ -282,6 +282,7 @@
         </div>
     </div>
     @endif
+</div>
 @endsection
 
 @section('modals')

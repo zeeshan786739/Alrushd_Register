@@ -86,8 +86,10 @@ class FrontendController extends Controller
         ]);
     }
 
-    public function dynamicForm(string $slug)
+    public function dynamicForm(Request $request)
     {
+        // Tenant routes also contain orgSlug; scalar arguments are dispatched positionally.
+        $slug = (string) $request->route('slug');
         $form = Form::resolveForPublicPath($slug);
 
         abort_unless($form, 404);
@@ -104,8 +106,9 @@ class FrontendController extends Controller
         ]);
     }
 
-    public function dynamicFormSuccess(string $slug)
+    public function dynamicFormSuccess(Request $request)
     {
+        $slug = (string) $request->route('slug');
         $form = Form::scopedPublicQuery()
             ->where('slug', $slug)
             ->first();
@@ -1696,5 +1699,4 @@ class FrontendController extends Controller
         ]);
     }
 }
-
 

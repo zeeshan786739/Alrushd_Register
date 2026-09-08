@@ -1817,6 +1817,39 @@ form.bg-primary .form-select {
     border-radius: var(--crm-radius-sm) !important;
     animation: crmPageIn 0.3s var(--crm-ease) both;
 }
+/* Account sign-out: an inset, rounded action with a clear destructive hover. */
+.dropdown-menu .crm-logout-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #475569;
+    font: inherit;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.dropdown-menu .crm-logout-button:is(:hover, :focus-visible) {
+    background: #fff1f2;
+    color: #be123c;
+    border-color: #fecdd3;
+}
+.dropdown-menu .crm-logout-button:focus-visible {
+    outline: 2px solid #be123c;
+    outline-offset: 2px;
+}
+.dropdown-menu .crm-logout-button .icon {
+    flex-shrink: 0;
+    color: inherit;
+}
+
 .dropdown-menu {
     border: 1px solid var(--crm-border) !important;
     border-radius: var(--crm-radius-md) !important;

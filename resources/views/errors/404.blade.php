@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>500 - Internal Server Error</title>
+  <title>404 - Page Not Found</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     * {
@@ -79,8 +79,8 @@
 <body>
   <div class="container">
     <h1>404</h1>
-    <h2>Internal Server Error</h2>
-    <p>Sorry, something went wrong on our server.<br>Please try again later.</p>
+    <h2>Page Not Found</h2>
+    <p>This page is unavailable or the link is no longer valid.<br>Please check the address or return home.</p>
     <a href="{{ url('/') }}">← Back to Home</a>
   </div>
 </body>

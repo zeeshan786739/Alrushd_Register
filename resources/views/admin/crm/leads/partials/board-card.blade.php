@@ -50,7 +50,19 @@
             <div class="crm-board-card__meta text-truncate" title="{{ $lead->email ?? $lead->phone }}">
                 {{ $lead->email ?? $lead->phone ?? 'No contact saved' }}
             </div>
-            @if($lead->source === 'form_submission' || $lead->formEntry)
+            @if($lead->email && $lead->phone)
+                <div class="crm-board-card__detail" title="Phone: {{ $lead->phone }}">
+                    <iconify-icon icon="solar:phone-linear" aria-hidden="true"></iconify-icon>
+                    <span>{{ $lead->phone }}</span>
+                </div>
+            @endif
+            @if($lead->company)
+                <div class="crm-board-card__detail" title="Company: {{ $lead->company }}">
+                    <iconify-icon icon="solar:buildings-2-linear" aria-hidden="true"></iconify-icon>
+                    <span>{{ $lead->company }}</span>
+                </div>
+            @endif
+            @if($lead->source || $lead->formEntry)
                 <div class="crm-board-card__source-row">
                     @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
                     @if($lead->formEntry?->form)
@@ -68,7 +80,18 @@
                         {{ $followUp->label }}
                     </span>
                 </div>
+            @else
+                <div class="crm-board-card__detail">
+                    <iconify-icon icon="solar:calendar-linear" aria-hidden="true"></iconify-icon>
+                    <span>No follow-up scheduled</span>
+                </div>
             @endif
+            <div class="crm-board-card__record-meta">
+                <span>Lead #{{ $lead->id }}</span>
+                @if($lead->created_at)
+                    <time datetime="{{ $lead->created_at->toIso8601String() }}" title="{{ $lead->created_at->format('M j, Y g:i A') }}">Added {{ $lead->created_at->format('M j, Y') }}</time>
+                @endif
+            </div>
         </div>
 
         <div class="crm-board-card__footer">

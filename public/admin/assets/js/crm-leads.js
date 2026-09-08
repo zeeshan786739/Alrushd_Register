@@ -1135,10 +1135,22 @@
                     (result.data && result.data.label) || label
                 );
                 markSelected(dropdown, value);
+                // Keep the board and list representations of the same lead in sync.
+                page.querySelectorAll('[data-crm-inline][data-lead-id="' + leadId + '"][data-field="' + field + '"]').forEach(function (peer) {
+                    peer.setAttribute('data-previous', value);
+                    applyControlVisual(peer, result.data.tone || tone, result.data.icon || icon, result.data.label || label);
+                    markSelected(peer, value);
+                });
                 if (field === 'lead_status') {
                     page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
                         el.setAttribute('data-current-status', value);
                     });
+                    var targetBody = page.querySelector('[data-crm-dropzone][data-status="' + value + '"] .crm-board-column__body');
+                    var card = page.querySelector('[data-crm-board-card][data-lead-id="' + leadId + '"]');
+                    if (targetBody && card) {
+                        targetBody.appendChild(card);
+                        refreshBoardColumnCounts();
+                    }
                 }
                 if (field === 'priority') {
                     syncBoardCardPriority(leadId, value);

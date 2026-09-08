@@ -769,4 +769,18 @@
     #crm-leads-page .crm-filter-workspace__advanced--compact .crm-filter-workspace__advanced-grid{grid-template-columns:1fr}
     #crm-leads-page .crm-metrics-strip__items{width:100%}
 }
+/* Roomier board cards without changing the compact list view. */
+#crm-leads-page .crm-workflow-board{grid-auto-columns:330px}
+#crm-leads-page .crm-board-column__body{padding:12px;gap:12px}
+#crm-leads-page .crm-board-card{min-height:210px}
+#crm-leads-page .crm-board-card__main{padding:16px}
+#crm-leads-page .crm-board-card__title{font-size:15px;line-height:1.45}
+#crm-leads-page .crm-board-card__meta{font-size:12px;margin-top:6px}
+#crm-leads-page .crm-board-card__category-pill{font-size:11px}
+#crm-leads-page .crm-board-card__detail{display:flex;align-items:center;gap:7px;margin-top:8px;color:var(--crm-text-muted);font-size:12px;line-height:1.5;min-width:0}
+#crm-leads-page .crm-board-card__detail iconify-icon{flex-shrink:0;font-size:15px}
+#crm-leads-page .crm-board-card__detail span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#crm-leads-page .crm-board-card__record-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;margin-top:12px;color:var(--crm-text-muted);font-size:11px}
+#crm-leads-page .crm-board-card__footer{margin-top:auto;padding-top:12px}
+@media(max-width:575px){#crm-leads-page .crm-workflow-board{grid-auto-columns:minmax(280px,88vw)}}
 </style>

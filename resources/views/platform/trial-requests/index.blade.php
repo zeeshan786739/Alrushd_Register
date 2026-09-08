@@ -53,11 +53,9 @@
                 </thead>
                 <tbody>
                     @forelse($requests as $item)
-                    <tr class="platform-row-link" role="link" tabindex="0"
-                        data-href="{{ route('platform.trial-requests.show', $item) }}"
-                        style="cursor:pointer">
+                    <tr>
                         <td class="ps-24">
-                            <span class="fw-medium text-primary-600">{{ $item->school_name }}</span>
+                            <a href="{{ route('platform.trial-requests.show', $item) }}" class="fw-medium text-primary-600">{{ $item->school_name }}</a>
                             @if($item->country)<div class="text-secondary-light text-sm">{{ $item->country }}</div>@endif
                         </td>
                         <td>
@@ -67,7 +65,7 @@
                         <td class="text-sm">{{ $item->plan?->name ?? '—' }}</td>
                         <td><span class="badge platform-badge {{ $item->status?->badgeClass() }}">{{ $item->status?->label() }}</span></td>
                         <td class="text-sm text-secondary-light">{{ $item->created_at->format('d M Y') }}</td>
-                        <td class="text-end pe-24" data-row-ignore>
+                        <td class="text-end pe-24">
                             <a href="{{ route('platform.trial-requests.show', $item) }}" class="btn btn-sm btn-outline-primary">Open</a>
                         </td>
                     </tr>

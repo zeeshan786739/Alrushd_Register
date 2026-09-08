@@ -210,22 +210,6 @@
         event.preventDefault();
         window.platformConfirmSubmit(form);
     });
-
-    // Clickable table rows (demo / trial request lists)
-    document.addEventListener('click', function (event) {
-        const ignore = event.target.closest('[data-row-ignore], a, button, input, select, textarea, label');
-        if (ignore) return;
-        const row = event.target.closest('tr.platform-row-link[data-href]');
-        if (!row) return;
-        window.location.href = row.getAttribute('data-href');
-    });
-    document.addEventListener('keydown', function (event) {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        const row = event.target.closest('tr.platform-row-link[data-href]');
-        if (!row) return;
-        event.preventDefault();
-        window.location.href = row.getAttribute('data-href');
-    });
 })();
 </script>
 

@@ -62,8 +62,9 @@ class DynamicFormController extends Controller
         ]);
     }
 
-    public function show(string $slug): JsonResponse
+    public function show(Request $request): JsonResponse
     {
+        $slug = (string) $request->route('slug');
         $form = Form::resolveForPublicPath($slug);
 
         abort_unless($form, 404);
@@ -92,9 +93,10 @@ class DynamicFormController extends Controller
         return response()->json($schema);
     }
 
-    public function submit(Request $request, string $slug): JsonResponse
+    public function submit(Request $request): JsonResponse
     {
-        $form = Form::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        $slug = (string) $request->route('slug');
+        $form = Form::scopedPublicQuery()->where('slug', $slug)->where('is_active', true)->firstOrFail();
         $form->load(['steps.fields', 'fields']);
 
         $data = [];
