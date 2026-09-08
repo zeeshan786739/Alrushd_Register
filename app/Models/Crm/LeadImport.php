@@ -36,8 +36,11 @@ class LeadImport extends Model
         'skipped_rows',
         'duplicate_rows',
         'failed_rows',
+        'undone_rows',
         'started_at',
         'completed_at',
+        'undone_by',
+        'undone_at',
     ];
 
     protected function casts(): array
@@ -48,7 +51,19 @@ class LeadImport extends Model
             'import_options' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'undone_at' => 'datetime',
         ];
+    }
+
+    public function undoneBy(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'undone_by');
+    }
+
+    public function canUndo(): bool
+    {
+        return $this->statusEnum() === LeadImportStatus::Completed
+            && (int) $this->imported_rows > 0;
     }
 
     public function uploader(): BelongsTo

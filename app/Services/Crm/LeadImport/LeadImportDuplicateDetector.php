@@ -3,6 +3,7 @@
 namespace App\Services\Crm\LeadImport;
 
 use App\Enums\LeadImportRowStatus;
+use App\Enums\LeadImportStatus;
 use App\Models\Crm\Lead;
 use App\Models\Crm\LeadImport;
 use App\Models\Crm\LeadImportRow;
@@ -22,13 +23,7 @@ class LeadImportDuplicateDetector
         $flags = [];
 
         $existing = $this->existingKeys($import->organization_id);
-        $previousHashes = LeadImportRow::query()
-            ->where('organization_id', $import->organization_id)
-            ->where('lead_import_id', '!=', $import->id)
-            ->whereNotNull('lead_id')
-            ->pluck('row_hash')
-            ->all();
-        $previousHashSet = array_fill_keys($previousHashes, true);
+        $previousHashSet = array_fill_keys($this->previousRowHashes($import), true);
 
         foreach ($rows as $index => $row) {
             $email = $this->validator->comparisonEmail($row['email'] ?? null);
@@ -67,6 +62,20 @@ class LeadImportDuplicateDetector
         }
 
         return $flags;
+    }
+
+    /** @return array<int, string> */
+    private function previousRowHashes(LeadImport $import): array
+    {
+        return LeadImportRow::query()
+            ->where('organization_id', $import->organization_id)
+            ->where('lead_import_id', '!=', $import->id)
+            ->where('status', LeadImportRowStatus::Imported->value)
+            ->whereNotNull('lead_id')
+            ->whereHas('lead')
+            ->whereHas('import', fn ($query) => $query->where('status', LeadImportStatus::Completed->value))
+            ->pluck('row_hash')
+            ->all();
     }
 
     /**

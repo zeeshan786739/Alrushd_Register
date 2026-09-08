@@ -28,10 +28,16 @@
         ],
     ])
 
-    <p class="text-secondary-light mb-20">
-        Choose one category for this import batch. New confirmed leads will be <strong>added</strong> to that category — existing leads in the category are never changed or removed.
-        Spreadsheet mapping stays dynamic; unknown columns are kept as additional lead information.
-    </p>
+    <div class="alert alert-light border radius-8 mb-20">
+        Your file is already uploaded. Choose a category for this batch, then continue to column mapping.
+        <a href="{{ route('admin.crm.leads.import.create') }}" class="ms-8">Start a new import</a>
+    </div>
+
+    @if($isAdministrationSheet ?? false)
+        <div class="alert alert-success radius-8 mb-20">
+            <strong>Administration sheet detected.</strong> Pick a category (icon &amp; color) for this batch — for example “Admission enquiries”. Column mapping is already prepared on the next step.
+        </div>
+    @endif
 
     {{-- A. Select existing --}}
     <div class="card radius-12 shadow-2 border-0 mb-24">

@@ -2,10 +2,10 @@
 @section('title', 'Import History')
 @section('content')
 @include('admin.crm.partials.styles')
-<div class="dashboard-main-body">
+<div class="dashboard-main-body" id="crm-import-history-page" data-csrf="{{ csrf_token() }}">
     @include('admin.partials.page-header', [
         'title' => 'Import History',
-        'subtitle' => 'Previous lead imports for this organization',
+        'subtitle' => 'Review past imports and undo wrong batches safely',
         'showBreadcrumb' => true,
         'breadcrumbs' => [
             ['label' => 'CRM'],
@@ -16,6 +16,10 @@
             ['label' => 'Import Leads', 'url' => route('admin.crm.leads.import.create'), 'icon' => 'solar:import-linear', 'class' => 'btn-primary-600 radius-8 px-20 py-11'],
         ],
     ])
+
+    <div class="alert alert-light border radius-8 mb-20">
+        <strong>Safe delete rule:</strong> Removing a lead or undoing an import only hides records from the CRM — nothing is permanently deleted from the database.
+    </div>
 
     @if(($categories ?? collect())->isNotEmpty())
         @include('admin.partials.filter-bar', [
@@ -38,33 +42,39 @@
                             <th>Uploaded by</th>
                             <th>Date</th>
                             <th>Status</th>
-                            <th>Total</th>
                             <th>Imported</th>
-                            <th>Warnings</th>
-                            <th>Duplicates</th>
-                            <th>Failed</th>
-                            <th>Leads</th>
+                            <th>Active leads</th>
+                            <th>Undone</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                     @forelse($imports as $batch)
-                        <tr>
+                        @php $batchStatus = $batch->statusEnum(); @endphp
+                        <tr data-crm-import-row data-import-id="{{ $batch->id }}">
                             <td>{{ $batch->original_filename }}</td>
                             <td>{{ $batch->category?->name ?? '—' }}</td>
                             <td>{{ $batch->uploader?->name ?? '—' }}</td>
                             <td>{{ $batch->created_at->format('M j, Y H:i') }}</td>
-                            <td>{{ $batch->statusEnum()->label() }}</td>
-                            <td>{{ $batch->total_rows }}</td>
+                            <td><span class="badge radius-8 {{ $batchStatus->badgeClass() }}">{{ $batchStatus->label() }}</span></td>
                             <td>{{ $batch->imported_rows }}</td>
-                            <td>{{ $batch->warning_rows }}</td>
-                            <td>{{ $batch->duplicate_rows }}</td>
-                            <td>{{ $batch->failed_rows }}</td>
                             <td>{{ $batch->leads_count }}</td>
-                            <td><a href="{{ route('admin.crm.leads.import.show', $batch) }}" class="btn btn-sm btn-outline-primary-600 radius-8">View</a></td>
+                            <td>{{ $batch->undone_rows ?: '—' }}</td>
+                            <td class="text-nowrap">
+                                <a href="{{ route('admin.crm.leads.import.show', $batch) }}" class="btn btn-sm btn-outline-primary-600 radius-8">View</a>
+                                @if($batch->canUndo())
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger-600 radius-8"
+                                            data-crm-import-undo
+                                            data-url="{{ route('admin.crm.leads.import.undo', $batch) }}"
+                                            data-import-filename="{{ $batch->original_filename }}">
+                                        Undo
+                                    </button>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="12" class="text-center py-40 text-secondary-light">No imports yet.</td></tr>
+                        <tr><td colspan="9" class="text-center py-40 text-secondary-light">No imports yet.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -72,5 +82,9 @@
         </div>
     </div>
     <div class="mt-16">{{ $imports->links() }}</div>
+    <div class="crm-toast-slot" data-crm-toast-slot aria-live="polite"></div>
 </div>
+@endsection
+@section('script')
+<script src="{{ asset('admin/assets/js/crm-import-history.js') }}"></script>
 @endsection

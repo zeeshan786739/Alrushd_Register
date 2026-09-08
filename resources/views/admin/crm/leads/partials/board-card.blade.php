@@ -2,6 +2,7 @@
     $followUp = \App\Support\LeadFollowUpState::forLead($lead);
     $canUpdate = auth('admin')->user()?->can('update leads');
     $canAssign = auth('admin')->user()?->can('assign leads');
+    $canDelete = auth('admin')->user()?->can('delete leads');
 @endphp
 <article class="crm-board-card crm-board-card--priority-{{ $lead->priority }}"
          data-crm-board-card
@@ -22,9 +23,8 @@
                         <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
                         {{ $lead->category->name }}
                     </span>
-                @else
-                    <span class="crm-board-card__lead-id">#{{ $lead->id }}</span>
                 @endif
+                <span class="crm-board-card__lead-id">Lead #{{ $lead->id }}</span>
             </div>
             <div class="crm-board-card__flags">
                 @if($lead->is_converted)
@@ -42,56 +42,74 @@
                         <iconify-icon icon="solar:pen-linear"></iconify-icon>
                     </button>
                 @endif
+                @if($canDelete && ! $lead->is_converted)
+                    <form action="{{ route('admin.crm.leads.destroy', $lead) }}" method="POST" class="d-inline" data-crm-lead-delete onclick="event.stopPropagation()">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="crm-board-card__quick-action is-danger" title="Remove from view" aria-label="Remove {{ $lead->full_name }} from view">
+                            <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
 
-        <div class="crm-board-card__body">
-            <div class="crm-board-card__title">{{ $lead->full_name }}</div>
-            <div class="crm-board-card__meta text-truncate" title="{{ $lead->email ?? $lead->phone }}">
-                {{ $lead->email ?? $lead->phone ?? 'No contact saved' }}
-            </div>
-            @if($lead->email && $lead->phone)
-                <div class="crm-board-card__detail" title="Phone: {{ $lead->phone }}">
-                    <iconify-icon icon="solar:phone-linear" aria-hidden="true"></iconify-icon>
-                    <span>{{ $lead->phone }}</span>
-                </div>
-            @endif
-            @if($lead->company)
-                <div class="crm-board-card__detail" title="Company: {{ $lead->company }}">
-                    <iconify-icon icon="solar:buildings-2-linear" aria-hidden="true"></iconify-icon>
-                    <span>{{ $lead->company }}</span>
-                </div>
-            @endif
-            @if($lead->source || $lead->formEntry)
-                <div class="crm-board-card__source-row">
-                    @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
-                    @if($lead->formEntry?->form)
-                        <span class="crm-board-card__form-name" title="{{ $lead->formEntry->form->name }}">
-                            <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
-                            {{ Str::limit($lead->formEntry->form->name, 28) }}
-                        </span>
-                    @endif
-                </div>
-            @endif
-            @if($followUp->hasFollowUp())
-                <div class="crm-board-card__followup-row">
-                    <span class="crm-board-card__followup {{ $followUp->attention ? 'is-attention' : '' }}">
-                        <iconify-icon icon="solar:calendar-linear"></iconify-icon>
-                        {{ $followUp->label }}
-                    </span>
-                </div>
-            @else
-                <div class="crm-board-card__detail">
-                    <iconify-icon icon="solar:calendar-linear" aria-hidden="true"></iconify-icon>
-                    <span>No follow-up scheduled</span>
-                </div>
-            @endif
-            <div class="crm-board-card__record-meta">
-                <span>Lead #{{ $lead->id }}</span>
-                @if($lead->created_at)
-                    <time datetime="{{ $lead->created_at->toIso8601String() }}" title="{{ $lead->created_at->format('M j, Y g:i A') }}">Added {{ $lead->created_at->format('M j, Y') }}</time>
+        <div class="crm-board-card__identity">
+            <span class="crm-lead-avatar crm-lead-avatar--board" aria-hidden="true">
+                {{ \App\Support\UserManagementHelper::initials($lead->full_name) }}
+            </span>
+            <div class="crm-board-card__identity-copy min-w-0">
+                <div class="crm-board-card__title">{{ $lead->full_name }}</div>
+                @if($lead->company)
+                    <div class="crm-board-card__company">{{ $lead->company }}</div>
                 @endif
             </div>
+        </div>
+
+        <div class="crm-board-card__contacts">
+            @if($lead->email)
+                <span class="crm-board-card__contact" title="{{ $lead->email }}">
+                    <iconify-icon icon="solar:letter-linear" aria-hidden="true"></iconify-icon>
+                    <span>{{ Str::limit($lead->email, 26) }}</span>
+                </span>
+            @endif
+            @if($lead->phone)
+                <span class="crm-board-card__contact" title="{{ $lead->phone }}">
+                    <iconify-icon icon="solar:phone-linear" aria-hidden="true"></iconify-icon>
+                    <span>{{ $lead->phone }}</span>
+                </span>
+            @endif
+            @if(!$lead->email && !$lead->phone)
+                <span class="crm-board-card__contact crm-board-card__contact--empty">No contact saved</span>
+            @endif
+        </div>
+
+        <div class="crm-board-card__tags">
+            @if($lead->source || $lead->formEntry)
+                @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
+                @if($lead->formEntry?->form)
+                    <span class="crm-board-card__form-name" title="{{ $lead->formEntry->form->name }}">
+                        <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
+                        {{ Str::limit($lead->formEntry->form->name, 22) }}
+                    </span>
+                @endif
+            @endif
+            @if($followUp->hasFollowUp())
+                <span class="crm-board-card__followup {{ $followUp->attention ? 'is-attention' : '' }}">
+                    <iconify-icon icon="solar:calendar-linear" aria-hidden="true"></iconify-icon>
+                    {{ $followUp->label }}
+                </span>
+            @endif
+        </div>
+
+        <div class="crm-board-card__record-meta">
+            @if($lead->created_at)
+                <time datetime="{{ $lead->created_at->toIso8601String() }}" title="{{ $lead->created_at->format('M j, Y g:i A') }}">
+                    Added {{ $lead->created_at->format('M j, Y') }}
+                </time>
+            @endif
+            @if(!$followUp->hasFollowUp())
+                <span class="crm-board-card__record-note">No follow-up</span>
+            @endif
         </div>
 
         <div class="crm-board-card__footer">

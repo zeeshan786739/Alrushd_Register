@@ -23,6 +23,15 @@
         </div>
     @endif
 
+    @if($isAdministrationSheet ?? false)
+        <div class="alert alert-success radius-8 mb-16">
+            <strong>Administration sheet detected.</strong>
+            We pre-mapped your columns (student, contact, channel, success/outcome, assignee).
+            Team names in the first column (e.g. Foysol, Tayyeb, Faiza) are matched automatically to CRM users with similar names.
+            Checkbox columns and admission notes are kept as custom lead information — nothing is dropped.
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('admin.crm.leads.import.map.save', $import) }}">
         @csrf
         <div class="card radius-12 shadow-2 border-0 mb-24">

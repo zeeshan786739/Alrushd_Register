@@ -35,7 +35,7 @@ class LeadImportValueNormalizer
             }
             if ($field === LeadImportFields::CUSTOM) {
                 if ($this->hasContent($raw)) {
-                    $custom[$header['label']] = $this->stringify($raw);
+                    $custom[$header['label']] = $this->formatCustomValue($raw);
                 }
                 continue;
             }
@@ -48,6 +48,7 @@ class LeadImportValueNormalizer
         }
 
         $this->applyNameFallback($fields, $warnings);
+        $this->mergeSpreadsheetNotes($fields, $custom);
         $this->mergeSourceDateTime($fields, $warnings);
 
         return [
@@ -176,6 +177,8 @@ class LeadImportValueNormalizer
         }
 
         $aliases = [
+            'yes' => LeadStatus::Won->value,
+            'no' => LeadStatus::Lost->value,
             'pending' => LeadStatus::New->value,
             'pending_admission' => LeadStatus::New->value,
             'in_progress' => LeadStatus::Contacted->value,
@@ -304,6 +307,59 @@ class LeadImportValueNormalizer
             }
         }
         unset($fields['source_time']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $fields
+     * @param  array<string, mixed>  $custom
+     */
+    private function mergeSpreadsheetNotes(array &$fields, array &$custom): void
+    {
+        $noteLabels = [
+            'Notes:',
+            'Notes',
+            'Followup details',
+            'Follow up details',
+            'Mode of contact',
+            'Date of contact',
+        ];
+
+        $parts = [];
+        if (! empty($fields['notes'])) {
+            $parts[] = trim((string) $fields['notes']);
+        }
+
+        foreach ($noteLabels as $label) {
+            if (! array_key_exists($label, $custom)) {
+                continue;
+            }
+            $value = trim((string) $custom[$label]);
+            if ($value === '') {
+                unset($custom[$label]);
+                continue;
+            }
+            $parts[] = $label.': '.$value;
+            unset($custom[$label]);
+        }
+
+        if ($parts !== []) {
+            $fields['notes'] = implode("\n\n", array_unique($parts));
+        }
+    }
+
+    private function formatCustomValue(mixed $raw): string
+    {
+        if (is_bool($raw)) {
+            return $raw ? 'Yes' : 'No';
+        }
+        if (is_numeric($raw) && (float) $raw === 1.0) {
+            return 'Yes';
+        }
+        if (is_numeric($raw) && (float) $raw === 0.0) {
+            return 'No';
+        }
+
+        return $this->stringify($raw);
     }
 
     private function preserveText(mixed $raw): ?string

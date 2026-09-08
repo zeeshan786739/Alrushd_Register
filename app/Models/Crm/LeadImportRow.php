@@ -48,6 +48,11 @@ class LeadImportRow extends Model
         return $this->belongsTo(Lead::class, 'lead_id');
     }
 
+    public function leadRecord(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'lead_id')->withTrashed();
+    }
+
     public function statusEnum(): LeadImportRowStatus
     {
         return LeadImportRowStatus::tryFrom((string) $this->status) ?? LeadImportRowStatus::Ready;

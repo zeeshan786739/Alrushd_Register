@@ -11,6 +11,7 @@ use App\Models\Crm\LeadImport;
 use App\Models\Crm\LeadImportProfile;
 use App\Models\Crm\LeadImportRow;
 use App\Support\LeadImportFields;
+use App\Support\AdministrationSheetImportProfile;
 use App\Support\OrganizationContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +28,7 @@ class LeadImportService
         private LeadImportValidator $validator,
         private LeadImportDuplicateDetector $duplicateDetector,
         private LeadImportProcessor $processor,
+        private AdministrationSheetImportProfile $administrationProfile,
     ) {}
 
     public function createFromUpload(UploadedFile $file, Admin $admin): LeadImport
@@ -45,6 +47,13 @@ class LeadImportService
         $absolute = Storage::disk($disk)->path($path);
         $parsed = $this->reader->read($absolute);
 
+        $defaultOptions = $this->defaultOptions();
+        $mapping = $this->defaultMapping($parsed['headers'], $parsed['sample_values']);
+        if ($this->administrationProfile->matches($parsed['headers'])) {
+            $mapping = $this->administrationProfile->mapping($parsed['headers']);
+            $defaultOptions = array_merge($defaultOptions, $this->administrationProfile->options());
+        }
+
         $import = LeadImport::create([
             'organization_id' => $organizationId,
             'uploaded_by' => $admin->id,
@@ -55,8 +64,8 @@ class LeadImportService
             'selected_sheet' => $parsed['selected_sheet'],
             'header_row' => $parsed['header_row'],
             'detected_headers' => $parsed['headers'],
-            'mapping' => $this->defaultMapping($parsed['headers'], $parsed['sample_values']),
-            'import_options' => $this->defaultOptions(),
+            'mapping' => $mapping,
+            'import_options' => $defaultOptions,
             'status' => LeadImportStatus::Uploaded->value,
             'total_rows' => count($parsed['rows']),
         ]);

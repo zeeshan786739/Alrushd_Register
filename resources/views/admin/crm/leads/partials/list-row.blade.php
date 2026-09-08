@@ -125,9 +125,9 @@
             </a>
         @endcan
         @can('delete leads')
-            <form action="{{ route('admin.crm.leads.destroy', $lead) }}" method="POST" class="d-inline" onclick="event.stopPropagation()">
+            <form action="{{ route('admin.crm.leads.destroy', $lead) }}" method="POST" class="d-inline" data-crm-lead-delete onclick="event.stopPropagation()">
                 @csrf @method('DELETE')
-                <button type="submit" class="crm-list-action is-delete" title="Delete lead" aria-label="Delete lead">
+                <button type="submit" class="crm-list-action is-delete" title="Remove from view" aria-label="Remove {{ $lead->full_name }} from view">
                     <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
                 </button>
             </form>

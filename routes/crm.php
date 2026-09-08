@@ -19,6 +19,8 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('leads/export', [LeadController::class, 'export'])->name('leads.export');
     Route::get('leads/import', [LeadImportController::class, 'create'])->name('leads.import.create');
     Route::post('leads/import', [LeadImportController::class, 'store'])->name('leads.import.store');
+    Route::post('leads/import/categories', [LeadImportController::class, 'storeCategory'])->name('leads.import.categories.store');
+    Route::delete('leads/import/categories/{leadCategory}', [LeadImportController::class, 'destroyCategory'])->name('leads.import.categories.destroy');
     Route::get('leads/import/history', [LeadImportController::class, 'index'])->name('leads.import.index');
     Route::get('leads/import/{leadImport}/category', [LeadImportController::class, 'category'])->name('leads.import.category');
     Route::post('leads/import/{leadImport}/category', [LeadImportController::class, 'saveCategory'])->name('leads.import.category.save');
@@ -27,6 +29,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::post('leads/import/{leadImport}/map', [LeadImportController::class, 'saveMap'])->name('leads.import.map.save');
     Route::get('leads/import/{leadImport}/preview', [LeadImportController::class, 'preview'])->name('leads.import.preview');
     Route::post('leads/import/{leadImport}/confirm', [LeadImportController::class, 'confirm'])->name('leads.import.confirm');
+    Route::post('leads/import/{leadImport}/undo', [LeadImportController::class, 'undo'])->name('leads.import.undo');
     Route::get('leads/import/{leadImport}/failed-rows', [LeadImportController::class, 'failedRows'])->name('leads.import.failed-rows');
     Route::get('leads/import/{leadImport}', [LeadImportController::class, 'show'])->name('leads.import.show');
     Route::post('leads/filters', [LeadController::class, 'saveFilter'])->name('leads.filters.save');

@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    var page = document.getElementById('crm-lead-category-page');
+    var page = document.getElementById('crm-lead-category-page') || document.getElementById('crm-lead-import-page');
     if (!page) return;
 
     function bindCreateForm(form) {
@@ -68,6 +68,8 @@
 
     function bindSubmitLocks(root) {
         root.querySelectorAll('form').forEach(function (form) {
+            if (form.getAttribute('data-crm-category-create-ajax') === '1') return;
+            if (form.getAttribute('data-crm-category-delete-ajax') === '1') return;
             if (form.getAttribute('data-submit-lock-bound') === '1') return;
             form.setAttribute('data-submit-lock-bound', '1');
             form.addEventListener('submit', function () {

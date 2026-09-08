@@ -78,8 +78,20 @@ class LeadImportMappingService
 
         // Admission progress and free-text history are not CRM form names or dates.
         if (in_array($normalized, ['year', 'application_form', 'direct_debit_form', 'admission_fee',
-            'lead_id', 'success_unsuccessful', 'mode_of_contact', 'date_of_contact', 'followup_details', 'follow_up_details'], true)) {
+            'lead_id', 'mode_of_contact', 'date_of_contact', 'followup_details', 'follow_up_details', 'notes'], true)) {
             return ['field' => LeadImportFields::CUSTOM, 'confidence' => 'high', 'reason' => 'Preserve original admission information'];
+        }
+
+        if ($normalized === 'current_status') {
+            return ['field' => LeadImportFields::CUSTOM, 'confidence' => 'high', 'reason' => 'Admission progress notes, not CRM pipeline status'];
+        }
+
+        if ($normalized === 'success_unsuccessful') {
+            return ['field' => 'lead_status', 'confidence' => 'high', 'reason' => 'Admission outcome maps to CRM status'];
+        }
+
+        if ($normalized === 'lead_status') {
+            return ['field' => LeadImportFields::CUSTOM, 'confidence' => 'high', 'reason' => 'Original contact method (kept as custom field)'];
         }
 
         foreach ($this->synonyms() as $field => $terms) {
@@ -165,7 +177,7 @@ class LeadImportMappingService
             'form_name' => ['form_name', 'form', 'lead_form'],
             'source_submitted_at' => ['created_at', 'date', 'submitted_at', 'lead_date', 'timestamp'],
             'source_time' => ['time'],
-            'lead_status' => ['current_status', 'lead_status', 'status'],
+            'lead_status' => ['status'],
             'assigned_to_name' => ['agent', 'agent_name', 'owner', 'assigned_to', 'assignee', 'assigned_team_member', 'assigned_team_members', 'team_member'],
             'assigned_to_email' => ['agent_email', 'owner_email', 'assignee_email'],
             'notes' => ['notes', 'note', 'comments', 'comment'],

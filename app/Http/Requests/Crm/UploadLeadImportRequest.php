@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Crm;
 
+use App\Support\CrmOrgRules;
+use App\Support\LeadCategorySchema;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UploadLeadImportRequest extends FormRequest
@@ -11,13 +13,34 @@ class UploadLeadImportRequest extends FormRequest
         return $this->user('admin')?->can('import leads') ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('lead_category_id') === '') {
+            $this->merge(['lead_category_id' => null]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         $maxKb = (int) ceil(((int) config('lead_import.max_bytes', 10485760)) / 1024);
 
-        return [
+        $rules = [
             'file' => ['required', 'file', 'max:'.$maxKb],
+        ];
+
+        if (LeadCategorySchema::ready()) {
+            $rules['lead_category_id'] = ['required', 'integer', CrmOrgRules::leadCategoryId(true)];
+        }
+
+        return $rules;
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'lead_category_id.required' => 'Please select or create a lead category before uploading.',
         ];
     }
 

@@ -9,6 +9,7 @@ enum LeadImportRowStatus: string
     case Invalid = 'invalid';
     case Duplicate = 'duplicate';
     case Imported = 'imported';
+    case Undone = 'undone';
     case Skipped = 'skipped';
     case Failed = 'failed';
 
@@ -20,6 +21,7 @@ enum LeadImportRowStatus: string
             self::Invalid => 'Invalid',
             self::Duplicate => 'Duplicate',
             self::Imported => 'Imported',
+            self::Undone => 'Removed',
             self::Skipped => 'Skipped',
             self::Failed => 'Failed',
         };
@@ -29,6 +31,7 @@ enum LeadImportRowStatus: string
     {
         return match ($this) {
             self::Ready, self::Imported => 'bg-success-focus text-success-main',
+            self::Undone => 'bg-warning-focus text-warning-main',
             self::Warning => 'bg-warning-focus text-warning-main',
             self::Duplicate, self::Skipped => 'bg-neutral-200 text-secondary-light',
             self::Invalid, self::Failed => 'bg-danger-focus text-danger-main',

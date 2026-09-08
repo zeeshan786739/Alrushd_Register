@@ -16,6 +16,8 @@ use RuntimeException;
 
 class LeadImportFileReader
 {
+    private const DEFAULT_MAX_ROWS = 10000;
+
     /**
      * @return array{
      *     format: string,
@@ -30,7 +32,7 @@ class LeadImportFileReader
      */
     public function read(string $path, ?string $sheetName = null, ?int $headerRow = null, ?int $maxRows = null): array
     {
-        $maxRows ??= (int) config('lead_import.max_rows', 10000);
+        $maxRows ??= $this->defaultMaxRows();
         $format = $this->detectFormat($path);
         $reader = $this->makeReader($format);
         $reader->setReadDataOnly(true);
@@ -108,6 +110,19 @@ class LeadImportFileReader
         } finally {
             $spreadsheet->disconnectWorksheets();
         }
+    }
+
+    private function defaultMaxRows(): int
+    {
+        if (function_exists('app')) {
+            try {
+                return (int) config('lead_import.max_rows', self::DEFAULT_MAX_ROWS);
+            } catch (\Throwable) {
+                // Standalone unit tests without a bootstrapped container.
+            }
+        }
+
+        return self::DEFAULT_MAX_ROWS;
     }
 
     public function detectFormat(string $path): string

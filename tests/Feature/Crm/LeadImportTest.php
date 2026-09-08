@@ -298,6 +298,102 @@ class LeadImportTest extends CrmTestCase
         $this->assertStringContainsString('447700900999', preg_replace('/\D+/', '', (string) $lead?->phone) ?? '');
     }
 
+    public function test_administration_sheet_imports_with_fuzzy_assignee_and_custom_fields(): void
+    {
+        Admin::create([
+            'name' => 'Foysal Ahmed',
+            'email' => 'foysal@example.test',
+            'password' => bcrypt('password'),
+            'organization_id' => $this->organizationA->id,
+        ]);
+        Admin::create([
+            'name' => 'Tayyeb Khan',
+            'email' => 'tayyeb@example.test',
+            'password' => bcrypt('password'),
+            'organization_id' => $this->organizationA->id,
+        ]);
+
+        $path = $this->tmpDir.'/administration.xlsx';
+        LeadImportFixtureFactory::administrationSheetXlsx($path);
+        $import = $this->uploadAndMap($path, 'New Administration Sheet.xlsx', [], [
+            'source_label' => 'Administration Sheet',
+            'default_calling_code' => '44',
+            'date_format' => 'd/m/Y',
+        ]);
+
+        $this->assertSame('assigned_to_name', $import->mapping['col_0'] ?? null);
+        $this->assertSame('full_name', $import->mapping['col_3'] ?? null);
+        $this->assertSame('lead_status', $import->mapping['col_13'] ?? null);
+        $this->assertSame('custom', $import->mapping['col_12'] ?? null);
+
+        $this->confirm($import);
+
+        $lead = Lead::forOrganization($this->organizationA->id)->where('email', 'parent@example.test')->first();
+        $this->assertNotNull($lead);
+        $this->assertSame('Muhammad', $lead->first_name);
+        $this->assertSame('Yousaf', $lead->last_name);
+        $this->assertSame('lost', $lead->lead_status);
+        $this->assertSame('Foysal Ahmed', $lead->assignedAdmin?->name);
+        $this->assertSame('Y5', $lead->custom_data['Year'] ?? null);
+        $this->assertSame('Yes', $lead->custom_data['Application Form'] ?? null);
+        $this->assertSame('No', $lead->custom_data['Direct Debit form'] ?? null);
+        $this->assertSame('Whatsapp', $lead->custom_data['Lead Status'] ?? null);
+        $this->assertStringContainsString('Interested in September enrolment', (string) $lead->notes()->value('note'));
+    }
+
+    public function test_undo_import_soft_removes_leads_from_view(): void
+    {
+        Admin::create([
+            'name' => 'Foysal Ahmed',
+            'email' => 'foysal@example.test',
+            'password' => bcrypt('password'),
+            'organization_id' => $this->organizationA->id,
+        ]);
+
+        $path = $this->tmpDir.'/administration.xlsx';
+        LeadImportFixtureFactory::administrationSheetXlsx($path);
+        $import = $this->uploadAndMap($path, 'New Administration Sheet.xlsx');
+        $this->confirm($import);
+        $import = $import->fresh();
+
+        $this->assertSame('completed', $import->status);
+        $this->assertGreaterThan(0, Lead::forOrganization($this->organizationA->id)->count());
+
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.import.undo', $import), ['confirm' => true])
+            ->assertRedirect();
+
+        $import = $import->fresh();
+        $this->assertSame('undone', $import->status);
+        $this->assertGreaterThan(0, $import->undone_rows);
+        $this->assertNotNull($import->undone_at);
+
+        $this->assertSame(0, Lead::forOrganization($this->organizationA->id)->count());
+        $this->assertGreaterThan(0, Lead::withTrashed()->where('organization_id', $this->organizationA->id)->count());
+    }
+
+    public function test_same_file_can_be_reimported_after_undo(): void
+    {
+        $path = $this->tmpDir.'/administration.xlsx';
+        LeadImportFixtureFactory::administrationSheetXlsx($path);
+
+        $first = $this->uploadAndMap($path, 'New Administration Sheet.xlsx');
+        $this->confirm($first);
+        $this->assertGreaterThan(0, Lead::forOrganization($this->organizationA->id)->count());
+
+        $this->actingAsCrmAdmin()
+            ->post(route('admin.crm.leads.import.undo', $first->fresh()), ['confirm' => true])
+            ->assertRedirect();
+
+        $this->assertSame(0, Lead::forOrganization($this->organizationA->id)->count());
+
+        $second = $this->uploadAndMap($path, 'New Administration Sheet.xlsx');
+        $this->assertSame(0, $second->duplicate_rows, 'Undone leads must not block re-import');
+
+        $this->confirm($second);
+        $this->assertGreaterThan(0, Lead::forOrganization($this->organizationA->id)->count());
+    }
+
     /**
      * @param  array<string, string>  $mappingOverrides
      * @param  array<string, mixed>  $options
@@ -305,14 +401,22 @@ class LeadImportTest extends CrmTestCase
     private function uploadAndMap(string $path, string $name, array $mappingOverrides = [], array $options = []): LeadImport
     {
         $this->actingAsCrmAdmin()
-            ->post(route('admin.crm.leads.import.store'), [
+            ->post(route('admin.crm.leads.import.store'), array_filter([
                 'file' => $this->upload($path, $name),
-            ])
+                'lead_category_id' => LeadCategorySchema::ready()
+                    ? LeadCategory::query()->firstOrCreate(
+                        ['organization_id' => $this->organizationA->id, 'name' => 'General Enquiry'],
+                        ['icon' => 'solar:folder-with-files-linear', 'tone' => 'neutral', 'is_active' => true]
+                    )->id
+                    : null,
+            ]))
             ->assertRedirect();
 
         $import = LeadImport::forOrganization($this->organizationA->id)->latest('id')->firstOrFail();
 
-        if (LeadCategorySchema::ready()) {
+        $mapping = array_merge($import->mapping ?? [], $mappingOverrides);
+
+        if (LeadCategorySchema::ready() && ! $import->lead_category_id) {
             $category = LeadCategory::query()->firstOrCreate(
                 [
                     'organization_id' => $this->organizationA->id,
@@ -325,16 +429,8 @@ class LeadImportTest extends CrmTestCase
                 ]
             );
 
-            $this->actingAsCrmAdmin()
-                ->post(route('admin.crm.leads.import.category.save', $import), [
-                    'lead_category_id' => $category->id,
-                ])
-                ->assertRedirect(route('admin.crm.leads.import.map', $import));
-
-            $import = $import->fresh();
+            $import->update(['lead_category_id' => $category->id]);
         }
-
-        $mapping = array_merge($import->mapping ?? [], $mappingOverrides);
 
         $this->actingAsCrmAdmin()
             ->post(route('admin.crm.leads.import.map.save', $import), [

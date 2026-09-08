@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Crm;
 
 use App\Enums\LeadImportRowStatus;
+use App\Enums\LeadImportStatus;
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Exports\Crm\LeadImportFailedRowsExport;
@@ -16,9 +17,12 @@ use App\Models\Admin;
 use App\Models\Crm\LeadCategory;
 use App\Models\Crm\LeadImport;
 use App\Services\Crm\LeadImport\LeadImportService;
+use App\Services\Crm\LeadImport\LeadImportUndoService;
 use App\Support\LeadCategorySchema;
+use App\Support\AdministrationSheetImportProfile;
 use App\Support\LeadImportFields;
 use App\Support\OrganizationContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -28,7 +32,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LeadImportController extends Controller
 {
-    public function __construct(private LeadImportService $imports)
+    public function __construct(
+        private LeadImportService $imports,
+        private LeadImportUndoService $undoService,
+    )
     {
         $this->middleware('permission:import leads');
     }
@@ -61,7 +68,16 @@ class LeadImportController extends Controller
 
     public function create(): View
     {
-        return view('admin.crm.leads.import.create');
+        $categories = LeadCategorySchema::ready()
+            ? LeadCategory::forCurrentOrganization()
+                ->active()
+                ->withCount('leads')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        return view('admin.crm.leads.import.create', compact('categories'));
     }
 
     public function store(UploadLeadImportRequest $request): RedirectResponse
@@ -69,12 +85,19 @@ class LeadImportController extends Controller
         try {
             $import = $this->imports->createFromUpload($request->file('file'), $request->user('admin'));
         } catch (RuntimeException $e) {
-            return back()->withErrors(['file' => $e->getMessage()]);
+            return back()->withInput()->withErrors(['file' => $e->getMessage()]);
         }
 
         if (LeadCategorySchema::ready()) {
-            return redirect()->route('admin.crm.leads.import.category', $import)
-                ->with('success', 'File uploaded. Select a lead category before mapping columns.');
+            $category = LeadCategory::forCurrentOrganization()
+                ->active()
+                ->whereKey((int) $request->validated('lead_category_id'))
+                ->firstOrFail();
+
+            $import->update(['lead_category_id' => $category->id]);
+
+            return redirect()->route('admin.crm.leads.import.map', $import)
+                ->with('success', 'File uploaded into “'.$category->name.'”. Review column mapping before importing.');
         }
 
         return redirect()->route('admin.crm.leads.import.map', $import)
@@ -97,6 +120,8 @@ class LeadImportController extends Controller
         return view('admin.crm.leads.import.category', [
             'import' => $leadImport,
             'categories' => $categories,
+            'isAdministrationSheet' => app(AdministrationSheetImportProfile::class)
+                ->matches($leadImport->detected_headers ?? []),
         ]);
     }
 
@@ -117,9 +142,13 @@ class LeadImportController extends Controller
             ->with('success', 'Category selected. Review column mapping before importing.');
     }
 
-    public function storeCategory(StoreLeadCategoryRequest $request, ?LeadImport $leadImport = null): RedirectResponse
+    public function storeCategory(StoreLeadCategoryRequest $request, ?LeadImport $leadImport = null): RedirectResponse|JsonResponse
     {
         if (! LeadCategorySchema::ready()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Lead categories are not available yet.'], 422);
+            }
+
             return back()->withErrors(['name' => 'Lead categories are not available yet.']);
         }
 
@@ -134,12 +163,72 @@ class LeadImportController extends Controller
 
         if ($leadImport) {
             $leadImport->update(['lead_category_id' => $category->id]);
+        }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Category “'.$category->name.'” created.',
+                'category' => $this->categoryPayload($category),
+            ]);
+        }
+
+        if ($leadImport) {
             return redirect()->route('admin.crm.leads.import.map', $leadImport)
                 ->with('success', 'Category created and selected. Review column mapping before importing.');
         }
 
-        return back()->with('success', 'Lead category created.');
+        return redirect()
+            ->route('admin.crm.leads.import.create', ['category' => $category->id])
+            ->with('success', 'Category “'.$category->name.'” created. Now upload your spreadsheet.');
+    }
+
+    public function destroyCategory(Request $request, LeadCategory $leadCategory): RedirectResponse|JsonResponse
+    {
+        if (! LeadCategorySchema::ready()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Lead categories are not available yet.'], 422);
+            }
+
+            return back()->withErrors(['name' => 'Lead categories are not available yet.']);
+        }
+
+        abort_unless($leadCategory->organization_id === OrganizationContext::idOrFail(), 404);
+
+        if ($leadCategory->leads()->exists()) {
+            $message = 'This category has leads and cannot be deleted.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->with('error', $message);
+        }
+
+        $name = $leadCategory->name;
+        $leadCategory->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Category “'.$name.'” deleted.']);
+        }
+
+        return redirect()
+            ->route('admin.crm.leads.import.create')
+            ->with('success', 'Category “'.$name.'” deleted.');
+    }
+
+    /** @return array<string, mixed> */
+    private function categoryPayload(LeadCategory $category): array
+    {
+        $category->loadCount('leads');
+
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'icon' => $category->displayIcon(),
+            'tone' => $category->displayTone(),
+            'leads_count' => (int) ($category->leads_count ?? 0),
+            'destroy_url' => route('admin.crm.leads.import.categories.destroy', $category),
+        ];
     }
 
     public function map(LeadImport $leadImport): View|RedirectResponse
@@ -160,6 +249,8 @@ class LeadImportController extends Controller
             'admins' => $admins,
             'statuses' => LeadStatus::options(),
             'priorities' => LeadPriority::options(),
+            'isAdministrationSheet' => app(AdministrationSheetImportProfile::class)
+                ->matches($data['parsed']['headers'] ?? []),
         ]);
     }
 
@@ -206,7 +297,7 @@ class LeadImportController extends Controller
             'previousImportCount' => LeadImport::forCurrentOrganization()
                 ->where('file_hash', $leadImport->file_hash)
                 ->where('id', '!=', $leadImport->id)
-                ->where('status', 'completed')
+                ->where('status', LeadImportStatus::Completed->value)
                 ->count(),
         ]);
     }
@@ -219,10 +310,39 @@ class LeadImportController extends Controller
             ->with('success', $import->imported_rows.' lead(s) imported.');
     }
 
+    public function undo(Request $request, LeadImport $leadImport): RedirectResponse|JsonResponse
+    {
+        try {
+            $stats = $this->undoService->undo($leadImport, $request->user('admin'));
+        } catch (RuntimeException $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return back()->with('error', $e->getMessage());
+        }
+
+        $message = $stats['undone'].' lead(s) removed from view.';
+        if ($stats['skipped_converted'] > 0) {
+            $message .= ' '.$stats['skipped_converted'].' converted lead(s) were kept.';
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'stats' => $stats,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.crm.leads.import.show', $leadImport->fresh())
+            ->with('success', $message);
+    }
+
     public function show(LeadImport $leadImport): View
     {
-        $leadImport->load(['uploader', 'category']);
-        $rows = $leadImport->rows()->with('lead')->orderBy('row_number')->paginate(50);
+        $leadImport->load(['uploader', 'category', 'undoneBy']);
+        $rows = $leadImport->rows()->with('leadRecord')->orderBy('row_number')->paginate(50);
 
         return view('admin.crm.leads.import.show', [
             'import' => $leadImport,

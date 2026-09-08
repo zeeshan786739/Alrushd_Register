@@ -286,14 +286,31 @@ class LeadController extends Controller
         return redirect()->route('admin.crm.leads.show', $lead)->with('success', 'Lead updated successfully.');
     }
 
-    public function destroy(Lead $lead): RedirectResponse
+    public function destroy(Lead $lead): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $lead);
-        $lead->notes()->delete();
-        $lead->activities()->delete();
+
+        if ($lead->is_converted) {
+            $message = 'Converted leads cannot be removed from the CRM.';
+
+            if ($this->wantsJsonResponse()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->with('error', $message);
+        }
+
+        $lead->logActivity('archived', 'Lead removed from CRM view');
         $lead->delete();
 
-        return redirect()->route('admin.crm.leads.index')->with('success', 'Lead deleted successfully.');
+        if ($this->wantsJsonResponse()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Lead removed from view. It is kept safely in the database.',
+            ]);
+        }
+
+        return redirect()->route('admin.crm.leads.index')->with('success', 'Lead removed from view.');
     }
 
     public function addNote(Request $request, Lead $lead): RedirectResponse|JsonResponse

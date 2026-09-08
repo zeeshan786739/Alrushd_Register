@@ -7,6 +7,7 @@ use App\Enums\LeadImportStatus;
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Models\Admin;
+use App\Support\LeadAssigneeMatcher;
 use App\Models\Crm\Lead;
 use App\Models\Crm\LeadImport;
 use App\Models\Crm\LeadImportRow;
@@ -17,6 +18,7 @@ use Throwable;
 
 class LeadImportProcessor
 {
+    public function __construct(private LeadAssigneeMatcher $assigneeMatcher) {}
     public function process(LeadImport $import): LeadImport
     {
         $import->update([
@@ -176,7 +178,7 @@ class LeadImportProcessor
         }
 
         if ($name !== '') {
-            $match = (clone $query)->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])->first();
+            $match = $this->assigneeMatcher->match($query, $name);
             if ($match) {
                 return $match->id;
             }

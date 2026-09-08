@@ -20,7 +20,13 @@ class LeadImportValidator
         $hasName = $name !== '' && strcasecmp($name, 'Unknown') !== 0;
 
         if ($email === '' && $phoneDigits === '' && ! $hasName) {
-            $errors[] = 'Row has no name, email, or phone';
+            $notes = trim((string) ($fields['notes'] ?? ''));
+            $hasOutcome = ! empty($fields['lead_status']);
+            if ($notes === '' && ! $hasOutcome) {
+                $errors[] = 'Row has no name, email, or phone';
+            } else {
+                $warnings[] = 'Limited contact details; row imported from spreadsheet history';
+            }
         }
 
         $status = $errors !== []
