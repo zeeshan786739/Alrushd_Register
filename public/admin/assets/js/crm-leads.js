@@ -83,6 +83,15 @@
         });
     }
 
+    page.querySelectorAll('[data-crm-filter-auto-submit]').forEach(function (select) {
+        select.addEventListener('change', function () {
+            var form = select.closest('form');
+            if (form) {
+                form.submit();
+            }
+        });
+    });
+
     initSmartSearch();
     initModalMaximize();
     initLeadRemove();
@@ -529,10 +538,12 @@
                     list.insertAdjacentHTML('beforeend', result.data.comment_html);
                 }
 
-                var meta = root.querySelector('.crm-lead-ticket__block-meta');
+                var meta = root.querySelector('[data-crm-comments-meta]');
                 if (meta && result.data && typeof result.data.comment_count === 'number') {
                     meta.textContent = result.data.comment_count + ' total';
                 }
+
+                applyPanelActivityUpdate(root.getAttribute('data-lead-id'), result.data);
 
                 input.innerHTML = '';
                 if (hidden) hidden.value = '';
@@ -614,14 +625,104 @@
         }
     }
 
+    var VISIBLE_ACTIVITY_LIMIT = 3;
+
+    function bindShowMoreButton(button, root) {
+        if (!button || button.getAttribute('data-bound') === '1') return;
+        button.setAttribute('data-bound', '1');
+        button.addEventListener('click', function () {
+            var kind = button.getAttribute('data-crm-show-more');
+            var hidden = root.querySelector('[data-crm-' + kind + '-hidden]');
+            if (hidden) hidden.hidden = false;
+            button.remove();
+        });
+    }
+
+    function updateActivityShowMoreButton(root, hiddenWrap) {
+        if (!root || !hiddenWrap) return;
+        var hiddenCount = hiddenWrap.querySelectorAll('.crm-lead-ticket__timeline-item').length;
+        var btn = root.querySelector('[data-crm-show-more="activity"]');
+        if (hiddenCount <= 0) {
+            if (btn) btn.remove();
+            return;
+        }
+        var label = 'Show ' + hiddenCount + ' more activit' + (hiddenCount === 1 ? 'y' : 'ies');
+        if (btn) {
+            btn.textContent = label;
+            return;
+        }
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'crm-lead-ticket__show-more';
+        btn.setAttribute('data-crm-show-more', 'activity');
+        btn.textContent = label;
+        var timeline = root.querySelector('[data-crm-activity-list]');
+        if (timeline && timeline.parentNode) {
+            timeline.parentNode.appendChild(btn);
+            bindShowMoreButton(btn, root);
+        }
+    }
+
+    function prependPanelActivity(root, html, count) {
+        if (!root || !html) return;
+
+        var list = root.querySelector('[data-crm-activity-list]');
+        if (!list) return;
+
+        var empty = list.querySelector('.crm-lead-ticket__empty');
+        if (empty) empty.remove();
+
+        var hiddenWrap = list.querySelector('[data-crm-activity-hidden]');
+        var temp = document.createElement('div');
+        temp.innerHTML = html.trim();
+        var item = temp.firstElementChild;
+        if (!item) return;
+
+        if (hiddenWrap) {
+            list.insertBefore(item, hiddenWrap);
+        } else {
+            list.insertBefore(item, list.firstChild);
+        }
+
+        var visibleItems = [];
+        Array.prototype.forEach.call(list.children, function (node) {
+            if (!node.matches || !node.matches('.crm-lead-ticket__timeline-item')) return;
+            visibleItems.push(node);
+        });
+
+        while (visibleItems.length > VISIBLE_ACTIVITY_LIMIT) {
+            var overflow = visibleItems.pop();
+            if (!hiddenWrap) {
+                hiddenWrap = document.createElement('div');
+                hiddenWrap.className = 'crm-lead-ticket__timeline-hidden';
+                hiddenWrap.setAttribute('data-crm-activity-hidden', '');
+                hiddenWrap.hidden = true;
+                list.appendChild(hiddenWrap);
+            }
+            hiddenWrap.insertBefore(overflow, hiddenWrap.firstChild);
+        }
+
+        updateActivityShowMoreButton(root, hiddenWrap);
+
+        var meta = root.querySelector('[data-crm-activity-meta]');
+        if (meta && typeof count === 'number') {
+            meta.textContent = count + ' event' + (count === 1 ? '' : 's');
+        }
+
+        var details = root.querySelector('.crm-lead-ticket__block--collapsible');
+        if (details) details.open = true;
+    }
+
+    function applyPanelActivityUpdate(leadId, data) {
+        if (!data || !data.activity_html) return;
+        var panelRoot = page.querySelector('[data-crm-lead-panel][data-lead-id="' + leadId + '"]');
+        if (!panelRoot) return;
+        prependPanelActivity(panelRoot, data.activity_html, data.activity_count);
+    }
+
     function initShowMore(root) {
         root.querySelectorAll('[data-crm-show-more]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var kind = button.getAttribute('data-crm-show-more');
-                var hidden = root.querySelector('[data-crm-' + kind + '-hidden]');
-                if (hidden) hidden.hidden = false;
-                button.remove();
-            });
+            bindShowMoreButton(button, root);
         });
     }
 
@@ -712,6 +813,7 @@
                         titleEl.textContent = lead.full_name || next;
                         syncLeadDisplay(lead);
                         syncModalHeader(lead.full_name || next, 'Review and update without leaving the workspace');
+                        applyPanelActivityUpdate(leadId, result.data);
                         showToast((result.data && result.data.message) || 'Lead renamed.', false);
                     }).catch(function () {
                         titleEl.classList.remove('is-busy');
@@ -1450,6 +1552,7 @@
                 if (field === 'priority') {
                     syncBoardCardPriority(leadId, value);
                 }
+                applyPanelActivityUpdate(leadId, result.data);
                 showToast((result.data && result.data.message) || 'Updated.', false);
             }).catch(function () {
                 applyControlVisual(dropdown, previousTone, previousIcon, previousLabel);
@@ -1546,6 +1649,7 @@
             }
             select.setAttribute('data-previous', value);
             select.setAttribute('data-tone', (result.data && result.data.tone) || previousTone);
+            applyPanelActivityUpdate(leadId, result.data);
             showToast((result.data && result.data.message) || 'Updated.', false);
         }).catch(function () {
             select.value = previous || '';

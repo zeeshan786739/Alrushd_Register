@@ -1,18 +1,5 @@
 @php
     $followUp = \App\Support\LeadFollowUpState::forLead($lead);
-    $activityIcons = [
-        'created' => 'solar:add-circle-linear',
-        'status_changed' => 'solar:refresh-circle-linear',
-        'priority_changed' => 'solar:flag-linear',
-        'note_added' => 'solar:chat-round-dots-linear',
-        'follow_up_scheduled' => 'solar:calendar-linear',
-        'follow_up_completed' => 'solar:check-circle-linear',
-        'appointment_scheduled' => 'solar:calendar-mark-linear',
-        'assigned' => 'solar:user-linear',
-        'converted' => 'solar:users-group-rounded-linear',
-        'email_sent' => 'solar:letter-linear',
-        'imported' => 'solar:import-linear',
-    ];
     $statusInlineOptions = [];
     foreach (\App\Enums\LeadStatus::cases() as $status) {
         $statusInlineOptions[$status->value] = [
@@ -41,7 +28,8 @@
     $visibleComments = $comments->take(2);
     $hiddenCommentCount = max(0, $comments->count() - $visibleComments->count());
     $activities = $lead->activities->sortByDesc('created_at')->values();
-    $visibleActivities = $activities->take(2);
+    $visibleActivityLimit = 3;
+    $visibleActivities = $activities->take($visibleActivityLimit);
     $hiddenActivityCount = max(0, $activities->count() - $visibleActivities->count());
     $importSummary = \App\Support\LeadImportSummary::forLead($lead);
 @endphp
@@ -198,7 +186,7 @@
             <section class="crm-lead-ticket__block">
                 <div class="crm-lead-ticket__block-head">
                     <h3 class="crm-lead-ticket__block-title"><iconify-icon icon="solar:chat-round-dots-linear"></iconify-icon> Comments</h3>
-                    <span class="crm-lead-ticket__block-meta">{{ $comments->count() }} total</span>
+                    <span class="crm-lead-ticket__block-meta" data-crm-comments-meta>{{ $comments->count() }} total</span>
                 </div>
 
                 <div class="crm-lead-ticket__comments" data-crm-comments-list>
@@ -228,47 +216,25 @@
                 @endcan
             </section>
 
-            <details class="crm-lead-ticket__block crm-lead-ticket__block--collapsible">
+            <details class="crm-lead-ticket__block crm-lead-ticket__block--collapsible" open>
                 <summary class="crm-lead-ticket__block-head crm-lead-ticket__block-head--toggle">
                     <h3 class="crm-lead-ticket__block-title"><iconify-icon icon="solar:history-linear"></iconify-icon> Activity</h3>
-                    <span class="crm-lead-ticket__block-meta">{{ $activities->count() }} event{{ $activities->count() === 1 ? '' : 's' }}</span>
+                    <span class="crm-lead-ticket__block-meta" data-crm-activity-meta>{{ $activities->count() }} event{{ $activities->count() === 1 ? '' : 's' }}</span>
                 </summary>
                 <div class="crm-lead-ticket__timeline" data-crm-activity-list>
-                    @if($hiddenActivityCount > 0)
-                        <div class="crm-lead-ticket__timeline-hidden" data-crm-activity-hidden hidden>
-                            @foreach($activities->slice(2) as $activity)
-                                <article class="crm-lead-ticket__timeline-item">
-                                    <span class="crm-lead-ticket__timeline-icon">
-                                        <iconify-icon icon="{{ $activityIcons[$activity->activity_type] ?? 'solar:info-circle-linear' }}"></iconify-icon>
-                                    </span>
-                                    <div class="crm-lead-ticket__timeline-body">
-                                        <div class="crm-lead-ticket__timeline-title">{{ str_replace('_', ' ', $activity->activity_type) }}</div>
-                                        @if($activity->description)
-                                            <p>{{ $activity->description }}</p>
-                                        @endif
-                                        <small>{{ $activity->admin?->name ?? 'System' }} · {{ $activity->created_at->diffForHumans() }}</small>
-                                    </div>
-                                </article>
-                            @endforeach
-                        </div>
-                    @endif
-
                     @forelse($visibleActivities as $activity)
-                        <article class="crm-lead-ticket__timeline-item">
-                            <span class="crm-lead-ticket__timeline-icon">
-                                <iconify-icon icon="{{ $activityIcons[$activity->activity_type] ?? 'solar:info-circle-linear' }}"></iconify-icon>
-                            </span>
-                            <div class="crm-lead-ticket__timeline-body">
-                                <div class="crm-lead-ticket__timeline-title">{{ str_replace('_', ' ', $activity->activity_type) }}</div>
-                                @if($activity->description)
-                                    <p>{{ $activity->description }}</p>
-                                @endif
-                                <small>{{ $activity->admin?->name ?? 'System' }} · {{ $activity->created_at->diffForHumans() }}</small>
-                            </div>
-                        </article>
+                        @include('admin.crm.leads.partials.activity-item', ['activity' => $activity])
                     @empty
                         <p class="crm-lead-ticket__empty">No activity logged yet.</p>
                     @endforelse
+
+                    @if($hiddenActivityCount > 0)
+                        <div class="crm-lead-ticket__timeline-hidden" data-crm-activity-hidden hidden>
+                            @foreach($activities->slice($visibleActivityLimit) as $activity)
+                                @include('admin.crm.leads.partials.activity-item', ['activity' => $activity])
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
                 @if($hiddenActivityCount > 0)

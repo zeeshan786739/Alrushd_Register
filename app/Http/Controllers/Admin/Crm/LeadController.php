@@ -12,6 +12,7 @@ use App\Http\Requests\Crm\StoreLeadRequest;
 use App\Http\Requests\Crm\UpdateLeadRequest;
 use App\Models\Admin;
 use App\Models\Crm\Lead;
+use App\Models\Crm\LeadActivity;
 use App\Models\Form;
 use App\Models\FormEntry;
 use App\Models\Crm\LeadCategory;
@@ -108,6 +109,13 @@ class LeadController extends Controller
             ->all();
         $filteredTotal = (int) $this->filteredQuery($request)->count();
 
+        $sourceCounts = Lead::forCurrentOrganization()
+            ->selectRaw('source, COUNT(*) as total')
+            ->groupBy('source')
+            ->pluck('total', 'source')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+
         $pendingFormEntries = collect();
         if ($this->shouldShowFormIntake($request)) {
             $pendingFormEntries = $this->pendingFormEntriesQuery($request)
@@ -156,7 +164,7 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries'))
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries', 'sourceCounts'))
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
                 $forms,
@@ -249,6 +257,19 @@ class LeadController extends Controller
             ],
             \App\Support\LeadFormOptions::for($admins, $categories),
         ));
+    }
+
+    /** @return array{activity_html: string, activity_count: int} */
+    private function activityJsonFragment(Lead $lead, LeadActivity $activity): array
+    {
+        $activity->loadMissing('admin');
+
+        return [
+            'activity_html' => view('admin.crm.leads.partials.activity-item', [
+                'activity' => $activity,
+            ])->render(),
+            'activity_count' => $lead->activities()->count(),
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -356,19 +377,19 @@ class LeadController extends Controller
             'is_important' => (bool) ($validated['is_important'] ?? false),
         ]);
 
-        $lead->logActivity('note_added', 'Comment added');
+        $activity = $lead->logActivity('note_added', 'Comment added');
         $note->load('admin');
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
 
         if ($request->expectsJson()) {
-            return response()->json([
+            return response()->json(array_merge([
                 'message' => 'Comment added.',
                 'comment_html' => view('admin.crm.leads.partials.comment-item', [
                     'note' => $note,
                     'admins' => $admins,
                 ])->render(),
                 'comment_count' => $lead->notes()->count(),
-            ]);
+            ], $this->activityJsonFragment($lead, $activity)));
         }
 
         return back()->with('success', 'Comment added successfully.');
@@ -395,9 +416,9 @@ class LeadController extends Controller
         if ($field === 'lead_status') {
             $this->authorize('update', $lead);
             $lead->update(['lead_status' => $value]);
-            $lead->logActivity('status_changed', 'Status updated to '.$value);
+            $activity = $lead->logActivity('status_changed', 'Status updated to '.$value);
 
-            return response()->json([
+            return response()->json(array_merge([
                 'ok' => true,
                 'field' => $field,
                 'value' => $value,
@@ -405,15 +426,15 @@ class LeadController extends Controller
                 'tone' => CrmStatusTone::for((string) $value),
                 'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Status updated.',
-            ]);
+            ], $this->activityJsonFragment($lead, $activity)));
         }
 
         if ($field === 'priority') {
             $this->authorize('update', $lead);
             $lead->update(['priority' => $value]);
-            $lead->logActivity('priority_changed', 'Priority updated to '.$value);
+            $activity = $lead->logActivity('priority_changed', 'Priority updated to '.$value);
 
-            return response()->json([
+            return response()->json(array_merge([
                 'ok' => true,
                 'field' => $field,
                 'value' => $value,
@@ -421,7 +442,7 @@ class LeadController extends Controller
                 'tone' => CrmStatusTone::for((string) $value),
                 'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Priority updated.',
-            ]);
+            ], $this->activityJsonFragment($lead, $activity)));
         }
 
         if ($field === 'full_name') {
@@ -433,9 +454,9 @@ class LeadController extends Controller
                 'last_name' => $parts[1] ?? null,
             ]);
             $lead->refresh();
-            $lead->logActivity('lead_renamed', 'Renamed to '.$lead->full_name);
+            $activity = $lead->logActivity('lead_renamed', 'Renamed to '.$lead->full_name);
 
-            return response()->json([
+            return response()->json(array_merge([
                 'ok' => true,
                 'field' => $field,
                 'value' => $lead->full_name,
@@ -449,15 +470,15 @@ class LeadController extends Controller
                     'priority' => $lead->priority,
                 ],
                 'message' => 'Lead renamed.',
-            ]);
+            ], $this->activityJsonFragment($lead, $activity)));
         }
 
         $this->authorize('assign', $lead);
         if ($value === null || $value === '') {
             $lead->update(['assigned_to' => null]);
-            $lead->logActivity('assigned', 'Lead unassigned');
+            $activity = $lead->logActivity('assigned', 'Lead unassigned');
 
-            return response()->json([
+            return response()->json(array_merge([
                 'ok' => true,
                 'field' => $field,
                 'value' => null,
@@ -465,14 +486,14 @@ class LeadController extends Controller
                 'tone' => 'neutral',
                 'icon' => 'solar:user-linear',
                 'message' => 'Assignee cleared.',
-            ]);
+            ], $this->activityJsonFragment($lead, $activity)));
         }
 
         $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
         $lead->update(['assigned_to' => $assignee->id]);
-        $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name);
+        $activity = $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name);
 
-        return response()->json([
+        return response()->json(array_merge([
             'ok' => true,
             'field' => $field,
             'value' => $assignee->id,
@@ -480,7 +501,7 @@ class LeadController extends Controller
             'tone' => 'neutral',
             'icon' => 'solar:user-linear',
             'message' => 'Assignee updated.',
-        ]);
+        ], $this->activityJsonFragment($lead, $activity)));
     }
 
     public function bulkUpdate(BulkUpdateLeadsRequest $request): JsonResponse

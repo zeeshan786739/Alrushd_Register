@@ -37,6 +37,7 @@ final class LeadSmartSearch
                 'form_submission' => ['form submission', 'form submissions', 'from forms', 'form leads', 'form intake', 'website form'],
                 'facebook_lead_ads' => ['facebook', 'meta leads', 'instagram leads'],
                 'tiktok_lead_ads' => ['tiktok', 'tik tok'],
+                'file_import' => ['import', 'file import', 'spreadsheet', 'imported leads'],
                 'manual' => ['manual entry', 'manual leads', 'added manually'],
             ],
             'priority' => [
