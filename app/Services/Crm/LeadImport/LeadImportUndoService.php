@@ -46,9 +46,20 @@ class LeadImportUndoService
                     }
                 });
 
+            Lead::query()
+                ->where('organization_id', $import->organization_id)
+                ->where('lead_import_id', $import->id)
+                ->where('is_converted', false)
+                ->orderBy('id')
+                ->chunkById(100, function ($leads) use ($import, &$stats) {
+                    foreach ($leads as $lead) {
+                        $this->undoLead($lead, $import->id, $stats);
+                    }
+                });
+
             $import->update([
                 'status' => LeadImportStatus::Undone->value,
-                'undone_rows' => $stats['undone'],
+                'undone_rows' => max($stats['undone'], (int) $import->undone_rows),
                 'undone_by' => $admin->id,
                 'undone_at' => now(),
             ]);
@@ -125,9 +136,15 @@ class LeadImportUndoService
             return;
         }
 
+        $this->undoLead($lead, $row->lead_import_id, $stats, $row);
+    }
+
+    /** @param array{undone: int, skipped_converted: int, already_removed: int} $stats */
+    private function undoLead(Lead $lead, int $importId, array &$stats, ?LeadImportRow $row = null): void
+    {
         if ($lead->trashed()) {
             $stats['already_removed']++;
-            $row->update(['status' => LeadImportRowStatus::Undone->value]);
+            $row?->update(['status' => LeadImportRowStatus::Undone->value]);
 
             return;
         }
@@ -139,12 +156,12 @@ class LeadImportUndoService
         }
 
         $lead->logActivity('archived', 'Lead removed from CRM view (import batch undone)', [
-            'lead_import_id' => $row->lead_import_id,
-            'row_number' => $row->row_number,
+            'lead_import_id' => $importId,
+            'row_number' => $row?->row_number,
         ]);
         $lead->delete();
 
-        $row->update(['status' => LeadImportRowStatus::Undone->value]);
+        $row?->update(['status' => LeadImportRowStatus::Undone->value]);
         $stats['undone']++;
     }
 }

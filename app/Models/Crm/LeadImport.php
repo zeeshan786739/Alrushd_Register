@@ -62,8 +62,15 @@ class LeadImport extends Model
 
     public function canUndo(): bool
     {
-        return $this->statusEnum() === LeadImportStatus::Completed
-            && (int) $this->imported_rows > 0;
+        if ($this->statusEnum() !== LeadImportStatus::Completed || (int) $this->imported_rows <= 0) {
+            return false;
+        }
+
+        if (isset($this->leads_count)) {
+            return (int) $this->leads_count > 0;
+        }
+
+        return $this->leads()->exists();
     }
 
     public function uploader(): BelongsTo

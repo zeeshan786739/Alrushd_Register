@@ -7,7 +7,8 @@
     var page = document.getElementById('crm-import-history-page');
     if (!page) return;
 
-    var csrf = page.getAttribute('data-csrf') || '';
+    var metaCsrf = document.querySelector('meta[name="csrf-token"]');
+    var csrf = page.getAttribute('data-csrf') || (metaCsrf ? metaCsrf.getAttribute('content') : '') || '';
     var undoAllUrl = page.getAttribute('data-undo-all-url') || '';
     var toastSlot = page.querySelector('[data-crm-toast-slot]');
 
@@ -24,21 +25,34 @@
         }, 3200);
     }
 
+    function parseResponse(response) {
+        return response.text().then(function (text) {
+            var data = {};
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = { message: response.ok ? 'Done.' : (text.slice(0, 180) || 'Unexpected server response.') };
+                }
+            }
+            return { ok: response.ok, status: response.status, data: data };
+        });
+    }
+
     function postUndo(url, onDone) {
+        var body = new FormData();
+        body.append('_token', csrf);
+        body.append('confirm', '1');
+
         return fetch(url, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            body: JSON.stringify({ confirm: true }),
-        }).then(function (response) {
-            return response.json().then(function (data) {
-                return { ok: response.ok, data: data };
-            });
-        }).then(function (result) {
+            credentials: 'same-origin',
+            body: body,
+        }).then(parseResponse).then(function (result) {
             if (typeof onDone === 'function') onDone(result);
             return result;
         });
@@ -48,11 +62,19 @@
         if (button.getAttribute('data-bound') === '1') return;
         button.setAttribute('data-bound', '1');
 
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
             var url = button.getAttribute('data-url');
             var filename = button.getAttribute('data-import-filename') || 'this import';
             var count = button.getAttribute('data-import-count');
             if (!url) return;
+
+            if (!csrf) {
+                showToast('Session expired. Please refresh the page and try again.', true);
+                return;
+            }
 
             var countLine = count ? '\n\n' + count + ' lead(s) will disappear from the board and list.' : '';
             var confirmed = window.confirm(
@@ -68,7 +90,11 @@
                 button.classList.remove('is-busy');
 
                 if (!result.ok) {
-                    showToast((result.data && result.data.message) || 'Could not remove imported leads.', true);
+                    var message = (result.data && result.data.message) || 'Could not remove imported leads.';
+                    if (result.status === 419) {
+                        message = 'Session expired. Please refresh the page and try again.';
+                    }
+                    showToast(message, true);
                     return;
                 }
 
@@ -86,8 +112,16 @@
         if (button.getAttribute('data-bound') === '1') return;
         button.setAttribute('data-bound', '1');
 
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
             if (!undoAllUrl) return;
+
+            if (!csrf) {
+                showToast('Session expired. Please refresh the page and try again.', true);
+                return;
+            }
 
             var activeLeads = button.getAttribute('data-active-leads') || '0';
             var batchCount = button.getAttribute('data-batch-count') || '0';
@@ -107,7 +141,11 @@
                 button.classList.remove('is-busy');
 
                 if (!result.ok) {
-                    showToast((result.data && result.data.message) || 'Could not remove imported leads.', true);
+                    var message = (result.data && result.data.message) || 'Could not remove imported leads.';
+                    if (result.status === 419) {
+                        message = 'Session expired. Please refresh the page and try again.';
+                    }
+                    showToast(message, true);
                     return;
                 }
 

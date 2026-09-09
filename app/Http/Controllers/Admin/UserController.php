@@ -66,14 +66,15 @@ class UserController extends Controller
     )
     {
         $request->validate([
-            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:admins,email',
             'roles' => 'required|array|min:1',
         ]);
 
+        $email = strtolower(trim($request->email));
+
         $user = Admin::create([
-            'name' => trim($request->name),
-            'email' => strtolower(trim($request->email)),
+            'name' => 'Invited teammate',
+            'email' => $email,
             'password' => Str::random(64),
             'organization_id' => OrganizationContext::idOrFail(),
         ]);

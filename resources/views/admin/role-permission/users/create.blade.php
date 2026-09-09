@@ -12,7 +12,7 @@
     'activeTab' => 'users',
     'stats' => $stats,
     'shellTitle' => 'Invite teammate',
-    'shellSubtitle' => 'Invite a teammate and assign one or more roles. They will securely create their own password.',
+    'shellSubtitle' => 'Invite a teammate by email and assign roles. They will enter their name and password when accepting.',
     'shellActions' => [[
         'label' => 'Back to team',
         'url' => route('admin.users.index'),
@@ -30,17 +30,11 @@
                 <span class="um-form-card__icon"><iconify-icon icon="solar:user-linear"></iconify-icon></span>
                 <div>
                     <h2 class="um-form-card__title">Account details</h2>
-                    <p class="um-form-card__sub">Basic profile for the new teammate</p>
+                    <p class="um-form-card__sub">Invite by email — they will enter their name when accepting</p>
                 </div>
             </div>
             <div class="um-form-card__body">
                 <div class="um-form-fields">
-                    <div class="um-form-field">
-                        <label class="um-form-field__label">Full name <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control radius-8 @error('name') is-invalid @enderror"
-                               value="{{ old('name') }}" required placeholder="Sarah Ahmed">
-                        @error('name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                    </div>
                     <div class="um-form-field">
                         <label class="um-form-field__label">Work email <span class="text-danger">*</span></label>
                         <input type="email" name="email" class="form-control radius-8 @error('email') is-invalid @enderror"
@@ -50,7 +44,7 @@
                 </div>
                 <div class="um-form-note">
                     <iconify-icon icon="solar:letter-opened-linear"></iconify-icon>
-                    <span>A secure, one-time setup link will be emailed to this teammate. You never need to create or share their password.</span>
+                    <span>A secure setup link will be emailed. Your teammate will enter their first name, last name, and password, then sign in automatically.</span>
                 </div>
             </div>
         </section>

@@ -8,6 +8,7 @@ use App\Services\AdminAccessLinkMailer;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -57,24 +58,61 @@ class AdminPasswordController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $credentials = $request->validate([
+        $isInvitation = $request->boolean('invitation');
+
+        $rules = [
             'token' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        ];
+
+        if ($isInvitation) {
+            $rules['first_name'] = ['required', 'string', 'max:100'];
+            $rules['last_name'] = ['required', 'string', 'max:100'];
+        }
+
+        $validated = $request->validate($rules);
+
+        $credentials = [
+            'token' => $validated['token'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'password_confirmation' => $request->input('password_confirmation'),
+        ];
+
+        $admin = null;
 
         $status = Password::broker('admins')->reset(
             $credentials,
-            function (Admin $admin, string $password): void {
-                $admin->forceFill(['password' => Hash::make($password)]);
-                $admin->setRememberToken(Str::random(60));
-                $admin->save();
-                event(new PasswordReset($admin));
+            function (Admin $user, string $password) use ($isInvitation, $validated, &$admin): void {
+                $updates = [
+                    'password' => Hash::make($password),
+                ];
+
+                if ($isInvitation) {
+                    $updates['name'] = trim($validated['first_name']).' '.trim($validated['last_name']);
+                }
+
+                $user->forceFill($updates);
+                $user->setRememberToken(Str::random(60));
+                $user->save();
+                event(new PasswordReset($user));
+                $admin = $user;
             }
         );
 
         if ($status !== Password::PASSWORD_RESET) {
-            return back()->withInput($request->only('email'))->withErrors(['email' => __($status)]);
+            return back()->withInput($request->only('email', 'first_name', 'last_name'))
+                ->withErrors(['email' => __($status)]);
+        }
+
+        if ($isInvitation && $admin instanceof Admin) {
+            Auth::guard('admin')->login($admin);
+            $request->session()->regenerate();
+            $admin->forceFill(['last_login_at' => now()])->save();
+
+            return redirect()->route('admin.dashboard')
+                ->with('success', 'Welcome! Your account is ready.');
         }
 
         return redirect()->route('admin.login', ['email' => $credentials['email']])
