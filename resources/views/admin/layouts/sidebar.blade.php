@@ -213,20 +213,6 @@
     </li>
     @endif
 
-    {{-- Student application responses --}}
-    @if(plan_module('admissions'))
-    @canany(['create admission_studetns','edit admission_studetns','view admission_studetns','delete admission_studetns'])
-    <li>
-        <a href="{{ route('admin.form-students.index') }}"
-           class="{{ AdminNav::linkClass('admin.form-students.*') }}"
-           title="Review student enrollment applications">
-            <iconify-icon icon="solar:user-id-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>Student Applications</span>
-        </a>
-    </li>
-    @endcanany
-    @endif
-
     {{-- Enrollment catalog — single hub for all setup lists --}}
     @if(plan_module('admissions'))
     @canany([
@@ -254,83 +240,6 @@
     @endcanany
     @endif
 
-    {{-- Legacy / API-connected form feeds --}}
-    @canany(['view job','view apply','view enquire','view referral','view subscribe'])
-    <li class="{{ AdminNav::dropdownClass([
-        'admin.job-applications','admin.job-applications.*',
-        'admin.apply-now','admin.online-madrasah',
-        'admin.enquire-now','admin.referral-applications',
-        'admin.direct-debit','admin.subscribe-applications'
-    ]) }}">
-        <a href="javascript:void(0)"
-           role="button"
-           aria-expanded="{{ AdminNav::expanded([
-               'admin.job-applications','admin.job-applications.*',
-               'admin.apply-now','admin.online-madrasah',
-               'admin.enquire-now','admin.referral-applications',
-               'admin.direct-debit','admin.subscribe-applications'
-           ]) }}"
-           aria-controls="nav-api-intake"
-           title="Submissions from external website forms">
-            <iconify-icon icon="solar:link-round-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-            <span>Website Intake</span>
-        </a>
-        <ul class="sidebar-submenu" id="nav-api-intake">
-            @can('view job')
-            <li>
-                <a href="{{ route('admin.job-applications') }}" class="{{ AdminNav::linkClass(['admin.job-applications','admin.job-applications.*']) }}" title="Job applications">
-                    <iconify-icon icon="solar:case-minimalistic-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Job Applications</span>
-                </a>
-            </li>
-            @endcan
-            @can('view apply')
-            <li>
-                <a href="{{ route('admin.apply-now') }}" class="{{ AdminNav::linkClass('admin.apply-now') }}" title="Apply now submissions">
-                    <iconify-icon icon="solar:pen-new-square-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Apply Now</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ route('admin.online-madrasah') }}" class="{{ AdminNav::linkClass('admin.online-madrasah') }}" title="Online madrasah sign-ups">
-                    <iconify-icon icon="solar:book-bookmark-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Online Madrasah</span>
-                </a>
-            </li>
-            @endcan
-            @can('view enquire')
-            <li>
-                <a href="{{ route('admin.enquire-now') }}" class="{{ AdminNav::linkClass('admin.enquire-now') }}" title="Enquiry form submissions">
-                    <iconify-icon icon="solar:chat-round-dots-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Enquiries</span>
-                </a>
-            </li>
-            @endcan
-            @can('view referral')
-            <li>
-                <a href="{{ route('admin.referral-applications') }}" class="{{ AdminNav::linkClass('admin.referral-applications') }}" title="Referral submissions">
-                    <iconify-icon icon="solar:share-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Referrals</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ route('admin.direct-debit') }}" class="{{ AdminNav::linkClass('admin.direct-debit') }}" title="Direct debit sign-ups">
-                    <iconify-icon icon="solar:card-transfer-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Direct Debit</span>
-                </a>
-            </li>
-            @endcan
-            @can('view subscribe')
-            <li>
-                <a href="{{ route('admin.subscribe-applications') }}" class="{{ AdminNav::linkClass('admin.subscribe-applications') }}" title="Newsletter / subscribe sign-ups">
-                    <iconify-icon icon="solar:letter-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
-                    <span>Subscribe</span>
-                </a>
-            </li>
-            @endcan
-        </ul>
-    </li>
-    @endcanany
     @endif
 
     {{-- ================= EVENTS ================= --}}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\EmailMarketing;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\SenderMailbox;
+use App\Services\EmailMarketing\ImapConnectionTester;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,8 @@ class SenderMailboxController extends Controller
         $data['validate_cert'] = $request->boolean('validate_cert');
         $this->validateDefaultState($data);
 
-        DB::transaction(function () use ($data) {
+        $mailbox = null;
+        DB::transaction(function () use ($data, &$mailbox) {
             if ($data['is_default']) {
                 SenderMailbox::forCurrentOrganization()->update(['is_default' => false]);
             }
@@ -37,7 +39,7 @@ class SenderMailboxController extends Controller
             $this->syncDefaultMailbox();
         });
 
-        return back()->with('success', 'Sender mailbox added.');
+        return $this->respondAfterSave($mailbox, 'Sender mailbox added.');
     }
 
     public function update(Request $request, SenderMailbox $senderMailbox): RedirectResponse
@@ -63,7 +65,23 @@ class SenderMailboxController extends Controller
             $this->syncDefaultMailbox();
         });
 
-        return back()->with('success', 'Sender mailbox updated.');
+        return $this->respondAfterSave($senderMailbox->fresh(), 'Sender mailbox updated.');
+    }
+
+    public function test(SenderMailbox $senderMailbox, ImapConnectionTester $tester): RedirectResponse
+    {
+        abort_unless((int) $senderMailbox->organization_id === OrganizationContext::idOrFail(), 404);
+
+        $result = $tester->test($senderMailbox);
+        $senderMailbox->update([
+            'last_synced_at' => now(),
+            'last_sync_status' => $result['ok'] ? 'success' : 'failed',
+            'last_sync_error' => $result['ok'] ? null : $result['message'],
+        ]);
+
+        return $result['ok']
+            ? back()->with('success', $result['message'])
+            : back()->with('error', $result['message']);
     }
 
     public function destroy(SenderMailbox $senderMailbox): RedirectResponse
@@ -76,11 +94,31 @@ class SenderMailboxController extends Controller
         return back()->with('success', 'Sender mailbox removed.');
     }
 
+    private function respondAfterSave(?SenderMailbox $mailbox, string $successMessage): RedirectResponse
+    {
+        if (! $mailbox || ! $mailbox->isImapConfigured()) {
+            return back()->with('success', $successMessage);
+        }
+
+        $result = app(ImapConnectionTester::class)->test($mailbox);
+        $mailbox->update([
+            'last_synced_at' => now(),
+            'last_sync_status' => $result['ok'] ? 'success' : 'failed',
+            'last_sync_error' => $result['ok'] ? null : $result['message'],
+        ]);
+
+        if ($result['ok']) {
+            return back()->with('success', $successMessage.' Inbox connection verified.');
+        }
+
+        return back()->with('error', $successMessage.' '.$result['message']);
+    }
+
     private function validated(Request $request, ?SenderMailbox $mailbox = null): array
     {
         $orgId = OrganizationContext::idOrFail();
 
-        return $request->validate([
+        $data = $request->validate([
             'name' => 'nullable|string|max:150',
             'email' => ['required', 'email', 'max:255', Rule::unique('em_sender_mailboxes')->where('organization_id', $orgId)->ignore($mailbox)],
             'reply_to' => 'nullable|email|max:255',
@@ -95,6 +133,15 @@ class SenderMailboxController extends Controller
             'is_default' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
         ]);
+
+        if (isset($data['imap_username'])) {
+            $data['imap_username'] = trim((string) $data['imap_username']);
+        }
+        if (isset($data['imap_host'])) {
+            $data['imap_host'] = trim((string) $data['imap_host']);
+        }
+
+        return $data;
     }
 
     private function syncDefaultMailbox(): void

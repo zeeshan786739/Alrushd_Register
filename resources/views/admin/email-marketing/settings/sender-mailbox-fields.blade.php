@@ -17,7 +17,13 @@
         <div class="col-md-2"><label class="form-label" for="{{ $prefix }}_port">Port</label><input id="{{ $prefix }}_port" type="number" name="imap_port" class="form-control" value="{{ $field('imap_port', 993) }}"></div>
         <div class="col-md-2"><label class="form-label" for="{{ $prefix }}_encryption">Encryption</label><select id="{{ $prefix }}_encryption" name="imap_encryption" class="form-select"><option value="ssl" @selected($field('imap_encryption', 'ssl') === 'ssl')>SSL</option><option value="tls" @selected($field('imap_encryption') === 'tls')>TLS</option><option value="none" @selected($field('imap_encryption') === 'none')>None</option></select></div>
         <div class="col-md-4"><label class="form-label" for="{{ $prefix }}_username">Username</label><input id="{{ $prefix }}_username" name="imap_username" class="form-control" value="{{ $field('imap_username') }}" autocomplete="off"></div>
-        <div class="col-md-4"><label class="form-label" for="{{ $prefix }}_password">Password</label><input id="{{ $prefix }}_password" type="password" name="imap_password" class="form-control" autocomplete="new-password" placeholder="{{ $sender?->imap_password ? 'Leave blank to keep saved password' : '' }}"></div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ $prefix }}_password">Password</label>
+            <input id="{{ $prefix }}_password" type="password" name="imap_password" class="form-control" autocomplete="new-password" placeholder="{{ $sender?->imap_password ? 'Leave blank to keep saved password' : '' }}">
+            @if($sender?->last_sync_status === 'failed')
+                <div class="text-danger text-sm mt-4">Previous login failed — type the mailbox password again (Hostinger email password, not panel login).</div>
+            @endif
+        </div>
         <div class="col-md-4"><label class="form-label" for="{{ $prefix }}_folder">Inbox folder</label><input id="{{ $prefix }}_folder" name="inbox_folder" class="form-control" value="{{ $field('inbox_folder', 'INBOX') }}"></div>
         <div class="col-md-4 d-flex align-items-end pb-10"><label class="form-check"><input class="form-check-input" type="checkbox" name="validate_cert" value="1" @checked(old('validate_cert', $sender?->validate_cert ?? true))> <span class="form-check-label">Validate TLS certificate</span></label></div>
     </div>
