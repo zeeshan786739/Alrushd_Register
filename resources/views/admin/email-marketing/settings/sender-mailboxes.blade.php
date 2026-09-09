@@ -47,10 +47,18 @@
                         @csrf @method('PUT')
                         <input type="hidden" name="sender_mailbox_id" value="{{ $sender->id }}">
                         @include('admin.email-marketing.settings.sender-mailbox-fields', ['sender' => $sender, 'prefix' => 'sender_'.$sender->id])
-                        <div class="d-flex justify-content-end mt-20">
+                        <div class="d-flex justify-content-end gap-8 mt-20">
+                            @if($sender->isImapConfigured())
+                                <button class="btn btn-outline-primary-600 radius-8" type="submit" form="test-sender-{{ $sender->id }}">Test inbox</button>
+                            @endif
                             <button class="btn btn-primary-600 radius-8" type="submit">Save mailbox</button>
                         </div>
                     </form>
+                    @if($sender->isImapConfigured())
+                        <form id="test-sender-{{ $sender->id }}" method="POST" action="{{ route('admin.email.mailbox.senders.test', $sender) }}" class="d-none">
+                            @csrf
+                        </form>
+                    @endif
                     @unless($sender->is_default)
                         <form method="POST" action="{{ route('admin.email.mailbox.senders.destroy', $sender) }}" class="mt-12 text-end" onsubmit="return confirm('Remove this sender mailbox?')">
                             @csrf @method('DELETE')

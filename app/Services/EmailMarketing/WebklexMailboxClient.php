@@ -27,13 +27,14 @@ class WebklexMailboxClient implements MailboxClientInterface
 
         $cm = new \Webklex\PHPIMAP\ClientManager;
         $client = $cm->make([
-            'host' => $settings->imap_host,
-            'port' => $settings->imap_port ?: 993,
+            'host' => trim((string) $settings->imap_host),
+            'port' => (int) ($settings->imap_port ?: 993),
             'encryption' => $settings->imap_encryption ?: 'ssl',
             'validate_cert' => (bool) $settings->validate_cert,
-            'username' => $settings->imap_username,
-            'password' => $settings->imap_password,
+            'username' => trim((string) $settings->imap_username),
+            'password' => (string) $settings->imap_password,
             'protocol' => 'imap',
+            'timeout' => 20,
         ]);
 
         $client->connect();

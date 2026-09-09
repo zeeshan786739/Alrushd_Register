@@ -39,7 +39,6 @@ use App\Http\Controllers\Admin\Auth\AdminPasswordController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\StaffApplicationController;
 use App\Http\Controllers\Admin\StudentCourseController;
-use App\Http\Controllers\Admin\StudentFormController;
 use App\Http\Controllers\Admin\StudentGroupController;
 use App\Http\Controllers\Admin\StudentLanguageController;
 use App\Http\Controllers\Admin\StudentPackageController;
@@ -47,7 +46,6 @@ use App\Http\Controllers\Admin\StudentSubjectController;
 use App\Http\Controllers\Admin\StudentYearController;
 use App\Http\Controllers\Admin\TermsAndConditionController;
 use App\Http\Controllers\Admin\WordPressApiController;
-use App\Http\Controllers\Admin\WpApiController;
 use App\Models\StudentSubject;
 use Illuminate\Support\Facades\Route;
 
@@ -185,42 +183,21 @@ Route::prefix('admin')->name('admin.')
     Route::get('staff-applications',[WordPressApiController::class,'staffApplication'])->name('staff-applications');
     Route::get('staff-applications/view/{index}', [WordPressApiController::class, 'staffApplicationView'])->name('staff-applications.view');
     // Route::get('apply-now',[WordPressApiController::class,'applyNow'])->name('apply-now');
-    Route::get('apply-now/view/{index}', [WordPressApiController::class, 'applyNowView'])->name('apply-now.view');
     // Route::get('online-madrasah',[WordPressApiController::class,'onlineMadrasah'])->name('online-madrasah');
-    Route::get('online-madrasah/view/{index}', [WordPressApiController::class, 'onlineMadrasahView'])->name('online-madrasah.view');
     // Route::get('subscribe-applications',[WordPressApiController::class,'subscribeApplication'])->name('subscribe-applications');
     // Route::get('enquire-now',[WordPressApiController::class,'enquireNow'])->name('enquire-now');
-    Route::get('enquire-now/view/{index}', [WordPressApiController::class, 'enquireNowView'])->name('enquire-now.view');
     // Route::get('referral-applications',[WordPressApiController::class,'referralApplication'])->name('referral-applications');
-    Route::get('referral-applications/view/{index}', [WordPressApiController::class, 'referralApplicationView'])->name('referral-applications.view');
 
     // Api WP
 
-    Route::get('job-applications',[WpApiController::class,'jobApplications'])->name('job-applications');
-    Route::get('job-applications/{entry_id}',[WpApiController::class,'jobApplicationView'])->name('job.application.view');
-    Route::get('/form-import-job-applications/{form_id}', [WpApiController::class, 'importJobApplication'])->name('form.import.jobapplication');
-
-
-    Route::get('/form-import/{id}', [WpApiController::class, 'import'])->name('form.import');
-    Route::get('apply-now',[WpApiController::class,'applyNow'])->name('apply-now');
-    Route::get('student-admission-view/{entry_id}',[WpApiController::class,'studentAdmissionView'])->name('student-admission-view');
-    Route::get('online-madrasah',[WpApiController::class,'onlineMadrasah'])->name('online-madrasah');
 
 
 
-    Route::get('form-entries-view/{entry_id}',[WpApiController::class,'fornView'])->name('form-entries.view');
-    
-    Route::get('subscribe-applications',[WpApiController::class,'subscribeApplications'])->name('subscribe-applications');
-    Route::get('/form-import-subscription/{id}', [WpApiController::class, 'importSubscription'])->name('form.import.subscription');
 
 
-    Route::get('enquire-now',[WpApiController::class,'enquireNow'])->name('enquire-now');
-    Route::get('enquire-now/{entry_id}',[WpApiController::class,'enquirenowView'])->name('enquire-now-view');
-    Route::get('referral-applications',[WpApiController::class,'referralApplications'])->name('referral-applications');
-    Route::get('referral-now/{entry_id}',[WpApiController::class,'referralnowView'])->name('referral-now-view');
-    Route::get('direct-debit',[WpApiController::class,'directDebit'])->name('direct-debit');
-    Route::get('debit-now/{entry_id}',[WpApiController::class,'debitnowView'])->name('debit-now-view');
-    Route::get('/form-import-contact/{id}', [WpApiController::class, 'importContact'])->name('form.import.contact');
+
+
+    // Website Intake pages removed
     
 
     // Open Event
@@ -244,9 +221,7 @@ Route::prefix('admin')->name('admin.')
     Route::resource('student-package',StudentPackageController::class);
     Route::resource('student-course',StudentCourseController::class);
     Route::get('/get-years/{group_id}', [StudentCourseController::class, 'getYears']);
-    Route::resource('form-students',StudentFormController::class);
-    Route::put('form-students-single/{id}',[StudentFormController::class,'singleStudentUpdate'])->name('form-student-single.update');
-    Route::get('/download-payment-pdf/{id}',[StudentFormController::class,'downloadPDF'])->name('download.payment.pdf');
+    // Student Applications pages removed
     
 
     Route::resource('nationality',NationalityController::class);
