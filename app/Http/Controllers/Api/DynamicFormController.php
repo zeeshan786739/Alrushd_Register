@@ -129,6 +129,7 @@ class DynamicFormController extends Controller
         $entryNumber = (FormEntry::where('form_id', $form->id)->max('entry_id') ?? 0) + 1;
 
         $entry = FormEntry::create([
+            'organization_id' => $form->organization_id,
             'form_id' => $form->id,
             'entry_id' => $entryNumber,
             'data' => $data,

@@ -6,9 +6,9 @@ use App\Exports\Crm\FormEntriesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Crm\UpdateFormEntryRequest;
 use App\Models\Crm\Customer;
-use App\Models\Crm\Lead;
 use App\Models\Form;
 use App\Models\FormEntry;
+use App\Services\Crm\FormEntryLeadConverter;
 use App\Support\FormEntryContact;
 use App\Support\OrganizationContext;
 use Illuminate\Http\JsonResponse;
@@ -99,28 +99,19 @@ class FormEntryController extends Controller
         );
     }
 
-    public function convertToLead(FormEntry $formEntry): RedirectResponse|JsonResponse
+    public function convertToLead(FormEntry $formEntry, FormEntryLeadConverter $converter): RedirectResponse|JsonResponse
     {
         $this->authorize('convert', $formEntry);
-        $data = FormEntryContact::fromEntry($formEntry);
 
-        $lead = Lead::create([
-            'organization_id' => OrganizationContext::idOrFail(),
-            'form_entry_id' => $formEntry->id,
-            'source' => 'form_submission',
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'],
-            'company' => $data['company'],
-            'lead_source' => $formEntry->form?->name ?? 'Form Submission',
-            'lead_status' => 'new',
-            'priority' => 'medium',
-            'lead_description' => $data['preview'],
-            'created_by' => auth('admin')->id(),
-        ]);
+        $lead = $converter->convertIfMissing($formEntry, auth('admin')->id());
 
-        $lead->logActivity('created', 'Converted from form submission #'.$formEntry->id);
+        if (! $lead) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json(['message' => 'Could not add submission to pipeline.'], 422);
+            }
+
+            return back()->with('error', 'Could not add submission to pipeline.');
+        }
 
         if (request()->expectsJson() || request()->ajax()) {
             return response()->json([

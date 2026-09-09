@@ -18,6 +18,7 @@ use App\Models\FormEntry;
 use App\Models\Crm\LeadCategory;
 use App\Models\Crm\SavedFilter;
 use App\Services\Crm\CrmTransactionalMailService;
+use App\Services\Crm\FormEntryLeadConverter;
 use App\Services\Crm\LeadConversionException;
 use App\Services\Crm\LeadConversionService;
 use App\Support\CrmFormStats;
@@ -118,6 +119,8 @@ class LeadController extends Controller
 
         $pendingFormEntries = collect();
         if ($this->shouldShowFormIntake($request)) {
+            app(FormEntryLeadConverter::class)->syncPendingForOrganization(OrganizationContext::idOrFail());
+
             $pendingFormEntries = $this->pendingFormEntriesQuery($request)
                 ->limit($viewMode === 'list' ? $perPage : 50)
                 ->get()

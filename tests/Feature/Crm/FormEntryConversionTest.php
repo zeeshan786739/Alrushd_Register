@@ -9,6 +9,35 @@ use App\Models\FormEntry;
 
 class FormEntryConversionTest extends CrmTestCase
 {
+    public function test_form_center_submission_auto_creates_pipeline_lead(): void
+    {
+        $form = Form::create([
+            'name' => 'Job Application',
+            'slug' => 'job-application-'.uniqid(),
+            'is_active' => true,
+        ]);
+        $form->update(['organization_id' => $this->organizationA->id]);
+
+        $entry = FormEntry::create([
+            'organization_id' => $this->organizationA->id,
+            'form_id' => $form->id,
+            'entry_id' => 1000,
+            'data' => [
+                'first_name' => 'Aamna',
+                'last_name' => 'Rehman',
+                'email' => 'aamna@example.com',
+            ],
+            'status' => 'pending',
+            'submitted_at' => now(),
+        ]);
+
+        $lead = Lead::where('form_entry_id', $entry->id)->first();
+        $this->assertNotNull($lead);
+        $this->assertSame('form_submission', $lead->source);
+        $this->assertSame('Aamna', $lead->first_name);
+        $this->assertSame('new', $lead->lead_status);
+    }
+
     public function test_form_entry_converts_to_lead(): void
     {
         $form = Form::create([

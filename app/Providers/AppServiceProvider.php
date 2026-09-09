@@ -14,6 +14,7 @@ use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\Message;
 use App\Models\EmailMarketing\Template;
 use App\Models\FormEntry;
+use App\Observers\FormEntryObserver;
 use App\Models\Integrations\TikTokFormMapping;
 use App\Models\Integrations\TikTokLeadSubmission;
 use App\Models\Setting;
@@ -68,6 +69,8 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->registerOrganizationScopedBindings();
+
+        FormEntry::observe(FormEntryObserver::class);
 
         try {
             $settings = Setting::first();
