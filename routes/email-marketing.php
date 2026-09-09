@@ -50,5 +50,6 @@ Route::prefix('email-marketing')->name('email.')->group(function () {
     Route::put('mailbox-settings', [MailboxSettingsController::class, 'update'])->name('mailbox.settings.update');
     Route::post('mailbox-settings/senders', [SenderMailboxController::class, 'store'])->name('mailbox.senders.store');
     Route::put('mailbox-settings/senders/{senderMailbox}', [SenderMailboxController::class, 'update'])->name('mailbox.senders.update');
+    Route::post('mailbox-settings/senders/{senderMailbox}/test', [SenderMailboxController::class, 'test'])->middleware('throttle:10,1')->name('mailbox.senders.test');
     Route::delete('mailbox-settings/senders/{senderMailbox}', [SenderMailboxController::class, 'destroy'])->name('mailbox.senders.destroy');
 });
