@@ -61,18 +61,34 @@
             </div>
             <div class="crm-list-row__tags">
                 @if($lead->source)
-                    @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source, 'compact' => true])
+                    @include('admin.crm.partials.crm-source-badge', [
+                        'source' => $lead->source,
+                        'compact' => true,
+                        'href' => \App\Support\CrmLeadFilterUrl::for(['source' => $lead->source, 'view' => 'list']),
+                    ])
                 @endif
                 @if($lead->formEntry?->form)
-                    <span class="crm-list-row__form-name">{{ Str::limit($lead->formEntry->form->name, 24) }}</span>
+                    <a href="{{ \App\Support\CrmLeadFilterUrl::for(['source' => 'form_submission', 'form_id' => $lead->formEntry->form_id, 'view' => 'list']) }}"
+                       class="crm-list-row__form-name crm-filter-tag"
+                       data-crm-filter-tag
+                       title="Filter by this form"
+                       onclick="event.stopPropagation()">{{ Str::limit($lead->formEntry->form->name, 24) }}</a>
                 @elseif($lead->leadImport?->original_filename)
-                    <span class="crm-list-row__form-name">{{ Str::limit($lead->leadImport->original_filename, 24) }}</span>
+                    <a href="{{ \App\Support\CrmLeadFilterUrl::for(['source' => 'file_import', 'view' => 'list']) }}"
+                       class="crm-list-row__form-name crm-filter-tag"
+                       data-crm-filter-tag
+                       title="Filter imported leads"
+                       onclick="event.stopPropagation()">{{ Str::limit($lead->leadImport->original_filename, 24) }}</a>
                 @endif
                 @if($lead->category)
-                    <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }} crm-category-badge--compact">
+                    <a href="{{ \App\Support\CrmLeadFilterUrl::for(['lead_category_id' => $lead->lead_category_id, 'view' => 'list']) }}"
+                       class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }} crm-category-badge--compact crm-filter-tag"
+                       data-crm-filter-tag
+                       title="Filter by {{ $lead->category->name }}"
+                       onclick="event.stopPropagation()">
                         <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
                         {{ $lead->category->name }}
-                    </span>
+                    </a>
                 @endif
             </div>
         </div>

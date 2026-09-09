@@ -33,6 +33,10 @@
         }
 
         syncViewQuery(normalized);
+
+        if (normalized === 'board') {
+            initBoardInfiniteScroll();
+        }
     }
 
     function syncViewQuery(view) {
@@ -135,7 +139,7 @@
     }
 
     function isInteractiveTarget(target) {
-        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option, .crm-list-row__select, .crm-list-select, .crm-list-action, [data-crm-lead-open-trigger], .crm-list-status-drop, .crm-lead-panel__tool, .crm-lead-panel__contact-chip, .crm-lead-panel__note-form, .crm-lead-drawer__close, .crm-list-bulk-bar, [data-crm-bulk-clear], [data-crm-bulk-apply], [data-crm-panel-edit], [data-crm-panel-cancel], [data-crm-panel-edit-form], [data-crm-panel-save], .crm-board-card__quick-action');
+        return !!target.closest('a, button, input, select, textarea, label, form, .fc-table-actions, [data-crm-inline], .crm-inline-menu, .crm-inline-option, .crm-list-row__select, .crm-list-select, .crm-list-action, [data-crm-lead-open-trigger], .crm-list-status-drop, [data-crm-status-filter], [data-crm-filter-tag], [data-crm-filter-bulk-bar], .crm-lead-panel__tool, .crm-lead-panel__contact-chip, .crm-lead-panel__note-form, .crm-lead-drawer__close, .crm-list-bulk-bar, [data-crm-bulk-clear], [data-crm-bulk-apply], [data-crm-panel-edit], [data-crm-panel-cancel], [data-crm-panel-edit-form], [data-crm-panel-save], .crm-board-card__quick-action');
     }
 
     function setDragActive(active) {
@@ -154,6 +158,57 @@
 
     function statusDropZone(fromTarget) {
         return fromTarget.closest('[data-crm-dropzone], [data-crm-list-dropzone], .crm-list-status-drop');
+    }
+
+    function boardCardFromTarget(fromTarget) {
+        return fromTarget.closest('[data-crm-board-card]');
+    }
+
+    function boardColumnFromTarget(fromTarget) {
+        return fromTarget.closest('[data-crm-dropzone]');
+    }
+
+    function clearBoardReorderHighlights() {
+        page.querySelectorAll('[data-crm-board-card].is-reorder-over').forEach(function (card) {
+            card.classList.remove('is-reorder-over');
+        });
+    }
+
+    function persistBoardColumnOrder(column) {
+        var reorderBoardUrl = page.getAttribute('data-reorder-board-url');
+        if (!reorderBoardUrl || !column || !canUpdateLeads) {
+            return Promise.resolve({ ok: true });
+        }
+
+        var status = column.getAttribute('data-status');
+        var leadIds = Array.from(column.querySelectorAll('[data-crm-board-card][data-lead-id]'))
+            .map(function (card) { return parseInt(card.getAttribute('data-lead-id'), 10); })
+            .filter(function (id) { return !!id; });
+
+        if (!status || !leadIds.length) {
+            return Promise.resolve({ ok: true });
+        }
+
+        return fetch(reorderBoardUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                lead_status: status,
+                lead_ids: leadIds
+            }),
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+            }).catch(function () {
+                return { ok: response.ok, data: {} };
+            });
+        });
     }
 
     function positionFixedMenu(control, menu) {
@@ -1348,7 +1403,18 @@
         ].join(', '));
     }
 
-    function applyLeadStatusDrop(item, zone) {
+    function insertBoardCard(item, targetBody, insertBefore) {
+        if (!item || !targetBody) return;
+        var empty = targetBody.querySelector('.crm-board-empty');
+        if (insertBefore && insertBefore.parentElement === targetBody) {
+            targetBody.insertBefore(item, insertBefore);
+        } else {
+            targetBody.insertBefore(item, empty || null);
+        }
+        refreshBoardColumnCounts();
+    }
+
+    function applyLeadStatusDrop(item, zone, insertBefore) {
         if (!item || !zone) return;
 
         var targetStatus = zone.getAttribute('data-status');
@@ -1358,13 +1424,24 @@
         var origin = item.parentElement;
         var nextSibling = item.nextElementSibling;
         var targetBody = isBoardCard ? (zone.querySelector('.crm-board-column__body') || zone) : null;
-        var empty = targetBody ? targetBody.querySelector('.crm-board-empty') : null;
+        var originColumn = isBoardCard ? boardColumnFromTarget(item) : null;
 
-        if (!targetStatus || !leadId || targetStatus === previousStatus) return;
+        if (!targetStatus || !leadId) return;
+
+        if (isBoardCard && targetBody && targetStatus === previousStatus) {
+            insertBoardCard(item, targetBody, insertBefore);
+            persistBoardColumnOrder(zone).then(function (result) {
+                if (!result.ok) {
+                    if (origin) origin.insertBefore(item, nextSibling || null);
+                    refreshBoardColumnCounts();
+                    showToast((result.data && result.data.message) || 'Could not save column order.', true);
+                }
+            });
+            return;
+        }
 
         if (isBoardCard && targetBody) {
-            targetBody.insertBefore(item, empty || null);
-            refreshBoardColumnCounts();
+            insertBoardCard(item, targetBody, insertBefore);
         }
 
         item.setAttribute('data-current-status', targetStatus);
@@ -1383,6 +1460,12 @@
             }
 
             syncLeadStatusControls(leadId, targetStatus, result.data || {});
+            if (isBoardCard && originColumn) {
+                persistBoardColumnOrder(originColumn);
+            }
+            if (isBoardCard && zone) {
+                persistBoardColumnOrder(zone);
+            }
             showToast((result.data && result.data.message) || 'Status updated.', false);
         }).catch(function () {
             item.setAttribute('data-current-status', previousStatus || '');
@@ -1390,6 +1473,39 @@
             refreshBoardColumnCounts();
             showToast('Status update failed. Please try again.', true);
         });
+    }
+
+    function handleBoardCardDrop(item, card, event) {
+        if (!item || !card || item === card) return false;
+
+        var sourceColumn = boardColumnFromTarget(item);
+        var targetColumn = boardColumnFromTarget(card);
+        if (!sourceColumn || !targetColumn) return false;
+
+        var targetBody = targetColumn.querySelector('.crm-board-column__body');
+        if (!targetBody) return false;
+
+        var rect = card.getBoundingClientRect();
+        var insertBefore = event.clientY < rect.top + (rect.height / 2) ? card : card.nextElementSibling;
+        var sameColumn = sourceColumn === targetColumn;
+
+        event.preventDefault();
+        event.stopPropagation();
+        clearBoardReorderHighlights();
+        clearDropzoneHighlights();
+
+        if (sameColumn) {
+            insertBoardCard(item, targetBody, insertBefore);
+            persistBoardColumnOrder(targetColumn).then(function (result) {
+                if (!result.ok) {
+                    showToast((result.data && result.data.message) || 'Could not save column order.', true);
+                }
+            });
+            return true;
+        }
+
+        applyLeadStatusDrop(item, targetColumn, insertBefore);
+        return true;
     }
 
     function tryCompleteListDrop(zone) {
@@ -1839,10 +1955,26 @@
     });
 
     page.addEventListener('dragover', function (event) {
-        if (!draggedItem) return;
+        if (!draggedItem || !draggedItem.hasAttribute('data-crm-board-card')) return;
+
+        var card = boardCardFromTarget(event.target);
         var zone = statusDropZone(event.target);
+
+        if (card && card !== draggedItem) {
+            var sourceColumn = boardColumnFromTarget(draggedItem);
+            var targetColumn = boardColumnFromTarget(card);
+            if (sourceColumn && targetColumn) {
+                event.preventDefault();
+                clearBoardReorderHighlights();
+                card.classList.add('is-reorder-over');
+                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+                return;
+            }
+        }
+
         if (!zone || !page.contains(zone)) return;
         event.preventDefault();
+        clearBoardReorderHighlights();
         clearDropzoneHighlights();
         zone.classList.add('is-drag-over');
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
@@ -1857,18 +1989,27 @@
     });
 
     page.addEventListener('drop', function (event) {
+        if (!draggedItem || !draggedItem.hasAttribute('data-crm-board-card')) return;
+
+        var card = boardCardFromTarget(event.target);
+        if (card && handleBoardCardDrop(draggedItem, card, event)) {
+            return;
+        }
+
         var zone = statusDropZone(event.target);
-        if (!draggedItem || !zone || !page.contains(zone)) return;
+        if (!zone || !page.contains(zone)) return;
         event.preventDefault();
         event.stopPropagation();
 
         var item = draggedItem;
+        clearBoardReorderHighlights();
         clearDropzoneHighlights();
         applyLeadStatusDrop(item, zone);
     });
 
     page.addEventListener('dragend', function () {
         if (draggedItem) draggedItem.classList.remove('is-dragging');
+        clearBoardReorderHighlights();
         clearDropzoneHighlights();
         setDragActive(false);
         dragStartBlocked = false;
@@ -1881,7 +2022,136 @@
         dragMoved = false;
     });
 
+    var boardScrollInitialized = false;
+
+    function initBoardInfiniteScroll() {
+        if (!page.classList.contains('crm-board-view') || boardScrollInitialized) return;
+        boardScrollInitialized = true;
+
+        var boardColumnUrl = page.getAttribute('data-board-column-url');
+        var batchSize = parseInt(page.getAttribute('data-board-batch-size') || '20', 10);
+        if (!boardColumnUrl || typeof IntersectionObserver === 'undefined') return;
+
+        var loadingColumns = {};
+
+        function updateBoardLoadedSummary() {
+            var totalLoaded = page.querySelectorAll('[data-crm-board-card][data-lead-id]').length;
+            var summaryStrong = page.querySelector('.crm-leads-pagination__summary strong');
+            var summaryNote = page.querySelector('.crm-leads-pagination__summary-note');
+            var paginatorTotal = parseInt(page.getAttribute('data-board-total') || '0', 10);
+            if (summaryStrong) summaryStrong.textContent = String(totalLoaded);
+            if (summaryNote) summaryNote.hidden = paginatorTotal > 0 && totalLoaded >= paginatorTotal;
+        }
+
+        function syncColumnLoadUi(body) {
+            var column = body.closest('[data-crm-dropzone]');
+            var loadMore = body.querySelector('[data-crm-board-load-more]');
+            var hasMore = body.getAttribute('data-has-more') === '1';
+            if (loadMore) loadMore.hidden = !hasMore;
+
+            if (!column) return;
+
+            var leadCards = body.querySelectorAll('[data-crm-board-card][data-lead-id]').length;
+            var submissions = body.querySelectorAll('[data-crm-board-card][data-crm-submission-open]').length;
+            var leadTotal = parseInt(body.getAttribute('data-total') || '0', 10);
+            var visible = leadCards + submissions;
+            var countEl = column.querySelector('.crm-board-column__count');
+            if (countEl) {
+                countEl.textContent = String(visible);
+                countEl.title = leadCards < leadTotal
+                    ? 'Showing ' + visible + ' of ' + (leadTotal + submissions)
+                    : visible + ' visible';
+            }
+        }
+
+        function loadMoreBoardColumn(body) {
+            if (!body || body.getAttribute('data-has-more') !== '1') return;
+
+            var status = body.getAttribute('data-status');
+            if (!status || loadingColumns[status]) return;
+
+            var offset = parseInt(body.getAttribute('data-offset') || '0', 10);
+            var loadMore = body.querySelector('[data-crm-board-load-more]');
+            var idleLabel = loadMore ? loadMore.querySelector('.crm-board-column__load-idle') : null;
+            var busyLabel = loadMore ? loadMore.querySelector('.crm-board-column__load-busy') : null;
+
+            loadingColumns[status] = true;
+            body.classList.add('is-loading-more');
+            if (idleLabel) idleLabel.hidden = true;
+            if (busyLabel) busyLabel.hidden = false;
+
+            var params = new URLSearchParams(window.location.search);
+            params.set('lead_status', status);
+            params.set('offset', String(offset));
+            params.set('limit', String(batchSize));
+            params.delete('page');
+
+            fetch(boardColumnUrl + '?' + params.toString(), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                }).catch(function () {
+                    return { ok: response.ok, data: {} };
+                });
+            }).then(function (result) {
+                if (!result.ok || !result.data || !result.data.html) {
+                    showToast((result.data && result.data.message) || 'Could not load more leads.', true);
+                    return;
+                }
+
+                var wrap = document.createElement('div');
+                wrap.innerHTML = result.data.html;
+                var loadAnchor = body.querySelector('[data-crm-board-load-more]');
+                wrap.querySelectorAll('[data-crm-board-card]').forEach(function (card) {
+                    body.insertBefore(card, loadAnchor || null);
+                });
+
+                var empty = body.querySelector('.crm-board-empty');
+                if (empty) empty.hidden = body.querySelectorAll('[data-crm-board-card]').length > 0;
+
+                body.setAttribute('data-offset', String(result.data.loaded));
+                body.setAttribute('data-has-more', result.data.has_more ? '1' : '0');
+                syncColumnLoadUi(body);
+                refreshBoardColumnCounts();
+                updateBoardLoadedSummary();
+            }).catch(function () {
+                showToast('Could not load more leads. Please try again.', true);
+            }).finally(function () {
+                loadingColumns[status] = false;
+                body.classList.remove('is-loading-more');
+                if (idleLabel) idleLabel.hidden = false;
+                if (busyLabel) busyLabel.hidden = true;
+                syncColumnLoadUi(body);
+            });
+        }
+
+        page.querySelectorAll('[data-crm-board-scroll]').forEach(function (body) {
+            var loadMore = body.querySelector('[data-crm-board-load-more]');
+            if (!loadMore || body.getAttribute('data-has-more') !== '1') return;
+
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        loadMoreBoardColumn(body);
+                    }
+                });
+            }, {
+                root: body,
+                rootMargin: '160px 0px',
+                threshold: 0
+            });
+
+            observer.observe(loadMore);
+        });
+    }
+
     refreshBoardColumnCounts();
+    initBoardInfiniteScroll();
 
     page.addEventListener('click', function (event) {
         var createBtn = event.target.closest('[data-crm-lead-create-open]');
@@ -2453,6 +2723,119 @@
 
         syncBulkUi();
     }
+
+    var filterBulkBar = page.querySelector('[data-crm-filter-bulk-bar]');
+    var bulkFilterUrl = page.getAttribute('data-bulk-filter-url') || '';
+
+    function currentLeadFilters() {
+        var params = new URLSearchParams(window.location.search);
+        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'priority', 'assigned_to', 'view'];
+        var filters = {};
+        keys.forEach(function (key) {
+            var value = params.get(key);
+            if (value !== null && value !== '') {
+                filters[key] = value;
+            }
+        });
+        return filters;
+    }
+
+    function filterBulkSelectForField(field) {
+        if (!filterBulkBar) return null;
+        if (field === 'lead_status') return filterBulkBar.querySelector('[data-crm-filter-bulk-status]');
+        if (field === 'assigned_to') return filterBulkBar.querySelector('[data-crm-filter-bulk-assignee]');
+        return null;
+    }
+
+    function syncFilterBulkUi() {
+        if (!filterBulkBar) return;
+        filterBulkBar.querySelectorAll('[data-crm-filter-bulk-apply]').forEach(function (btn) {
+            var field = btn.getAttribute('data-crm-filter-bulk-apply');
+            var select = filterBulkSelectForField(field);
+            btn.disabled = !select || !select.value;
+        });
+    }
+
+    if (filterBulkBar && bulkFilterUrl) {
+        filterBulkBar.addEventListener('change', function (event) {
+            if (event.target.matches('[data-crm-filter-bulk-status], [data-crm-filter-bulk-assignee]')) {
+                syncFilterBulkUi();
+            }
+        });
+
+        filterBulkBar.addEventListener('click', function (event) {
+            var applyBtn = event.target.closest('[data-crm-filter-bulk-apply]');
+            if (!applyBtn || applyBtn.disabled) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            var field = applyBtn.getAttribute('data-crm-filter-bulk-apply');
+            var select = filterBulkSelectForField(field);
+            if (!select || !select.value) return;
+
+            var value = select.value;
+            if (field === 'assigned_to' && value === '__unassigned__') {
+                value = '';
+            }
+
+            var total = parseInt(page.getAttribute('data-filtered-total') || '0', 10);
+            var confirmMessage = field === 'assigned_to'
+                ? 'Assign all ' + total + ' matching leads?'
+                : 'Move all ' + total + ' matching leads to the selected status?';
+            if (!window.confirm(confirmMessage)) {
+                return;
+            }
+
+            applyBtn.disabled = true;
+
+            fetch(bulkFilterUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    field: field,
+                    value: value === '' ? null : value,
+                    filters: currentLeadFilters()
+                }),
+                credentials: 'same-origin'
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                }).catch(function () {
+                    return { ok: response.ok, data: {} };
+                });
+            }).then(function (result) {
+                if (!result.ok) {
+                    showToast((result.data && result.data.message) || 'Bulk update failed.', true);
+                    return;
+                }
+
+                showToast((result.data && result.data.message) || 'Bulk update complete.', false);
+                window.setTimeout(function () {
+                    window.location.reload();
+                }, 450);
+            }).catch(function () {
+                showToast('Bulk update failed. Please try again.', true);
+            }).finally(function () {
+                syncFilterBulkUi();
+            });
+        });
+
+        syncFilterBulkUi();
+    }
+
+    page.addEventListener('click', function (event) {
+        var statusFilter = event.target.closest('[data-crm-status-filter]');
+        if (!statusFilter || !page.contains(statusFilter)) return;
+        if (listDragArm || page.classList.contains('is-dragging-lead') || Date.now() < suppressOpenUntil) {
+            event.preventDefault();
+        }
+    }, true);
 
     page.addEventListener('submit', function (event) {
         var createForm = event.target.closest('[data-crm-lead-create-form]');

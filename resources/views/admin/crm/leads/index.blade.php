@@ -52,7 +52,13 @@
      data-can-assign="{{ auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
      data-can-bulk="{{ auth('admin')->user()?->can('update leads') || auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
      data-bulk-url="{{ route('admin.crm.leads.bulk') }}"
+     data-bulk-filter-url="{{ route('admin.crm.leads.bulk-filter') }}"
+     data-filtered-total="{{ $filteredTotal ?? 0 }}"
      data-reorder-url="{{ route('admin.crm.leads.reorder-list') }}"
+     data-reorder-board-url="{{ route('admin.crm.leads.reorder-board') }}"
+     data-board-column-url="{{ route('admin.crm.leads.board-column') }}"
+     data-board-batch-size="{{ $boardColumnBatch ?? 20 }}"
+     data-board-total="{{ $filteredTotal ?? 0 }}"
      data-smart-search-url="{{ route('admin.crm.leads.smart-search') }}"
      data-initial-view="{{ $viewMode ?? 'board' }}">
     @include('admin.partials.page-header', [
@@ -132,6 +138,12 @@
             </div>
         </div>
 
+        @include('admin.crm.leads.partials.filter-bulk-bar', [
+            'admins' => $admins,
+            'filteredTotal' => $filteredTotal ?? 0,
+            'hasActiveFilters' => $activeFilters > 0,
+        ])
+
         @can('view leads')
         <form method="POST" action="{{ route('admin.crm.leads.filters.save') }}" class="crm-save-filter-inline mb-16" id="crm-save-filter-form" hidden>
             @csrf
@@ -150,12 +162,14 @@
         <div class="crm-board-only crm-workflow-board" data-crm-board>
             @foreach($workflowStatuses as $status)
                 @php
-                    $columnLeads = $leads->getCollection()->where('lead_status', $status->value);
-                    $columnTotal = (int) ($workflowCounts[$status->value] ?? 0);
+                    $columnLeads = ($boardLeadsByStatus[$status->value] ?? collect())
+                        ->sortBy(fn ($lead) => [$lead->list_position ?? PHP_INT_MAX, $lead->created_at?->timestamp ?? 0])
+                        ->values();
+                    $columnLeadTotal = (int) ($workflowCounts[$status->value] ?? 0);
                     $columnSubmissions = $status->value === 'new' ? ($pendingFormEntries ?? collect()) : collect();
-                    if ($status->value === 'new') {
-                        $columnTotal += $columnSubmissions->count();
-                    }
+                    $columnTotal = $columnLeadTotal + ($status->value === 'new' ? $columnSubmissions->count() : 0);
+                    $columnVisible = $columnLeads->count() + $columnSubmissions->count();
+                    $columnHasMore = $columnLeads->count() < $columnLeadTotal;
                 @endphp
                 <section class="crm-board-column"
                          data-crm-dropzone
@@ -168,9 +182,14 @@
                                 <strong>{{ number_format($columnTotal) }}</strong>
                             </div>
                         </div>
-                        <span class="crm-board-column__count" title="On this page">{{ $columnLeads->count() }}</span>
+                        <span class="crm-board-column__count" title="{{ $columnVisible < $columnTotal ? 'Showing '.$columnVisible.' of '.$columnTotal.' in this column' : $columnVisible.' visible' }}">{{ $columnVisible }}</span>
                     </div>
-                    <div class="crm-board-column__body">
+                    <div class="crm-board-column__body"
+                         data-crm-board-scroll
+                         data-status="{{ $status->value }}"
+                         data-offset="{{ $columnLeads->count() }}"
+                         data-total="{{ $columnLeadTotal }}"
+                         data-has-more="{{ $columnHasMore ? '1' : '0' }}">
                         @if($columnSubmissions->isNotEmpty())
                             @foreach($columnSubmissions as $entry)
                                 @include('admin.crm.leads.partials.board-submission-card', ['entry' => $entry])
@@ -190,6 +209,10 @@
                             </div>
                             @endif
                         @endforelse
+                        <div class="crm-board-column__load-more" data-crm-board-load-more @if(! $columnHasMore) hidden @endif>
+                            <span class="crm-board-column__load-idle">Scroll for more</span>
+                            <span class="crm-board-column__load-busy" hidden>Loading…</span>
+                        </div>
                     </div>
                 </section>
             @endforeach
@@ -200,18 +223,18 @@
                 <div class="crm-list-status-rail" data-crm-list-status-rail>
                     <div class="crm-list-status-rail__hint">
                         <iconify-icon icon="solar:transfer-horizontal-linear" aria-hidden="true"></iconify-icon>
-                        Click a row to view details. Double-click to pick it up, drag up or down to reorder, or drop on a status below.
+                        Click a status to filter. Double-click a row to reorder, or drop a lead on a status to move it.
                     </div>
                     <div class="crm-list-status-rail__zones">
                         @foreach($workflowStatuses as $status)
-                            <div class="crm-list-status-drop"
-                                 data-crm-list-dropzone
-                                 data-status="{{ $status->value }}"
-                                 role="button"
-                                 tabindex="0"
-                                 title="Drop lead here — {{ $status->label() }}">
+                            <a href="{{ \App\Support\CrmLeadFilterUrl::toggle('lead_status', $status->value) }}"
+                               class="crm-list-status-drop @if(request('lead_status') === $status->value) is-filter-active @endif"
+                               data-crm-list-dropzone
+                               data-crm-status-filter
+                               data-status="{{ $status->value }}"
+                               title="Filter {{ $status->label() }} leads — drop here to move">
                                 {{ $status->label() }}
-                            </div>
+                            </a>
                         @endforeach
                     </div>
                 </div>
@@ -267,7 +290,11 @@
             </div>
         </div>
 
-        @include('admin.crm.leads.partials.pagination', ['paginator' => $leads, 'viewMode' => $viewMode ?? 'board'])
+        @include('admin.crm.leads.partials.pagination', [
+            'paginator' => $leads,
+            'viewMode' => $viewMode ?? 'board',
+            'boardLoadedCount' => $boardLoadedCount ?? 0,
+        ])
     </div>
 
     <div class="crm-toast-slot" data-crm-toast-slot aria-live="polite"></div>

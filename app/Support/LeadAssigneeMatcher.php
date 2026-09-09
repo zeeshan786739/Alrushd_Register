@@ -59,4 +59,61 @@ final class LeadAssigneeMatcher
 
         return $bestScore >= 72.0 ? $best : null;
     }
+
+    /**
+     * Match a teammate when the lead email local-part starts with their name or email prefix.
+     * Example: foysol11@gmail.com → teammate "Foysol Ahmed".
+     *
+     * @param  Builder<Admin>  $query
+     */
+    public function matchByLeadEmail(Builder $query, string $email): ?Admin
+    {
+        $email = trim(mb_strtolower($email));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        [$localPart] = explode('@', $email, 2);
+        $localPart = trim($localPart);
+        if ($localPart === '') {
+            return null;
+        }
+
+        $exactMember = (clone $query)->whereRaw('LOWER(TRIM(email)) = ?', [$email])->first();
+        if ($exactMember instanceof Admin) {
+            return $exactMember;
+        }
+
+        $matches = collect();
+
+        foreach ((clone $query)->get() as $admin) {
+            if ($this->localPartMatchesAdmin($localPart, $admin)) {
+                $matches->push($admin);
+            }
+        }
+
+        return $matches->unique('id')->count() === 1 ? $matches->first() : null;
+    }
+
+    private function localPartMatchesAdmin(string $localPart, Admin $admin): bool
+    {
+        $adminEmailLocal = mb_strtolower(trim(explode('@', trim((string) $admin->email))[0] ?? ''));
+        if ($adminEmailLocal !== '' && strlen($adminEmailLocal) >= 3 && str_starts_with($localPart, $adminEmailLocal)) {
+            return true;
+        }
+
+        $firstName = mb_strtolower(trim(explode(' ', trim($admin->name))[0] ?? ''));
+        if ($firstName === '' || strlen($firstName) < 3) {
+            return false;
+        }
+
+        if (str_starts_with($localPart, $firstName)) {
+            return true;
+        }
+
+        $namePrefix = substr($localPart, 0, strlen($firstName));
+        similar_text($namePrefix, $firstName, $percent);
+
+        return $percent >= 80.0 || levenshtein($namePrefix, $firstName) <= 2;
+    }
 }

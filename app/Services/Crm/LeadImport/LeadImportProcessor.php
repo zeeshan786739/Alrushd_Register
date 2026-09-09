@@ -195,6 +195,14 @@ class LeadImportProcessor
             $row->save();
         }
 
+        $leadEmail = trim((string) ($fields['email'] ?? ''));
+        if ($leadEmail !== '') {
+            $match = $this->assigneeMatcher->matchByLeadEmail($query, $leadEmail);
+            if ($match) {
+                return $match->id;
+            }
+        }
+
         return null;
     }
 

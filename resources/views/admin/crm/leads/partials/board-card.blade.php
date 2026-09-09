@@ -19,10 +19,14 @@
         <div class="crm-board-card__header">
             <div class="crm-board-card__ref">
                 @if($lead->category)
-                    <span class="crm-board-card__category-pill crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}">
+                    <a href="{{ \App\Support\CrmLeadFilterUrl::for(['lead_category_id' => $lead->lead_category_id]) }}"
+                       class="crm-board-card__category-pill crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }} crm-filter-tag"
+                       data-crm-filter-tag
+                       title="Filter by {{ $lead->category->name }}"
+                       onclick="event.stopPropagation()">
                         <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
                         {{ $lead->category->name }}
-                    </span>
+                    </a>
                 @endif
                 <span class="crm-board-card__lead-id">Lead #{{ $lead->id }}</span>
             </div>
@@ -86,12 +90,20 @@
         <div class="crm-board-card__tags">
             @include('admin.crm.leads.partials.admission-tags', ['lead' => $lead, 'compact' => true, 'limit' => 5])
             @if($lead->source || $lead->formEntry)
-                @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
+                @include('admin.crm.partials.crm-source-badge', [
+                    'source' => $lead->source ?: 'form_submission',
+                    'compact' => true,
+                    'href' => \App\Support\CrmLeadFilterUrl::for(['source' => $lead->source ?: 'form_submission']),
+                ])
                 @if($lead->formEntry?->form)
-                    <span class="crm-board-card__form-name" title="{{ $lead->formEntry->form->name }}">
+                    <a href="{{ \App\Support\CrmLeadFilterUrl::for(['source' => 'form_submission', 'form_id' => $lead->formEntry->form_id]) }}"
+                       class="crm-board-card__form-name crm-filter-tag"
+                       data-crm-filter-tag
+                       title="Filter by {{ $lead->formEntry->form->name }}"
+                       onclick="event.stopPropagation()">
                         <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
                         {{ Str::limit($lead->formEntry->form->name, 22) }}
-                    </span>
+                    </a>
                 @endif
             @endif
             @if($followUp->hasFollowUp())

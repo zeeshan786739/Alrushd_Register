@@ -6,6 +6,7 @@ use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Exports\Crm\LeadsExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Crm\BulkUpdateFilteredLeadsRequest;
 use App\Http\Requests\Crm\BulkUpdateLeadsRequest;
 use App\Http\Requests\Crm\InlineUpdateLeadRequest;
 use App\Http\Requests\Crm\StoreLeadRequest;
@@ -40,16 +41,18 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LeadController extends Controller
 {
+    private const BOARD_COLUMN_BATCH = 20;
+
     public function __construct(
         private LeadConversionService $conversionService,
         private CrmTransactionalMailService $crmMail,
     ) {
-        $this->middleware('permission:view leads')->only(['index', 'show', 'panel']);
+        $this->middleware('permission:view leads')->only(['index', 'show', 'panel', 'boardColumn']);
         $this->middleware('permission:create leads')->only(['create', 'store', 'createPanel']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList',
+            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard',
         ]);
-        $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate']);
+        $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate', 'bulkUpdateFiltered']);
         $this->middleware('permission:delete leads')->only(['destroy']);
         $this->middleware('permission:assign leads')->only(['assign']);
         $this->middleware('permission:convert leads')->only(['convert']);
@@ -63,7 +66,31 @@ class LeadController extends Controller
             ? min(50, max(10, (int) $request->query('per_page', 15)))
             : min(100, max(20, (int) $request->query('per_page', 50)));
 
-        $leads = $this->filteredQuery($request)->paginate($perPage)->withQueryString();
+        $filteredBase = $this->filteredQuery($request);
+        $filteredTotal = (int) (clone $filteredBase)->count();
+        $boardLeadsByStatus = [];
+        $boardLoadedCount = 0;
+
+        if ($viewMode === 'board') {
+            foreach (LeadStatus::cases() as $status) {
+                $boardLeadsByStatus[$status->value] = $this->boardColumnLeads(
+                    $request,
+                    $status->value,
+                    self::BOARD_COLUMN_BATCH,
+                    0
+                );
+            }
+            $boardLoadedCount = collect($boardLeadsByStatus)->sum(fn ($items) => $items->count());
+            $leads = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(),
+                $filteredTotal,
+                1,
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $leads = $filteredBase->paginate($perPage)->withQueryString();
+        }
 
         $orgScope = Lead::forCurrentOrganization();
         $currentMonth = (clone $orgScope)->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year)->count();
@@ -108,7 +135,9 @@ class LeadController extends Controller
             ->pluck('total', 'lead_status')
             ->map(fn ($total) => (int) $total)
             ->all();
-        $filteredTotal = (int) $this->filteredQuery($request)->count();
+        if ($viewMode !== 'board') {
+            $filteredTotal = (int) $leads->total();
+        }
 
         $sourceCounts = Lead::forCurrentOrganization()
             ->selectRaw('source, COUNT(*) as total')
@@ -167,7 +196,8 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries', 'sourceCounts'))
+        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries', 'sourceCounts', 'boardLeadsByStatus', 'boardLoadedCount'))
+            ->with('boardColumnBatch', self::BOARD_COLUMN_BATCH)
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
                 $forms,
@@ -594,6 +624,66 @@ class LeadController extends Controller
         ]);
     }
 
+    public function bulkUpdateFiltered(BulkUpdateFilteredLeadsRequest $request): JsonResponse
+    {
+        $field = $request->validated('field');
+        $value = $request->input('value');
+        $filterRequest = Request::create('/', 'GET', $this->leadFilterParams($request->input('filters', [])));
+
+        $query = $this->filteredQuery($filterRequest);
+        $total = (int) (clone $query)->count();
+
+        if ($total === 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No leads match the current filters.',
+            ], 422);
+        }
+
+        if ($total > 500) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Too many leads match ('.number_format($total).'). Narrow your filters to 500 or fewer.',
+            ], 422);
+        }
+
+        $leads = $query->get();
+        $updated = 0;
+
+        foreach ($leads as $lead) {
+            if ($field === 'assigned_to') {
+                $this->authorize('assign', $lead);
+
+                if ($value === null || $value === '') {
+                    $lead->update(['assigned_to' => null]);
+                    $lead->logActivity('assigned', 'Lead unassigned (filtered bulk update)');
+                } else {
+                    $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+                    $lead->update(['assigned_to' => $assignee->id]);
+                    $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name.' (filtered bulk update)');
+                }
+            } else {
+                $this->authorize('update', $lead);
+                $lead->update(['lead_status' => $value]);
+                $lead->logActivity('status_changed', 'Status updated to '.$value.' (filtered bulk update)');
+            }
+
+            $updated++;
+        }
+
+        $message = $field === 'lead_status'
+            ? $updated.' matching lead'.($updated === 1 ? '' : 's').' moved to '.(LeadStatus::tryFrom((string) $value)?->label() ?? $value).'.'
+            : $updated.' matching lead'.($updated === 1 ? '' : 's').' reassigned.';
+
+        return response()->json([
+            'ok' => true,
+            'field' => $field,
+            'updated' => $updated,
+            'message' => $message,
+            'reload' => true,
+        ]);
+    }
+
     public function setFollowUp(Request $request, Lead $lead): RedirectResponse
     {
         $this->authorize('update', $lead);
@@ -825,6 +915,29 @@ class LeadController extends Controller
             ->with('success', 'Email sent successfully.');
     }
 
+    /** @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function leadFilterParams(array $filters): array
+    {
+        return collect($filters)
+            ->only([
+                'search',
+                'follow_up',
+                'lead_category_id',
+                'source',
+                'form_id',
+                'advertising_platform',
+                'campaign_name',
+                'lead_status',
+                'priority',
+                'assigned_to',
+                'view',
+            ])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->all();
+    }
+
     private function filteredQuery(Request $request)
     {
         return Lead::forCurrentOrganization()
@@ -871,7 +984,7 @@ class LeadController extends Controller
                 });
             })
             ->when(
-                $request->query('view') === 'list' && ! $request->filled('sort_by'),
+                $request->query('view') !== 'list' || ! $request->filled('sort_by'),
                 fn ($q) => $q->orderByRaw('list_position IS NULL')
                     ->orderBy('list_position')
                     ->orderBy('created_at', 'desc'),
@@ -880,6 +993,76 @@ class LeadController extends Controller
                     $request->get('sort_order', 'desc')
                 )
             );
+    }
+
+    public function boardColumn(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lead_status' => ['required', 'string'],
+            'offset' => ['nullable', 'integer', 'min:0'],
+            'limit' => ['nullable', 'integer', 'min:5', 'max:30'],
+        ]);
+
+        $status = LeadStatus::tryFrom($validated['lead_status']);
+        if (! $status) {
+            return response()->json(['ok' => false, 'message' => 'Invalid pipeline column.'], 422);
+        }
+
+        $offset = (int) ($validated['offset'] ?? 0);
+        $limit = (int) ($validated['limit'] ?? self::BOARD_COLUMN_BATCH);
+        $total = (int) $this->filteredQuery($request)->where('lead_status', $status->value)->count();
+        $leads = $this->boardColumnLeads($request, $status->value, $limit, $offset);
+        $inlineOptions = $this->boardCardInlineOptions();
+
+        $html = view('admin.crm.leads.partials.board-column-cards', [
+            'leads' => $leads,
+            'priorityInlineOptions' => $inlineOptions['priorityInlineOptions'],
+            'assigneeInlineOptions' => $inlineOptions['assigneeInlineOptions'],
+        ])->render();
+
+        $loaded = $offset + $leads->count();
+
+        return response()->json([
+            'ok' => true,
+            'html' => $html,
+            'loaded' => $loaded,
+            'total' => $total,
+            'has_more' => $loaded < $total,
+        ]);
+    }
+
+    public function reorderBoard(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lead_status' => ['required', 'string'],
+            'lead_ids' => ['required', 'array', 'min:1'],
+            'lead_ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $leadIds = array_values(array_unique(array_map('intval', $validated['lead_ids'])));
+        $status = (string) $validated['lead_status'];
+
+        $leads = Lead::forCurrentOrganization()
+            ->where('lead_status', $status)
+            ->whereIn('id', $leadIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($leads->count() !== count($leadIds)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'One or more leads could not be reordered in this column.',
+            ], 422);
+        }
+
+        foreach ($leadIds as $index => $leadId) {
+            $leads[$leadId]->update(['list_position' => $index + 1]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Column order updated.',
+        ]);
     }
 
     public function reorderList(Request $request): JsonResponse
@@ -913,6 +1096,40 @@ class LeadController extends Controller
             'ok' => true,
             'message' => 'Row order updated.',
         ]);
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int, Lead> */
+    private function boardColumnLeads(Request $request, string $status, int $limit, int $offset)
+    {
+        return $this->filteredQuery($request)
+            ->where('lead_status', $status)
+            ->offset($offset)
+            ->limit($limit)
+            ->get();
+    }
+
+    /** @return array{priorityInlineOptions: array<string, array{label: string, tone: string, icon: string}>, assigneeInlineOptions: array<string, array{label: string, tone: string, icon: string}>} */
+    private function boardCardInlineOptions(): array
+    {
+        $priorityInlineOptions = [];
+        foreach (LeadPriority::cases() as $priority) {
+            $priorityInlineOptions[$priority->value] = [
+                'label' => $priority->label(),
+                'tone' => CrmStatusTone::for($priority->value),
+                'icon' => CrmStatusTone::icon($priority->value),
+            ];
+        }
+
+        $assigneeInlineOptions = ['' => ['label' => 'Unassigned', 'tone' => 'neutral', 'icon' => 'solar:user-linear']];
+        foreach (Admin::forCurrentOrganization()->orderBy('name')->get() as $admin) {
+            $assigneeInlineOptions[(string) $admin->id] = [
+                'label' => $admin->name,
+                'tone' => 'neutral',
+                'icon' => 'solar:user-linear',
+            ];
+        }
+
+        return compact('priorityInlineOptions', 'assigneeInlineOptions');
     }
 
     private function shouldShowFormIntake(Request $request): bool

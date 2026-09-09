@@ -341,6 +341,31 @@ class LeadImportTest extends CrmTestCase
         $this->assertStringContainsString('Interested in September enrolment', (string) $lead->notes()->value('note'));
     }
 
+    public function test_import_assigns_lead_when_email_starts_with_teammate_name(): void
+    {
+        Admin::create([
+            'name' => 'Foysol Ahmed',
+            'email' => 'foysol@alrushd.co.uk',
+            'password' => bcrypt('password'),
+            'organization_id' => $this->organizationA->id,
+        ]);
+
+        $path = $this->tmpDir.'/email-assign.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray(['full_name', 'email', 'phone'], null, 'A1');
+        $sheet->fromArray(['Parent One', 'foysol11@gmail.com', '+44 7700 900111'], null, 'A2');
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $import = $this->uploadAndMap($path, 'email-assign.xlsx');
+        $this->confirm($import);
+
+        $lead = Lead::forOrganization($this->organizationA->id)->where('email', 'foysol11@gmail.com')->first();
+        $this->assertNotNull($lead);
+        $this->assertSame('Foysol Ahmed', $lead->assignedAdmin?->name);
+    }
+
     public function test_undo_import_soft_removes_leads_from_view(): void
     {
         Admin::create([

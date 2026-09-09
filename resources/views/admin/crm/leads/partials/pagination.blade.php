@@ -34,11 +34,21 @@
     <div class="crm-leads-pagination">
         <div class="crm-leads-pagination__meta">
             <div class="crm-leads-pagination__summary">
-                <span class="crm-leads-pagination__summary-label">Showing</span>
-                <strong>{{ number_format($paginator->firstItem()) }}–{{ number_format($paginator->lastItem()) }}</strong>
-                <span class="crm-leads-pagination__summary-total">of {{ number_format($paginator->total()) }} leads</span>
+                @if($viewMode === 'board')
+                    <span class="crm-leads-pagination__summary-label">Pipeline</span>
+                    <strong>{{ number_format($boardLoadedCount ?? 0) }}</strong>
+                    <span class="crm-leads-pagination__summary-total">of {{ number_format($paginator->total()) }} leads loaded</span>
+                    @if(($boardLoadedCount ?? 0) < $paginator->total())
+                        <span class="crm-leads-pagination__summary-note">— scroll a column to load more</span>
+                    @endif
+                @else
+                    <span class="crm-leads-pagination__summary-label">Showing</span>
+                    <strong>{{ number_format($paginator->firstItem()) }}–{{ number_format($paginator->lastItem()) }}</strong>
+                    <span class="crm-leads-pagination__summary-total">of {{ number_format($paginator->total()) }} leads</span>
+                @endif
             </div>
 
+            @if($viewMode !== 'board')
             <form method="GET" action="{{ route('admin.crm.leads.index') }}" class="crm-leads-pagination__per-page">
                 @foreach(request()->except(['page', 'per_page']) as $key => $value)
                     @if(is_array($value))
@@ -59,9 +69,10 @@
                     @endforeach
                 </select>
             </form>
+            @endif
         </div>
 
-        @if($paginator->hasPages())
+        @if($viewMode !== 'board' && $paginator->hasPages())
             <nav class="crm-leads-pagination__nav" aria-label="Leads pagination">
                 @if($paginator->onFirstPage())
                     <span class="crm-page-btn crm-page-btn--icon is-disabled" aria-disabled="true" title="First page">
