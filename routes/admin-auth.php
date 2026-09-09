@@ -65,6 +65,10 @@ Route::prefix('admin')->middleware('guest:admin')->group(function () {
 
 });
 
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::match(['get', 'post'], 'logout', [LoginController::class, 'destroy'])->name('logout');
+});
+
 Route::prefix('admin')->name('admin.')
 // ->middleware('auth:admin')
 ->middleware(['auth:admin', 'admin.only', 'admin.has.role', 'org.active', 'plan.module'])
@@ -76,9 +80,6 @@ Route::prefix('admin')->name('admin.')
     require __DIR__.'/email-marketing.php';
     require __DIR__.'/integrations.php';
     require __DIR__.'/account.php';
-
-    Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
-
 
     // SaaS subscription billing for this school
     Route::get('/billing', [\App\Http\Controllers\Admin\BillingController::class, 'index'])->name('billing.index');

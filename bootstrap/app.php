@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
         $middleware->validateCsrfTokens(except: [
+            'admin/logout',
             'webhooks/meta/*',
             'webhooks/tiktok/*',
             'webhooks/stripe/*',
@@ -43,5 +44,31 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
+            if ($request->is('admin/*') || $request->is('superadmin/*')) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => 'Session expired. Please sign in again.'], 419);
+                }
+
+                return redirect()
+                    ->route('admin.login')
+                    ->with('warning', 'Your session expired. Please sign in again.');
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
+            }
+
+            if ($request->is('admin/*') || $request->is('superadmin/*')) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => 'Session expired. Please sign in again.'], 419);
+                }
+
+                return redirect()
+                    ->route('admin.login')
+                    ->with('warning', 'Your session expired. Please sign in again.');
+            }
+        });
     })->create();

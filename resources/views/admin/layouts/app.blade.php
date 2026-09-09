@@ -226,12 +226,10 @@
                                 </li>
                                 <li>
 
-                                    <form method="POST" action="{{ route('admin.logout') }}">
-                                        @csrf
-                                        <button type="submit" class="dropdown-item crm-logout-button">
-                                            <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log Out
-                                        </button>
-                                    </form>
+                                    <a class="dropdown-item crm-logout-button text-black px-0 py-8 hover-bg-transparent hover-text-danger d-flex align-items-center gap-3"
+                                       href="{{ route('admin.logout') }}">
+                                        <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log Out
+                                    </a>
 
 
                                 </li>

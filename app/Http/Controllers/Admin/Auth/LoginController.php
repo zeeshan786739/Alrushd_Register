@@ -43,12 +43,13 @@ class LoginController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        Auth::guard('admin')->logout();
+        if (Auth::guard('admin')->check()) {
+            Auth::guard('admin')->logout();
+        }
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
-        return redirect('/admin/login')->with('success', 'Logout Successfully !!!');
+        return redirect()->route('admin.login')->with('success', 'Logout Successfully !!!');
     }
 }

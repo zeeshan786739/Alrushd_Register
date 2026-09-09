@@ -49,10 +49,7 @@
             Otherwise please contact <a href="mailto:{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}">{{ \App\Models\PlatformSetting::get('support_email', config('saas.support_email')) }}</a>.</p>
         <div class="actions" style="margin-top: 24px;">
             <a href="{{ route('admin.billing.index') }}" class="btn btn-primary">Go to Billing</a>
-            <form method="POST" action="{{ route('admin.logout') }}">
-                @csrf
-                <button type="submit" class="btn btn-ghost">Log out</button>
-            </form>
+            <a href="{{ route('admin.logout') }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11">Log out</a>
         </div>
     </div>
 </body>

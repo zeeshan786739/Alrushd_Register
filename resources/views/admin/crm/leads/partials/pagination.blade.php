@@ -36,15 +36,15 @@
             <div class="crm-leads-pagination__summary">
                 @if($viewMode === 'board')
                     <span class="crm-leads-pagination__summary-label">Pipeline</span>
-                    <strong>{{ number_format($boardLoadedCount ?? 0) }}</strong>
-                    <span class="crm-leads-pagination__summary-total">of {{ number_format($paginator->total()) }} leads loaded</span>
+                    <strong data-crm-board-loaded-count>{{ number_format($boardLoadedCount ?? 0) }}</strong>
+                    <span class="crm-leads-pagination__summary-total">of <span data-crm-pagination-total>{{ number_format($paginator->total()) }}</span> leads loaded</span>
                     @if(($boardLoadedCount ?? 0) < $paginator->total())
                         <span class="crm-leads-pagination__summary-note">— scroll a column to load more</span>
                     @endif
                 @else
                     <span class="crm-leads-pagination__summary-label">Showing</span>
-                    <strong>{{ number_format($paginator->firstItem()) }}–{{ number_format($paginator->lastItem()) }}</strong>
-                    <span class="crm-leads-pagination__summary-total">of {{ number_format($paginator->total()) }} leads</span>
+                    <strong data-crm-list-range>{{ number_format($paginator->firstItem()) }}–{{ number_format($paginator->lastItem()) }}</strong>
+                    <span class="crm-leads-pagination__summary-total">of <span data-crm-pagination-total>{{ number_format($paginator->total()) }}</span> leads</span>
                 @endif
             </div>
 

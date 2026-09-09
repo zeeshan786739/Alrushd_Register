@@ -3,7 +3,7 @@
 <div class="crm-filter-bulk-bar" data-crm-filter-bulk-bar>
     <div class="crm-filter-bulk-bar__summary">
         <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
-        <strong>{{ number_format($filteredTotal) }}</strong>
+        <strong data-crm-filter-bulk-total>{{ number_format($filteredTotal) }}</strong>
         <span>lead(s) match your current filters</span>
     </div>
     <div class="crm-filter-bulk-bar__actions">

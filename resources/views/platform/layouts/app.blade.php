@@ -109,14 +109,10 @@
                             </div>
                             <ul class="to-top-list">
                                 <li>
-                                    <form method="POST" action="{{ route('admin.logout') }}">
-                                        @csrf
-                                        <a onclick="event.preventDefault(); this.closest('form').submit();"
-                                           class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-danger d-flex align-items-center gap-3"
-                                           href="{{ route('admin.logout') }}">
-                                            <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log Out
-                                        </a>
-                                    </form>
+                                    <a class="dropdown-item text-black px-0 py-8 hover-bg-transparent hover-text-danger d-flex align-items-center gap-3"
+                                       href="{{ route('admin.logout') }}">
+                                        <iconify-icon icon="lucide:power" class="icon text-xl"></iconify-icon> Log Out
+                                    </a>
                                 </li>
                             </ul>
                         </div>

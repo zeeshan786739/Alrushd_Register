@@ -26,7 +26,7 @@
         <span class="crm-list-row__select crm-list-row__select--spacer" aria-hidden="true"></span>
     @endcanany
 
-    <span class="crm-list-row__handle" aria-hidden="true" title="Drag to reorder">
+    <span class="crm-list-row__handle" aria-hidden="true" title="Drag to reorder, or double-click the row to move to another status">
         <iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon>
     </span>
 

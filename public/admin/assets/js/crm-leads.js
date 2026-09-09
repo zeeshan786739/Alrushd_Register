@@ -1329,14 +1329,169 @@
         });
     }
 
-    function refreshBoardColumnCounts() {
-        page.querySelectorAll('[data-crm-dropzone]').forEach(function (column) {
-            var count = column.querySelectorAll('[data-crm-board-card]').length;
-            var countEl = column.querySelector('.crm-board-column__count');
-            var empty = column.querySelector('.crm-board-empty');
-            if (countEl) countEl.textContent = String(count);
-            if (empty) empty.hidden = count > 0;
+    function parseCount(value, fallback) {
+        var parsed = parseInt(value, 10);
+        return isNaN(parsed) ? fallback : parsed;
+    }
+
+    function formatLeadCount(value) {
+        return Number(value || 0).toLocaleString();
+    }
+
+    function getLeadQueryFilter(key) {
+        return new URLSearchParams(window.location.search).get(key) || '';
+    }
+
+    function setFilteredTotal(next) {
+        var total = Math.max(0, parseCount(next, 0));
+        page.setAttribute('data-filtered-total', String(total));
+        page.setAttribute('data-board-total', String(total));
+
+        page.querySelectorAll('[data-crm-toolbar-matching]').forEach(function (el) {
+            el.textContent = formatLeadCount(total);
         });
+        page.querySelectorAll('[data-crm-pagination-total]').forEach(function (el) {
+            el.textContent = formatLeadCount(total);
+        });
+        page.querySelectorAll('[data-crm-filter-bulk-total]').forEach(function (el) {
+            el.textContent = formatLeadCount(total);
+        });
+    }
+
+    function adjustFilteredTotal(delta) {
+        if (!delta) return;
+        setFilteredTotal(parseCount(page.getAttribute('data-filtered-total'), 0) + delta);
+    }
+
+    function refreshListViewMetrics() {
+        if (!page.classList.contains('crm-list-view')) return;
+
+        var list = page.querySelector('[data-crm-leads-list]');
+        if (!list) return;
+
+        var rows = list.querySelectorAll('[data-crm-list-row][data-lead-id]').length;
+        var total = parseCount(page.getAttribute('data-filtered-total'), rows);
+        var params = new URLSearchParams(window.location.search);
+        var pageNum = Math.max(1, parseCount(params.get('page'), 1));
+        var perPage = Math.max(1, parseCount(params.get('per_page'), 15));
+        var firstItem = rows > 0 ? ((pageNum - 1) * perPage) + 1 : 0;
+        var lastItem = rows > 0 ? Math.min(total, firstItem + rows - 1) : 0;
+        var rangeText = rows > 0
+            ? formatLeadCount(firstItem) + '–' + formatLeadCount(lastItem) + ' of ' + formatLeadCount(total)
+            : '0 of ' + formatLeadCount(total);
+
+        page.querySelectorAll('[data-crm-list-range]').forEach(function (el) {
+            if (rows > 0) {
+                el.textContent = formatLeadCount(firstItem) + '–' + formatLeadCount(lastItem);
+            } else {
+                el.textContent = '0';
+            }
+        });
+        page.querySelectorAll('[data-crm-toolbar-list-range]').forEach(function (el) {
+            el.textContent = rangeText;
+        });
+    }
+
+    function refreshBoardLoadedSummary() {
+        var totalLoaded = page.querySelectorAll('[data-crm-board-card][data-lead-id]').length;
+        var boardTotal = parseCount(page.getAttribute('data-board-total'), 0);
+
+        page.querySelectorAll('[data-crm-board-loaded-count]').forEach(function (el) {
+            el.textContent = formatLeadCount(totalLoaded);
+        });
+        page.querySelectorAll('[data-crm-toolbar-board-loaded]').forEach(function (el) {
+            el.textContent = formatLeadCount(totalLoaded) + ' loaded on board';
+        });
+
+        var summaryNote = page.querySelector('.crm-leads-pagination__summary-note');
+        if (summaryNote) {
+            summaryNote.hidden = boardTotal > 0 && totalLoaded >= boardTotal;
+        }
+    }
+
+    function syncBoardColumnBody(body) {
+        if (!body) return;
+
+        var column = body.closest('[data-crm-dropzone]');
+        var colStatus = column ? column.getAttribute('data-status') : '';
+        var leadCards = body.querySelectorAll('[data-crm-board-card][data-lead-id]').length;
+        var submissions = body.querySelectorAll('[data-crm-submission-open]').length;
+        var leadTotal = parseCount(body.getAttribute('data-total'), leadCards);
+        var visible = leadCards + submissions;
+        var columnTotal = leadTotal + (colStatus === 'new' ? submissions : 0);
+
+        if (column) {
+            var headStrong = column.querySelector('.crm-board-column__title-wrap strong');
+            var countEl = column.querySelector('.crm-board-column__count');
+            if (headStrong) headStrong.textContent = formatLeadCount(columnTotal);
+            if (countEl) {
+                countEl.textContent = String(visible);
+                countEl.title = leadCards < leadTotal
+                    ? 'Showing ' + visible + ' of ' + (leadTotal + submissions)
+                    : visible + ' visible';
+            }
+        }
+
+        body.setAttribute('data-has-more', leadCards < leadTotal ? '1' : '0');
+
+        var empty = body.querySelector('.crm-board-empty');
+        if (empty) empty.hidden = visible > 0;
+
+        var loadMore = body.querySelector('[data-crm-board-load-more]');
+        if (loadMore) loadMore.hidden = body.getAttribute('data-has-more') !== '1';
+    }
+
+    function refreshBoardColumnMetrics(status) {
+        if (status) {
+            var column = page.querySelector('[data-crm-dropzone][data-status="' + status + '"]');
+            syncBoardColumnBody(column ? column.querySelector('[data-crm-board-scroll]') : null);
+        } else {
+            page.querySelectorAll('[data-crm-board-scroll]').forEach(syncBoardColumnBody);
+        }
+        refreshBoardLoadedSummary();
+    }
+
+    function adjustColumnLeadTotal(status, delta) {
+        if (!status || !delta) return;
+
+        var column = page.querySelector('[data-crm-dropzone][data-status="' + status + '"]');
+        if (!column) return;
+
+        var body = column.querySelector('[data-crm-board-scroll]');
+        if (!body) return;
+
+        var next = Math.max(0, parseCount(body.getAttribute('data-total'), 0) + delta);
+        body.setAttribute('data-total', String(next));
+        refreshBoardColumnMetrics(status);
+    }
+
+    function transferColumnLeadTotals(fromStatus, toStatus) {
+        if (!fromStatus || !toStatus || fromStatus === toStatus) return;
+        adjustColumnLeadTotal(fromStatus, -1);
+        adjustColumnLeadTotal(toStatus, 1);
+    }
+
+    function handleLeadStatusMetricsChange(leadId, previousStatus, newStatus, options) {
+        options = options || {};
+        if (!previousStatus || !newStatus || previousStatus === newStatus) return;
+
+        if (!options.skipColumnTransfer) {
+            transferColumnLeadTotals(previousStatus, newStatus);
+        }
+
+        var statusFilter = getLeadQueryFilter('lead_status');
+        if (statusFilter && statusFilter !== newStatus) {
+            adjustFilteredTotal(-1);
+            var row = page.querySelector('[data-crm-list-row][data-lead-id="' + leadId + '"]');
+            if (row) row.remove();
+        }
+
+        refreshListViewMetrics();
+        refreshBoardColumnMetrics();
+    }
+
+    function refreshBoardColumnCounts() {
+        refreshBoardColumnMetrics();
     }
 
     function syncLeadStatusControls(leadId, value, data) {
@@ -1440,8 +1595,14 @@
             return;
         }
 
+        var statusChanged = targetStatus !== previousStatus;
+
         if (isBoardCard && targetBody) {
             insertBoardCard(item, targetBody, insertBefore);
+        }
+
+        if (statusChanged) {
+            transferColumnLeadTotals(previousStatus, targetStatus);
         }
 
         item.setAttribute('data-current-status', targetStatus);
@@ -1454,12 +1615,16 @@
             if (!result.ok) {
                 item.setAttribute('data-current-status', previousStatus || '');
                 if (isBoardCard && origin) origin.insertBefore(item, nextSibling || null);
-                refreshBoardColumnCounts();
+                if (statusChanged) {
+                    transferColumnLeadTotals(targetStatus, previousStatus);
+                }
+                refreshBoardColumnMetrics();
                 showToast((result.data && (result.data.message || result.data.error)) || 'Status update failed.', true);
                 return;
             }
 
             syncLeadStatusControls(leadId, targetStatus, result.data || {});
+            handleLeadStatusMetricsChange(leadId, previousStatus, targetStatus, { skipColumnTransfer: true });
             if (isBoardCard && originColumn) {
                 persistBoardColumnOrder(originColumn);
             }
@@ -1470,7 +1635,10 @@
         }).catch(function () {
             item.setAttribute('data-current-status', previousStatus || '');
             if (isBoardCard && origin) origin.insertBefore(item, nextSibling || null);
-            refreshBoardColumnCounts();
+            if (statusChanged) {
+                transferColumnLeadTotals(targetStatus, previousStatus);
+            }
+            refreshBoardColumnMetrics();
             showToast('Status update failed. Please try again.', true);
         });
     }
@@ -1520,6 +1688,7 @@
 
         if (targetStatus === previousStatus) {
             showToast('Lead is already in ' + (zoneLabel || 'this stage') + '.', false);
+            disarmListDrag();
             return false;
         }
 
@@ -1799,6 +1968,18 @@
             cancelRowOpenTimer();
         }
 
+        if (page.classList.contains('crm-list-view') && canUpdateLeads && event.button === 0 && !listDragArm) {
+            var handle = closestFromEvent(event, '.crm-list-row__handle');
+            if (handle && !isDragBlockedTarget(event)) {
+                var handleRow = handle.closest('[data-crm-list-row][data-lead-id]');
+                if (handleRow && page.contains(handleRow)) {
+                    cancelRowOpenTimer();
+                    armListRowForDrag(handleRow, event);
+                    suppressOpenUntil = Date.now() + 1500;
+                }
+            }
+        }
+
         if (!listDragArm || event.button !== 0) return;
         if (Date.now() < listDragArm.ignoreUntil) return;
 
@@ -2034,36 +2215,6 @@
 
         var loadingColumns = {};
 
-        function updateBoardLoadedSummary() {
-            var totalLoaded = page.querySelectorAll('[data-crm-board-card][data-lead-id]').length;
-            var summaryStrong = page.querySelector('.crm-leads-pagination__summary strong');
-            var summaryNote = page.querySelector('.crm-leads-pagination__summary-note');
-            var paginatorTotal = parseInt(page.getAttribute('data-board-total') || '0', 10);
-            if (summaryStrong) summaryStrong.textContent = String(totalLoaded);
-            if (summaryNote) summaryNote.hidden = paginatorTotal > 0 && totalLoaded >= paginatorTotal;
-        }
-
-        function syncColumnLoadUi(body) {
-            var column = body.closest('[data-crm-dropzone]');
-            var loadMore = body.querySelector('[data-crm-board-load-more]');
-            var hasMore = body.getAttribute('data-has-more') === '1';
-            if (loadMore) loadMore.hidden = !hasMore;
-
-            if (!column) return;
-
-            var leadCards = body.querySelectorAll('[data-crm-board-card][data-lead-id]').length;
-            var submissions = body.querySelectorAll('[data-crm-board-card][data-crm-submission-open]').length;
-            var leadTotal = parseInt(body.getAttribute('data-total') || '0', 10);
-            var visible = leadCards + submissions;
-            var countEl = column.querySelector('.crm-board-column__count');
-            if (countEl) {
-                countEl.textContent = String(visible);
-                countEl.title = leadCards < leadTotal
-                    ? 'Showing ' + visible + ' of ' + (leadTotal + submissions)
-                    : visible + ' visible';
-            }
-        }
-
         function loadMoreBoardColumn(body) {
             if (!body || body.getAttribute('data-has-more') !== '1') return;
 
@@ -2116,9 +2267,8 @@
 
                 body.setAttribute('data-offset', String(result.data.loaded));
                 body.setAttribute('data-has-more', result.data.has_more ? '1' : '0');
-                syncColumnLoadUi(body);
-                refreshBoardColumnCounts();
-                updateBoardLoadedSummary();
+                syncBoardColumnBody(body);
+                refreshBoardLoadedSummary();
             }).catch(function () {
                 showToast('Could not load more leads. Please try again.', true);
             }).finally(function () {
@@ -2126,7 +2276,7 @@
                 body.classList.remove('is-loading-more');
                 if (idleLabel) idleLabel.hidden = false;
                 if (busyLabel) busyLabel.hidden = true;
-                syncColumnLoadUi(body);
+                syncBoardColumnBody(body);
             });
         }
 
@@ -2312,6 +2462,10 @@
                     markSelected(peer, value);
                 });
                 if (field === 'lead_status') {
+                    var previousStatus = page.querySelector('[data-crm-list-row][data-lead-id="' + leadId + '"]')?.getAttribute('data-current-status')
+                        || page.querySelector('[data-crm-board-card][data-lead-id="' + leadId + '"]')?.getAttribute('data-current-status')
+                        || previous
+                        || '';
                     page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
                         el.setAttribute('data-current-status', value);
                     });
@@ -2319,8 +2473,8 @@
                     var card = page.querySelector('[data-crm-board-card][data-lead-id="' + leadId + '"]');
                     if (targetBody && card) {
                         targetBody.appendChild(card);
-                        refreshBoardColumnCounts();
                     }
+                    handleLeadStatusMetricsChange(leadId, previousStatus, value);
                 }
                 if (field === 'priority') {
                     syncBoardCardPriority(leadId, value);
@@ -2691,7 +2845,21 @@
                 }
 
                 (result.data.results || []).forEach(function (item) {
-                    applyBulkControlVisual(item.id, field, item);
+                    if (field === 'lead_status') {
+                        var bulkRow = page.querySelector('[data-crm-list-row][data-lead-id="' + item.id + '"]');
+                        var bulkCard = page.querySelector('[data-crm-board-card][data-lead-id="' + item.id + '"]');
+                        var bulkPreviousStatus = (bulkRow && bulkRow.getAttribute('data-current-status'))
+                            || (bulkCard && bulkCard.getAttribute('data-current-status'))
+                            || '';
+                        var bulkTargetBody = page.querySelector('[data-crm-dropzone][data-status="' + item.value + '"] .crm-board-column__body');
+                        if (bulkTargetBody && bulkCard) {
+                            bulkTargetBody.appendChild(bulkCard);
+                        }
+                        applyBulkControlVisual(item.id, field, item);
+                        handleLeadStatusMetricsChange(String(item.id), bulkPreviousStatus, item.value);
+                    } else {
+                        applyBulkControlVisual(item.id, field, item);
+                    }
                 });
 
                 page.querySelectorAll('[data-crm-lead-select]:checked').forEach(function (cb) {

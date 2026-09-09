@@ -98,14 +98,14 @@
                     <button type="button" data-view="list" @class(['is-active' => ($viewMode ?? 'board') === 'list']) title="List view"><iconify-icon icon="solar:list-linear"></iconify-icon></button>
                 </div>
                 <div class="crm-leads-toolbar__meta">
-                    <strong>{{ number_format($filteredTotal ?? $leads->total()) }} matching</strong>
+                    <strong data-crm-toolbar-matching>{{ number_format($filteredTotal ?? $leads->total()) }}</strong> matching
                     @if($activeFilters > 0)
                         <span class="crm-leads-toolbar__filters">{{ $activeFilters }} filter{{ $activeFilters === 1 ? '' : 's' }}</span>
                     @endif
                     @if(($viewMode ?? 'board') === 'board')
-                        <span>{{ $leads->count() }} loaded on board</span>
-                    @elseif($leads->total() > $leads->count())
-                        <span>{{ $leads->firstItem() }}–{{ $leads->lastItem() }} of {{ number_format($leads->total()) }}</span>
+                        <span data-crm-toolbar-board-loaded>{{ $boardLoadedCount ?? 0 }} loaded on board</span>
+                    @elseif($leads->total() > 0)
+                        <span data-crm-toolbar-list-range>{{ $leads->firstItem() }}–{{ $leads->lastItem() }} of {{ number_format($leads->total()) }}</span>
                     @endif
                 </div>
             </div>
@@ -223,7 +223,7 @@
                 <div class="crm-list-status-rail" data-crm-list-status-rail>
                     <div class="crm-list-status-rail__hint">
                         <iconify-icon icon="solar:transfer-horizontal-linear" aria-hidden="true"></iconify-icon>
-                        Click a status to filter. Double-click a row to reorder, or drop a lead on a status to move it.
+                        Click a status to filter. Double-click a row (or drag the handle) to pick it up, reorder in the list, or drop on a status to move it.
                     </div>
                     <div class="crm-list-status-rail__zones">
                         @foreach($workflowStatuses as $status)
