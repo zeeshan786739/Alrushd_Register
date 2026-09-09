@@ -11,6 +11,8 @@ class Admin extends Authenticatable
 {
     use HasFactory, HasRoles, Notifiable;
 
+    public const INVITATION_PLACEHOLDER_NAME = 'Invited teammate';
+
     protected $guard = 'admin';
 
     /**
@@ -47,6 +49,17 @@ class Admin extends Authenticatable
         }
 
         return $query->where('organization_id', $organizationId);
+    }
+
+    /** Teammates who finished invitation setup and can own leads. */
+    public function scopeAssignable($query)
+    {
+        return $query->where('name', '!=', self::INVITATION_PLACEHOLDER_NAME);
+    }
+
+    public function hasAcceptedInvitation(): bool
+    {
+        return trim((string) $this->name) !== self::INVITATION_PLACEHOLDER_NAME;
     }
 
     /**

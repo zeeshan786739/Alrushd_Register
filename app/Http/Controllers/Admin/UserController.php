@@ -73,7 +73,7 @@ class UserController extends Controller
         $email = strtolower(trim($request->email));
 
         $user = Admin::create([
-            'name' => 'Invited teammate',
+            'name' => Admin::INVITATION_PLACEHOLDER_NAME,
             'email' => $email,
             'password' => Str::random(64),
             'organization_id' => OrganizationContext::idOrFail(),

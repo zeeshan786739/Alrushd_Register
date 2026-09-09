@@ -122,7 +122,7 @@ class LeadController extends Controller
         $forms = Form::forCurrentOrganization()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
         $formLeadCounts = CrmFormStats::leadCountsByForm();
 
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = $this->assignableAdmins();
         $savedFilters = SavedFilter::forCurrentOrganization()
             ->where('admin_id', auth('admin')->id())
             ->where('module', 'leads')
@@ -221,7 +221,7 @@ class LeadController extends Controller
 
     public function createPanel(): View
     {
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = $this->assignableAdmins();
         $categories = LeadCategorySchema::ready()
             ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
             : collect();
@@ -277,7 +277,7 @@ class LeadController extends Controller
     {
         $this->authorize('update', $lead);
 
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = $this->assignableAdmins();
         $categories = LeadCategorySchema::ready()
             ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
             : collect();
@@ -321,7 +321,7 @@ class LeadController extends Controller
 
         return [
             'lead' => $lead,
-            'admins' => Admin::forCurrentOrganization()->orderBy('name')->get(),
+            'admins' => $this->assignableAdmins(),
             'emailHistory' => CrmEmailDeliverySummary::latestForLead(
                 (int) $lead->organization_id,
                 (int) $lead->id
@@ -332,7 +332,7 @@ class LeadController extends Controller
     public function edit(Lead $lead): View
     {
         $this->authorize('update', $lead);
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = $this->assignableAdmins();
         $categories = LeadCategorySchema::ready()
             ? LeadCategory::forCurrentOrganization()->active()->orderBy('sort_order')->orderBy('name')->get()
             : collect();
@@ -412,7 +412,7 @@ class LeadController extends Controller
 
         $activity = $lead->logActivity('note_added', 'Comment added');
         $note->load('admin');
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = $this->assignableAdmins();
 
         if ($request->expectsJson()) {
             return response()->json(array_merge([
@@ -522,7 +522,7 @@ class LeadController extends Controller
             ], $this->activityJsonFragment($lead, $activity)));
         }
 
-        $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+        $assignee = Admin::forCurrentOrganization()->assignable()->findOrFail((int) $value);
         $lead->update(['assigned_to' => $assignee->id]);
         $activity = $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name);
 
@@ -570,7 +570,7 @@ class LeadController extends Controller
                         'icon' => 'solar:user-linear',
                     ];
                 } else {
-                    $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+                    $assignee = Admin::forCurrentOrganization()->assignable()->findOrFail((int) $value);
                     $lead->update(['assigned_to' => $assignee->id]);
                     $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name.' (bulk update)');
                     $results[] = [
@@ -658,7 +658,7 @@ class LeadController extends Controller
                     $lead->update(['assigned_to' => null]);
                     $lead->logActivity('assigned', 'Lead unassigned (filtered bulk update)');
                 } else {
-                    $assignee = Admin::forCurrentOrganization()->findOrFail((int) $value);
+                    $assignee = Admin::forCurrentOrganization()->assignable()->findOrFail((int) $value);
                     $lead->update(['assigned_to' => $assignee->id]);
                     $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name.' (filtered bulk update)');
                 }
@@ -738,7 +738,7 @@ class LeadController extends Controller
         $this->authorize('assign', $lead);
         $validated = $request->validate(['assigned_to' => 'required|exists:admins,id']);
 
-        $assignee = Admin::forCurrentOrganization()->findOrFail($validated['assigned_to']);
+        $assignee = Admin::forCurrentOrganization()->assignable()->findOrFail($validated['assigned_to']);
         $lead->update(['assigned_to' => $assignee->id]);
         $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name);
 
@@ -1121,7 +1121,7 @@ class LeadController extends Controller
         }
 
         $assigneeInlineOptions = ['' => ['label' => 'Unassigned', 'tone' => 'neutral', 'icon' => 'solar:user-linear']];
-        foreach (Admin::forCurrentOrganization()->orderBy('name')->get() as $admin) {
+        foreach ($this->assignableAdmins() as $admin) {
             $assigneeInlineOptions[(string) $admin->id] = [
                 'label' => $admin->name,
                 'tone' => 'neutral',
@@ -1130,6 +1130,12 @@ class LeadController extends Controller
         }
 
         return compact('priorityInlineOptions', 'assigneeInlineOptions');
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Admin> */
+    private function assignableAdmins()
+    {
+        return Admin::forCurrentOrganization()->assignable()->orderBy('name')->get();
     }
 
     private function shouldShowFormIntake(Request $request): bool

@@ -165,7 +165,9 @@ class LeadImportProcessor
     private function resolveAssignee(LeadImport $import, array $fields, array $options, LeadImportRow $row): ?int
     {
         $default = $options['default_assigned_to'] ?? null;
-        $query = Admin::query()->where('organization_id', $import->organization_id);
+        $query = Admin::query()
+            ->where('organization_id', $import->organization_id)
+            ->assignable();
 
         if ($default) {
             $exists = (clone $query)->whereKey($default)->exists();

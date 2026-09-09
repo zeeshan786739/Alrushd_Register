@@ -49,7 +49,7 @@ class BulkUpdateFilteredLeadsRequest extends FormRequest
             }
 
             if ($field === 'assigned_to' && $value !== null && $value !== '') {
-                $exists = Admin::forCurrentOrganization()->whereKey((int) $value)->exists();
+                $exists = Admin::forCurrentOrganization()->assignable()->whereKey((int) $value)->exists();
                 if (! $exists) {
                     $validator->errors()->add('value', 'Invalid assignee.');
                 }

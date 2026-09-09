@@ -77,7 +77,7 @@ class LeadImportController extends Controller
                 ->orderBy('name')
                 ->get()
             : collect();
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = Admin::forCurrentOrganization()->assignable()->orderBy('name')->get();
 
         return view('admin.crm.leads.import.create', compact('categories', 'admins'));
     }
@@ -268,7 +268,7 @@ class LeadImportController extends Controller
         }
 
         $data = $this->imports->mappingSuggestions($leadImport);
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+        $admins = Admin::forCurrentOrganization()->assignable()->orderBy('name')->get();
 
         return view('admin.crm.leads.import.map', [
             'import' => $leadImport->load('category'),
