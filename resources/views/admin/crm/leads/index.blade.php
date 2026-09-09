@@ -52,6 +52,7 @@
      data-can-assign="{{ auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
      data-can-bulk="{{ auth('admin')->user()?->can('update leads') || auth('admin')->user()?->can('assign leads') ? '1' : '0' }}"
      data-bulk-url="{{ route('admin.crm.leads.bulk') }}"
+     data-reorder-url="{{ route('admin.crm.leads.reorder-list') }}"
      data-smart-search-url="{{ route('admin.crm.leads.smart-search') }}"
      data-initial-view="{{ $viewMode ?? 'board' }}">
     @include('admin.partials.page-header', [
@@ -197,15 +198,18 @@
         <div class="crm-list-only crm-leads-list-shell">
             @can('update leads')
                 <div class="crm-list-status-rail" data-crm-list-status-rail>
-                    <div class="crm-list-status-rail__label">
-                        <iconify-icon icon="solar:transfer-horizontal-linear"></iconify-icon>
-                        Drag a lead onto a status to update pipeline stage
+                    <div class="crm-list-status-rail__hint">
+                        <iconify-icon icon="solar:transfer-horizontal-linear" aria-hidden="true"></iconify-icon>
+                        Click a row to view details. Double-click to pick it up, drag up or down to reorder, or drop on a status below.
                     </div>
                     <div class="crm-list-status-rail__zones">
                         @foreach($workflowStatuses as $status)
                             <div class="crm-list-status-drop"
                                  data-crm-list-dropzone
-                                 data-status="{{ $status->value }}">
+                                 data-status="{{ $status->value }}"
+                                 role="button"
+                                 tabindex="0"
+                                 title="Drop lead here — {{ $status->label() }}">
                                 {{ $status->label() }}
                             </div>
                         @endforeach
@@ -215,28 +219,29 @@
 
             @include('admin.crm.leads.partials.list-bulk-bar', ['admins' => $admins])
 
-            <div class="crm-leads-list-head" aria-hidden="true">
-                @canany(['update leads', 'assign leads'])
-                    <span class="crm-leads-list-head__select">
-                        <input type="checkbox"
-                               class="crm-list-select-all"
-                               data-crm-select-all
-                               aria-label="Select all leads on this page">
-                    </span>
-                @else
+            <div class="crm-leads-table">
+                <div class="crm-leads-table__head" aria-hidden="true">
+                    @canany(['update leads', 'assign leads'])
+                        <span class="crm-leads-table__select">
+                            <input type="checkbox"
+                                   class="crm-list-select-all"
+                                   data-crm-select-all
+                                   aria-label="Select all leads on this page">
+                        </span>
+                    @else
+                        <span></span>
+                    @endcanany
                     <span></span>
-                @endcanany
-                <span></span>
-                <span>Lead</span>
-                <span>Status</span>
-                <span>Priority</span>
-                <span>Assigned</span>
-                <span>Follow-up</span>
-                <span>Created</span>
-                <span></span>
-            </div>
+                    <span>Lead</span>
+                    <span>Status</span>
+                    <span>Priority</span>
+                    <span>Assigned</span>
+                    <span>Follow-up</span>
+                    <span>Added</span>
+                    <span></span>
+                </div>
 
-            <div class="crm-leads-list" data-crm-leads-list>
+                <div class="crm-leads-list" data-crm-leads-list>
                 @if(($pendingFormEntries ?? collect())->isNotEmpty())
                     @foreach($pendingFormEntries as $entry)
                         @include('admin.crm.leads.partials.list-submission-row', ['entry' => $entry])
@@ -258,6 +263,7 @@
                     </div>
                     @endif
                 @endforelse
+                </div>
             </div>
         </div>
 

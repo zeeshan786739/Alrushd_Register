@@ -1,13 +1,13 @@
-<div class="em-panel em-settings-panel mt-24" id="sender-mailboxes">
-    <div class="em-panel__head">
+<div class="em-settings-card" id="sender-mailboxes">
+    <div class="em-settings-card__head">
         <div>
-            <h2 class="em-panel__title">Sender mailboxes</h2>
-            <p class="em-panel__desc">Choose which verified addresses can send mail and optionally connect each address to its own inbox.</p>
+            <h2 class="em-settings-card__title">Sender mailboxes</h2>
+            <p class="em-settings-card__sub">Choose which verified addresses can send mail and optionally connect each address to its own inbox.</p>
         </div>
         <span class="badge bg-primary-focus text-primary-main">{{ $senderMailboxes->count() }} added</span>
     </div>
 
-    <div class="p-24">
+    <div class="em-settings-card__body">
         <div class="alert alert-info border-0 radius-8 mb-16">
             Authenticate each address or its domain in the connected SendGrid account first, then mark it verified here. IMAP credentials are only required when you also want to receive that address's inbox in this application.
         </div>

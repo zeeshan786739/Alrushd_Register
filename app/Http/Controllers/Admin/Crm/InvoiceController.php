@@ -40,35 +40,63 @@ class InvoiceController extends Controller
 
     public function index(Request $request): View
     {
-        $invoices = Invoice::forCurrentOrganization()
+        $baseQuery = Invoice::forCurrentOrganization();
+        $filteredQuery = $this->filteredInvoiceQuery($request);
+        $perPage = min(max((int) $request->get('per_page', 15), 10), 50);
+        $sortBy = in_array($request->get('sort_by'), ['invoice_number', 'total', 'due_amount', 'invoice_date', 'due_date', 'created_at'], true)
+            ? $request->get('sort_by')
+            : 'created_at';
+        $sortOrder = strtolower((string) $request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $invoices = (clone $filteredQuery)
             ->with(['customer', 'project'])
-            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
-            ->when($request->customer_id, fn ($q, $id) => $q->where('customer_id', $id))
-            ->when($request->search, fn ($q, $search) => $q->where('invoice_number', 'like', "%{$search}%"))
-            ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'))
-            ->paginate(15)
+            ->orderBy($sortBy, $sortOrder)
+            ->paginate($perPage)
             ->withQueryString();
 
-        $orgInvoices = Invoice::forCurrentOrganization()->where('status', '!=', 'cancelled');
+        $orgInvoices = (clone $baseQuery)->where('status', '!=', 'cancelled');
 
         $stats = [
             'total' => (clone $orgInvoices)->count(),
             'invoiced' => (float) (clone $orgInvoices)->sum('total'),
             'paid_amount' => (float) (clone $orgInvoices)->sum('paid_amount'),
-            'outstanding' => (float) Invoice::forCurrentOrganization()
+            'outstanding' => (float) (clone $baseQuery)
                 ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
                 ->sum('due_amount'),
-            'overdue' => (float) Invoice::forCurrentOrganization()
+            'overdue' => (float) (clone $baseQuery)
                 ->where('due_amount', '>', 0)
                 ->whereNotIn('status', ['paid', 'cancelled', 'draft'])
                 ->whereDate('due_date', '<', now()->toDateString())
                 ->sum('due_amount'),
-            'paid_count' => Invoice::forCurrentOrganization()->where('status', 'paid')->count(),
+            'paid_count' => (clone $baseQuery)->where('status', 'paid')->count(),
         ];
 
+        $statusCounts = [
+            'all' => (clone $baseQuery)->where('status', '!=', 'cancelled')->count(),
+            'draft' => (clone $baseQuery)->where('status', 'draft')->count(),
+            'sent' => (clone $baseQuery)->where('status', 'sent')->count(),
+            'partially_paid' => (clone $baseQuery)->where('status', 'partially_paid')->count(),
+            'paid' => (clone $baseQuery)->where('status', 'paid')->count(),
+            'overdue' => (clone $baseQuery)->where('status', 'overdue')->count(),
+        ];
+
+        $filteredTotal = (clone $filteredQuery)->count();
         $customers = Customer::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.crm.invoices.index', compact('invoices', 'stats', 'customers'));
+        return view('admin.crm.invoices.index', compact('invoices', 'stats', 'customers', 'statusCounts', 'filteredTotal'));
+    }
+
+    private function filteredInvoiceQuery(Request $request)
+    {
+        return Invoice::forCurrentOrganization()
+            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->customer_id, fn ($q, $id) => $q->where('customer_id', $id))
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('invoice_number', 'like', "%{$search}%")
+                        ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$search}%"));
+                });
+            });
     }
 
     public function create(Request $request): View

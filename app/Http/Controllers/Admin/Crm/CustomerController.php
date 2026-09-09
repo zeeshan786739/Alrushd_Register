@@ -27,9 +27,58 @@ class CustomerController extends Controller
 
     public function index(Request $request): View
     {
-        $customers = Customer::forCurrentOrganization()
+        $baseQuery = Customer::forCurrentOrganization();
+        $filteredQuery = $this->filteredCustomerQuery($request);
+
+        $perPage = min(max((int) $request->get('per_page', 15), 10), 50);
+        $sortBy = in_array($request->get('sort_by'), ['name', 'company', 'status', 'lifetime_value', 'created_at'], true)
+            ? $request->get('sort_by')
+            : 'created_at';
+        $sortOrder = strtolower((string) $request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $customers = (clone $filteredQuery)
             ->with(['assignedAdmin'])
+            ->orderBy($sortBy, $sortOrder)
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $baseQuery)->where('status', 'active')->count(),
+            'prospect' => (clone $baseQuery)->where('status', 'prospect')->count(),
+            'inactive' => (clone $baseQuery)->where('status', 'inactive')->count(),
+        ];
+
+        $statusCounts = [
+            'all' => $stats['total'],
+            'active' => $stats['active'],
+            'prospect' => $stats['prospect'],
+            'inactive' => $stats['inactive'],
+        ];
+
+        $filteredTotal = (clone $filteredQuery)->count();
+        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
+
+        return view('admin.crm.customers.index', compact(
+            'customers',
+            'stats',
+            'admins',
+            'statusCounts',
+            'filteredTotal',
+        ));
+    }
+
+    private function filteredCustomerQuery(Request $request)
+    {
+        return Customer::forCurrentOrganization()
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
+            ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
+            ->when(
+                $request->filled('assigned_to')
+                    && ! in_array($request->assigned_to, ['me', 'unassigned'], true),
+                fn ($q) => $q->where('assigned_to', (int) $request->assigned_to)
+            )
             ->when($request->search, function ($q, $search) {
                 $q->where(function ($inner) use ($search) {
                     $inner->where('name', 'like', "%{$search}%")
@@ -38,19 +87,7 @@ class CustomerController extends Controller
                         ->orWhere('company', 'like', "%{$search}%");
                 });
             })
-            ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'))
-            ->paginate(15)
-            ->withQueryString();
-
-        $stats = [
-            'total' => Customer::forCurrentOrganization()->count(),
-            'active' => Customer::forCurrentOrganization()->where('status', 'active')->count(),
-            'prospect' => Customer::forCurrentOrganization()->where('status', 'prospect')->count(),
-        ];
-
-        $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
-
-        return view('admin.crm.customers.index', compact('customers', 'stats', 'admins'));
+            ->when($request->source, fn ($q, $source) => $q->where('source', 'like', "%{$source}%"));
     }
 
     public function create(): View

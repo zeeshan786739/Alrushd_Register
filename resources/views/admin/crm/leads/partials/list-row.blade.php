@@ -1,5 +1,10 @@
-@php $followUp = \App\Support\LeadFollowUpState::forLead($lead); @endphp
-<article class="crm-list-row crm-lead-row"
+@php
+    $followUp = \App\Support\LeadFollowUpState::forLead($lead);
+    $canUpdate = auth('admin')->user()?->can('update leads');
+    $canAssign = auth('admin')->user()?->can('assign leads');
+    $canDelete = auth('admin')->user()?->can('delete leads');
+@endphp
+<article class="crm-list-row crm-lead-row crm-list-row--priority-{{ $lead->priority }}"
          data-crm-list-row
          data-crm-lead-open
          data-lead-id="{{ $lead->id }}"
@@ -7,6 +12,8 @@
          tabindex="0"
          role="button"
          aria-label="Open lead {{ $lead->full_name }}">
+    <span class="crm-list-row__priority-rail" aria-hidden="true"></span>
+
     @canany(['update leads', 'assign leads'])
         <label class="crm-list-row__select" onclick="event.stopPropagation()">
             <input type="checkbox"
@@ -18,42 +25,60 @@
     @else
         <span class="crm-list-row__select crm-list-row__select--spacer" aria-hidden="true"></span>
     @endcanany
-    @can('update leads')
-        <div class="crm-list-row__handle"
-             data-crm-list-drag
-             draggable="true"
-             title="Drag to change status"
-             aria-label="Drag lead to change status">
-            <iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon>
-        </div>
-    @else
-        <span class="crm-list-row__handle crm-list-row__handle--spacer" aria-hidden="true"></span>
-    @endcan
+
+    <span class="crm-list-row__handle" aria-hidden="true" title="Drag to reorder">
+        <iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon>
+    </span>
 
     <div class="crm-list-row__identity">
-        <span class="crm-lead-avatar" aria-hidden="true">{{ \App\Support\UserManagementHelper::initials($lead->full_name) }}</span>
-        <div class="min-w-0">
-            <div class="crm-list-row__name">{{ $lead->full_name }}</div>
-            <div class="crm-list-row__meta">{{ $lead->email ?? $lead->phone ?? 'No contact saved' }}</div>
-            @if($lead->source === 'form_submission' || $lead->formEntry)
-                <div class="crm-list-row__source">
-                    @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source ?: 'form_submission', 'compact' => true])
-                    @if($lead->formEntry?->form)
-                        <span class="crm-list-row__form-name">{{ Str::limit($lead->formEntry->form->name, 32) }}</span>
-                    @endif
-                </div>
-            @endif
-            @if($lead->category)
-                <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}">
-                    <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
-                    {{ $lead->category->name }}
-                </span>
-            @endif
+        <span class="crm-lead-avatar crm-lead-avatar--list" aria-hidden="true">{{ \App\Support\UserManagementHelper::initials($lead->full_name) }}</span>
+        <div class="crm-list-row__identity-copy min-w-0">
+            <div class="crm-list-row__name-row">
+                <span class="crm-list-row__name">{{ $lead->full_name }}</span>
+                <span class="crm-list-row__id">#{{ $lead->id }}</span>
+                @if($followUp->attention)
+                    <span class="crm-list-row__attention" title="{{ $followUp->label }}">
+                        <iconify-icon icon="solar:bell-bing-linear"></iconify-icon>
+                    </span>
+                @endif
+            </div>
+            <div class="crm-list-row__contact-line">
+                @if($lead->email)
+                    <span class="crm-list-row__contact" title="{{ $lead->email }}">
+                        <iconify-icon icon="solar:letter-linear" aria-hidden="true"></iconify-icon>
+                        {{ Str::limit($lead->email, 28) }}
+                    </span>
+                @endif
+                @if($lead->phone)
+                    <span class="crm-list-row__contact" title="{{ $lead->phone }}">
+                        <iconify-icon icon="solar:phone-linear" aria-hidden="true"></iconify-icon>
+                        {{ $lead->phone }}
+                    </span>
+                @endif
+                @if(! $lead->email && ! $lead->phone)
+                    <span class="crm-list-row__contact crm-list-row__contact--muted">No contact saved</span>
+                @endif
+            </div>
+            <div class="crm-list-row__tags">
+                @if($lead->source)
+                    @include('admin.crm.partials.crm-source-badge', ['source' => $lead->source, 'compact' => true])
+                @endif
+                @if($lead->formEntry?->form)
+                    <span class="crm-list-row__form-name">{{ Str::limit($lead->formEntry->form->name, 24) }}</span>
+                @elseif($lead->leadImport?->original_filename)
+                    <span class="crm-list-row__form-name">{{ Str::limit($lead->leadImport->original_filename, 24) }}</span>
+                @endif
+                @if($lead->category)
+                    <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }} crm-category-badge--compact">
+                        <iconify-icon icon="{{ $lead->category->displayIcon() }}"></iconify-icon>
+                        {{ $lead->category->name }}
+                    </span>
+                @endif
+            </div>
         </div>
     </div>
 
-    <div class="crm-list-row__field">
-        <span class="crm-list-row__label">Status</span>
+    <div class="crm-list-row__field crm-list-row__field--status">
         @can('update leads')
             @include('admin.crm.partials.inline-control', [
                 'field' => 'lead_status',
@@ -68,8 +93,7 @@
         @endcan
     </div>
 
-    <div class="crm-list-row__field">
-        <span class="crm-list-row__label">Priority</span>
+    <div class="crm-list-row__field crm-list-row__field--priority">
         @can('update leads')
             @include('admin.crm.partials.inline-control', [
                 'field' => 'priority',
@@ -84,8 +108,7 @@
         @endcan
     </div>
 
-    <div class="crm-list-row__field">
-        <span class="crm-list-row__label">Assigned</span>
+    <div class="crm-list-row__field crm-list-row__field--assignee">
         @can('assign leads')
             @include('admin.crm.partials.inline-control', [
                 'field' => 'assigned_to',
@@ -97,40 +120,58 @@
                 'ariaLabel' => 'Assignee for '.$lead->full_name,
             ])
         @else
-            <span class="crm-list-row__value">{{ $lead->assignedAdmin?->name ?? 'Unassigned' }}</span>
+            <span class="crm-list-row__assignee">
+                <iconify-icon icon="solar:user-linear" aria-hidden="true"></iconify-icon>
+                {{ $lead->assignedAdmin?->name ?? 'Unassigned' }}
+            </span>
         @endcan
     </div>
 
-    <div class="crm-list-row__field">
-        <span class="crm-list-row__label">Follow-up</span>
+    <div class="crm-list-row__field crm-list-row__field--followup">
         @if($followUp->hasFollowUp())
             <span class="{{ $followUp->badgeClass }}">
                 @if($followUp->attention)<span class="crm-followup-dot" aria-hidden="true"></span>@endif
                 {{ $followUp->label }}
             </span>
         @else
-            <span class="crm-list-row__value">—</span>
+            <span class="crm-list-row__empty">—</span>
         @endif
     </div>
 
-    <div class="crm-list-row__field crm-list-row__field--date">
-        <span class="crm-list-row__label">Created</span>
-        <span class="crm-list-row__value">{{ $lead->created_at->format('M j, Y') }}</span>
+    <div class="crm-list-row__field crm-list-row__field--date" title="{{ $lead->created_at->format('M j, Y g:i A') }}">
+        <span class="crm-list-row__date">{{ $lead->created_at->diffForHumans(short: true) }}</span>
+        <span class="crm-list-row__date-sub">{{ $lead->created_at->format('M j, Y') }}</span>
     </div>
 
     <div class="crm-list-row__actions">
-        @can('update leads')
-            <a href="{{ route('admin.crm.leads.edit', $lead) }}" class="crm-list-action is-edit" title="Edit lead" aria-label="Edit lead" onclick="event.stopPropagation()">
-                <iconify-icon icon="solar:pen-linear"></iconify-icon>
-            </a>
-        @endcan
-        @can('delete leads')
-            <form action="{{ route('admin.crm.leads.destroy', $lead) }}" method="POST" class="d-inline" data-crm-lead-delete onclick="event.stopPropagation()">
-                @csrf @method('DELETE')
-                <button type="submit" class="crm-list-action is-delete" title="Remove from view" aria-label="Remove {{ $lead->full_name }} from view">
-                    <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+        <div class="crm-list-row__action-group">
+            @if($canUpdate)
+                <button type="button"
+                        class="crm-list-action"
+                        data-crm-panel-edit
+                        data-lead-id="{{ $lead->id }}"
+                        title="Edit lead"
+                        aria-label="Edit {{ $lead->full_name }}"
+                        onclick="event.stopPropagation()">
+                    <iconify-icon icon="solar:pen-linear"></iconify-icon>
                 </button>
-            </form>
-        @endcan
+            @endif
+            @if($canDelete && ! $lead->is_converted)
+                <form action="{{ route('admin.crm.leads.destroy', $lead) }}" method="POST" class="d-inline" data-crm-lead-delete onclick="event.stopPropagation()">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="crm-list-action is-delete" title="Remove from view" aria-label="Remove {{ $lead->full_name }} from view">
+                        <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                    </button>
+                </form>
+            @endif
+        </div>
+        <button type="button"
+                class="crm-list-row__chevron"
+                data-crm-lead-open-trigger
+                title="View lead details"
+                aria-label="View {{ $lead->full_name }}"
+                onclick="event.stopPropagation()">
+            <iconify-icon icon="solar:alt-arrow-right-linear" aria-hidden="true"></iconify-icon>
+        </button>
     </div>
 </article>

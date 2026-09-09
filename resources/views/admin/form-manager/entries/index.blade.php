@@ -3,49 +3,66 @@
 @section('title', $form->name.' — Submissions')
 
 @section('content')
-@include('admin.form-manager.partials.styles')
+@once
+    @include('admin.crm.partials.styles')
+    @include('admin.crm.partials.workspace-shell')
+    @include('admin.form-manager.partials.premium-styles')
+@endonce
 
 @php
     $currentStatus = request('status', '');
     $previewKeys = ['full_name', 'name', 'first_name', 'email', 'phone', 'mobile', 'job_title', 'company'];
 @endphp
 
-<div class="dashboard-main-body">
-    @include('admin.form-manager.partials.header', [
+<div class="dashboard-main-body" id="form-center-page">
+    @include('admin.partials.page-header', [
         'title' => $form->name,
         'subtitle' => ($entryStats['total'] ?? $entries->total()).' total submissions stored in form_entries',
+        'showBreadcrumb' => true,
         'breadcrumbs' => [
+            ['label' => 'Forms & Intake'],
             ['label' => 'Form Center', 'url' => route('admin.form-manager.index')],
-            ['label' => $form->name, 'url' => route('admin.form-manager.edit', $form)],
+            ['label' => $form->name],
             ['label' => 'Submissions'],
         ],
         'actions' => [
             ['label' => 'Customize Form', 'url' => route('admin.form-manager.edit', $form), 'class' => 'btn-outline-primary-600 radius-8 px-20 py-11', 'icon' => 'solar:pen-linear'],
-            ['label' => 'Back', 'url' => route('admin.form-manager.index'), 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11'],
+            ['label' => 'Back', 'url' => route('admin.form-manager.index'), 'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11', 'icon' => 'solar:alt-arrow-left-linear'],
         ],
     ])
 
-    {{-- Status stat pills (clickable filters) --}}
-    <div class="row g-3 mb-24">
-        @php
-            $pills = [
-                ['key' => '', 'label' => 'All', 'count' => $entryStats['total'], 'icon' => 'solar:documents-linear', 'bg' => 'bg-primary-50 text-primary-600'],
-                ['key' => 'pending', 'label' => 'Pending', 'count' => $entryStats['pending'], 'icon' => 'solar:clock-circle-linear', 'bg' => 'bg-warning-50 text-warning-600'],
-                ['key' => 'approved', 'label' => 'Approved', 'count' => $entryStats['approved'], 'icon' => 'solar:check-circle-linear', 'bg' => 'bg-success-50 text-success-600'],
-                ['key' => 'rejected', 'label' => 'Rejected', 'count' => $entryStats['rejected'], 'icon' => 'solar:close-circle-linear', 'bg' => 'bg-danger-50 text-danger-600'],
-            ];
-        @endphp
-        @foreach($pills as $pill)
+    <div class="fc-workspace crm-workspace-shell">
+        <div class="crm-metrics-strip" aria-label="Submission metrics">
+            <div class="crm-metrics-strip__items">
+                <span class="crm-metrics-strip__hint">{{ $form->name }} submissions</span>
+                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
+                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Total</span><strong>{{ number_format($entryStats['total']) }}</strong></span>
+                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
+                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Pending</span><strong>{{ number_format($entryStats['pending']) }}</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="fc-page-body">
+        <div class="fc-stat-pill-grid">
             @php
-                $pillQuery = array_filter([
-                    'search' => request('search'),
-                    'date_from' => request('date_from'),
-                    'date_to' => request('date_to'),
-                    'status' => $pill['key'] ?: null,
-                ]);
-                $isActive = $currentStatus === $pill['key'];
+                $pills = [
+                    ['key' => '', 'label' => 'All', 'count' => $entryStats['total'], 'icon' => 'solar:documents-linear', 'bg' => 'bg-primary-50 text-primary-600'],
+                    ['key' => 'pending', 'label' => 'Pending', 'count' => $entryStats['pending'], 'icon' => 'solar:clock-circle-linear', 'bg' => 'bg-warning-50 text-warning-600'],
+                    ['key' => 'approved', 'label' => 'Approved', 'count' => $entryStats['approved'], 'icon' => 'solar:check-circle-linear', 'bg' => 'bg-success-50 text-success-600'],
+                    ['key' => 'rejected', 'label' => 'Rejected', 'count' => $entryStats['rejected'], 'icon' => 'solar:close-circle-linear', 'bg' => 'bg-danger-50 text-danger-600'],
+                ];
             @endphp
-            <div class="col-sm-6 col-xl-3">
+            @foreach($pills as $pill)
+                @php
+                    $pillQuery = array_filter([
+                        'search' => request('search'),
+                        'date_from' => request('date_from'),
+                        'date_to' => request('date_to'),
+                        'status' => $pill['key'] ?: null,
+                    ]);
+                    $isActive = $currentStatus === $pill['key'];
+                @endphp
                 <a href="{{ route('admin.form-manager.entries', $form) }}?{{ http_build_query($pillQuery) }}"
                    class="fc-stat-pill {{ $isActive ? 'active-filter' : '' }}">
                     <span class="fc-stat-pill-icon {{ $pill['bg'] }}">
@@ -56,49 +73,42 @@
                         <span class="text-secondary-light text-sm">{{ $pill['label'] }}</span>
                     </span>
                 </a>
-            </div>
-        @endforeach
-    </div>
+            @endforeach
+        </div>
 
-    {{-- Filters --}}
-    <div class="card radius-12 shadow-2 border-0 mb-24">
-        <div class="card-body p-24">
-            <div class="d-flex align-items-center gap-8 mb-20">
-                <h6 class="mb-0 fw-semibold fc-panel-title">
-                    <iconify-icon icon="solar:filter-linear"></iconify-icon>
-                    Filter Submissions
-                </h6>
+        <div class="fc-filter-workspace mb-16">
+            <div class="fc-filter-workspace__head">
+                <h2 class="fc-filter-workspace__title">Filter submissions</h2>
+                <p class="fc-filter-workspace__sub">Search and narrow by date or status</p>
             </div>
-            <form method="GET" action="{{ route('admin.form-manager.entries', $form) }}" class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label text-sm fw-medium">Search</label>
-                    <div class="input-group">
-                        <span class="input-group-text radius-start-8 bg-neutral-100 border-end-0">
-                            <iconify-icon icon="solar:magnifer-linear" class="text-secondary-light"></iconify-icon>
-                        </span>
-                        <input type="text" name="search" class="form-control radius-end-8 border-start-0" value="{{ request('search') }}" placeholder="Name, email, phone…">
+            <form method="GET" action="{{ route('admin.form-manager.entries', $form) }}" class="fc-filter-grid">
+                <div class="fc-filter-field">
+                    <label for="fc-entry-search">Search</label>
+                    <div class="um-ai-search__shell">
+                        <span class="um-ai-search__icon"><iconify-icon icon="solar:magnifer-linear"></iconify-icon></span>
+                        <input type="text" id="fc-entry-search" name="search" class="um-ai-search__input" value="{{ request('search') }}" placeholder="Name, email, phone…">
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label text-sm fw-medium">Start Date</label>
-                    <input type="date" name="date_from" class="form-control radius-8" value="{{ request('date_from') }}">
+                <div class="fc-filter-field">
+                    <label for="fc-date-from">Start date</label>
+                    <input type="date" id="fc-date-from" name="date_from" class="form-control radius-8" value="{{ request('date_from') }}">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label text-sm fw-medium">End Date</label>
-                    <input type="date" name="date_to" class="form-control radius-8" value="{{ request('date_to') }}">
+                <div class="fc-filter-field">
+                    <label for="fc-date-to">End date</label>
+                    <input type="date" id="fc-date-to" name="date_to" class="form-control radius-8" value="{{ request('date_to') }}">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label text-sm fw-medium">Status</label>
-                    <select name="status" class="form-select radius-8">
+                <div class="fc-filter-field">
+                    <label for="fc-entry-status">Status</label>
+                    <select id="fc-entry-status" name="status" class="form-select radius-8">
                         <option value="">All</option>
                         @foreach(['pending','approved','rejected'] as $st)
                             <option value="{{ $st }}" @selected(request('status') === $st)>{{ ucfirst($st) }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-auto">
-                    <label class="form-label text-sm fw-medium d-none d-md-block">&nbsp;</label>
-                    <div class="fc-filter-actions">
+                <div class="fc-filter-field">
+                    <label>&nbsp;</label>
+                    <div class="d-flex gap-8">
                         <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn">
                             <iconify-icon icon="solar:filter-linear"></iconify-icon>
                             <span>Filter</span>
@@ -113,118 +123,46 @@
                 </div>
             </form>
         </div>
-    </div>
 
-    {{-- Submissions table --}}
-    <div class="card radius-12 shadow-2 border-0">
-        <div class="card-body p-0">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
-                <h6 class="mb-0 fw-semibold fc-panel-title">
-                    <iconify-icon icon="solar:inbox-linear"></iconify-icon>
-                    Submissions
-                </h6>
+        <div class="crm-leads-toolbar">
+            <div class="crm-leads-toolbar__meta">
+                <strong>Submissions</strong>
+                <span>{{ $entries->total() }} result{{ $entries->total() === 1 ? '' : 's' }}</span>
             </div>
+        </div>
 
-            @if($entries->isEmpty())
-                <div class="text-center py-60 px-24">
-                    <div class="w-72-px h-72-px bg-neutral-100 rounded-circle d-flex align-items-center justify-content-center mx-auto mb-16">
-                        <iconify-icon icon="solar:inbox-linear" class="text-3xl text-secondary-light"></iconify-icon>
+        <div class="crm-list-shell">
+            <div class="crm-leads-table">
+                @if($entries->isEmpty())
+                    <div class="crm-leads-list-empty">
+                        <iconify-icon icon="solar:inbox-linear"></iconify-icon>
+                        <strong>No submissions found</strong>
+                        <span>Try adjusting your filters or check back later.</span>
                     </div>
-                    <h6 class="fw-semibold mb-8">No submissions found</h6>
-                    <p class="text-secondary-light text-sm mb-0">Try adjusting your filters or check back later.</p>
-                </div>
-            @else
-                <div class="table-responsive">
-                    <table class="table bordered-table mb-0">
-                        <thead>
-                            <tr>
-                                <th class="ps-24" style="width:60px">#</th>
-                                <th style="width:160px">Submitted</th>
-                                <th style="width:110px">Status</th>
-                                <th>Preview</th>
-                                <th class="text-end pe-24" style="width:96px">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($entries as $entry)
-                                @php
-                                    $data = is_array($entry->data) ? $entry->data : (json_decode($entry->data, true) ?? []);
-                                    $previewParts = [];
-                                    foreach ($previewKeys as $k) {
-                                        if (!empty($data[$k]) && is_string($data[$k])) {
-                                            $previewParts[] = $data[$k];
-                                        }
-                                    }
-                                    if (empty($previewParts)) {
-                                        foreach (array_slice($data, 0, 3) as $key => $val) {
-                                            if (is_string($val) && strlen($val) < 80) {
-                                                $previewParts[] = ucfirst(str_replace('_', ' ', $key)).': '.$val;
-                                            }
-                                        }
-                                    }
-                                    $previewText = implode(' · ', array_slice($previewParts, 0, 3)) ?: '—';
-                                    $statusClass = match($entry->status) {
-                                        'approved' => 'bg-success-focus text-success-main',
-                                        'rejected' => 'bg-danger-focus text-danger-main',
-                                        default => 'bg-warning-focus text-warning-main',
-                                    };
-                                @endphp
-                                <tr class="fc-submission-row" onclick="window.location='{{ route('admin.form-manager.entries.show', [$form, $entry]) }}'">
-                                    <td class="ps-24 fw-semibold text-primary-600">#{{ $entry->id }}</td>
-                                    @php $submittedAt = $entry->submitted_at ?? $entry->created_at; @endphp
-                                    <td>
-                                        <span class="d-block fw-medium text-sm">{{ $submittedAt->format('d M Y') }}</span>
-                                        <span class="text-secondary-light text-xs">{{ $submittedAt->format('H:i') }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge {{ $statusClass }} px-12 py-6 radius-8 text-xs fw-semibold">{{ ucfirst($entry->status) }}</span>
-                                    </td>
-                                    <td>
-                                        <p class="fc-preview-text mb-0 text-truncate" style="max-width:420px" title="{{ $previewText }}">{{ $previewText }}</p>
-                                        @if($entry->legacy_source)
-                                            <span class="fc-badge fc-badge-neutral mt-4">Legacy: {{ $entry->legacy_source }}</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-end pe-24" onclick="event.stopPropagation()">
-                                        <div class="fc-table-actions">
-                                            <a href="{{ route('admin.form-manager.entries.show', [$form, $entry]) }}"
-                                               class="fc-action-icon view"
-                                               title="View submission"
-                                               aria-label="View submission">
-                                                <iconify-icon icon="solar:eye-linear"></iconify-icon>
-                                            </a>
-                                            <form method="POST"
-                                                  action="{{ route('admin.form-manager.entries.destroy', [$form, $entry]) }}"
-                                                  class="d-inline"
-                                                  onsubmit="return confirm('Delete this submission?')">
-                                                @csrf @method('DELETE')
-                                                <button type="submit"
-                                                        class="fc-action-icon delete"
-                                                        title="Delete submission"
-                                                        aria-label="Delete submission">
-                                                    <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                @if($entries->hasPages())
-                    <div class="px-24 py-16 border-top fc-pagination">
-                        <span class="fc-pagination-info">
-                            Showing {{ $entries->firstItem() }}–{{ $entries->lastItem() }} of {{ $entries->total() }} results
-                        </span>
-                        {{ $entries->appends(request()->query())->links('pagination::bootstrap-5') }}
+                @else
+                    <div class="crm-leads-table__head crm-leads-table__head--entries" aria-hidden="true">
+                        <span>#</span><span>Submitted</span><span>Status</span><span>Preview</span><span></span>
                     </div>
-                @elseif($entries->total() > 0)
-                    <div class="px-24 py-16 border-top">
-                        <span class="fc-pagination-info">{{ $entries->total() }} submission{{ $entries->total() === 1 ? '' : 's' }}</span>
+                    <div class="crm-leads-list">
+                        @foreach($entries as $entry)
+                            @include('admin.form-manager.partials.entry-row', compact('entry', 'form', 'previewKeys'))
+                        @endforeach
                     </div>
+                    @if($entries->hasPages())
+                        <div class="fc-pagination">
+                            <span class="fc-pagination-info">
+                                Showing {{ $entries->firstItem() }}–{{ $entries->lastItem() }} of {{ $entries->total() }} results
+                            </span>
+                            {{ $entries->appends(request()->query())->links('pagination::bootstrap-5') }}
+                        </div>
+                    @elseif($entries->total() > 0)
+                        <div class="fc-pagination">
+                            <span class="fc-pagination-info">{{ $entries->total() }} submission{{ $entries->total() === 1 ? '' : 's' }}</span>
+                        </div>
+                    @endif
                 @endif
-            @endif
+            </div>
         </div>
     </div>
+</div>
 @endsection

@@ -1,6 +1,7 @@
 @extends('admin.layouts.app')
 @section('title', 'Public Website')
 @section('content')
+<div class="dashboard-main-body" id="acct-workspace-page">
 @include('admin.account.partials.shell', [
     'activeTab' => 'website',
     'shellTitle' => 'Public Website',
@@ -85,6 +86,9 @@
             </div>
         </div>
     </div>
+</div>
+
+@include('admin.account.partials.shell-close')
 </div>
 
 @push('scripts')

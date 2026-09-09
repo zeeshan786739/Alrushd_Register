@@ -1,42 +1,54 @@
 @extends('admin.layouts.app')
 @section('title', 'Facebook Lead Ads')
 @section('content')
-<div class="dashboard-main-body">
-    @include('admin.partials.page-header', [
-        'title' => 'Facebook Lead Ads',
-        'subtitle' => 'Connect your Facebook Page and map Lead Forms to CRM',
-        'showBreadcrumb' => true,
-        'breadcrumbs' => [
-            ['label' => 'Integrations', 'url' => route('admin.integrations.hub')],
-            ['label' => 'Facebook'],
-        ],
-    ])
+<div class="dashboard-main-body" id="integrations-workspace-page">
+@include('admin.integrations.partials.shell', [
+    'activeTab' => 'facebook',
+    'shellTitle' => 'Facebook Lead Ads',
+    'shellSubtitle' => 'Connect your Facebook Page and map Lead Forms to CRM',
+    'shellBreadcrumbs' => [
+        ['label' => 'Integrations', 'url' => route('admin.integrations.hub')],
+        ['label' => 'Facebook'],
+    ],
+    'hideFlash' => true,
+    'metrics' => [
+        ['label' => 'Status', 'value' => $connection->isConnected() ? 'Connected' : 'Not connected'],
+        ['label' => 'Forms', 'value' => number_format($connection->formMappings->count())],
+        ['label' => 'Pending', 'value' => number_format(($unmappedCount ?? 0) + ($failedCount ?? 0))],
+    ],
+])
 
-    @if(session('success'))<div class="alert alert-success radius-8">{{ session('success') }}</div>@endif
-    @if(session('error'))<div class="alert alert-danger radius-8">{{ session('error') }}</div>@endif
-
-    <div class="row g-3">
-        <div class="col-xl-4">
-            <div class="card radius-12 shadow-2 border-0">
-                <div class="card-body p-24">
-                    <h6 class="mb-16">Connection</h6>
-
+<div class="int-page-body">
+    <div class="int-layout">
+        <aside class="int-layout__stack">
+            <div class="int-panel">
+                <div class="int-panel__head">
+                    <div>
+                        <h3 class="int-panel__title">Connection</h3>
+                        <p class="int-panel__sub">Facebook Page and lead delivery for this school</p>
+                    </div>
+                </div>
+                <div class="int-panel__body">
                     @if($connection->isConnected())
                         <div class="mb-12">
                             <span class="badge {{ $connection->status->badgeClass() }} radius-8">{{ $connection->status->label() }}</span>
                         </div>
-                        <p class="text-sm mb-8"><strong>Page:</strong> {{ $connection->external_account_name }}</p>
-                        <p class="text-sm mb-8"><strong>Lead delivery:</strong>
-                            @if($connection->webhook_subscribed_at || $connection->last_webhook_at)
-                                Active — last lead {{ ($connection->last_webhook_at ?? $connection->webhook_subscribed_at)?->diffForHumans() }}
-                            @else
-                                Waiting for first lead — submit a test from Facebook Ads
-                            @endif
-                        </p>
-                        <p class="text-sm mb-16"><strong>Last sync:</strong> {{ $connection->last_webhook_at?->diffForHumans() ?? 'No leads received yet' }}</p>
-
+                        <ul class="int-meta-list mb-16">
+                            <li><span>Page</span><strong>{{ $connection->external_account_name }}</strong></li>
+                            <li>
+                                <span>Lead delivery</span>
+                                <strong>
+                                    @if($connection->webhook_subscribed_at || $connection->last_webhook_at)
+                                        Active — last lead {{ ($connection->last_webhook_at ?? $connection->webhook_subscribed_at)?->diffForHumans() }}
+                                    @else
+                                        Waiting for first lead
+                                    @endif
+                                </strong>
+                            </li>
+                            <li><span>Last sync</span><strong>{{ $connection->last_webhook_at?->diffForHumans() ?? 'No leads yet' }}</strong></li>
+                        </ul>
                         @can('manage integrations')
-                        <div class="d-flex flex-wrap gap-8">
+                        <div class="int-panel__actions">
                             <form method="POST" action="{{ route('admin.integrations.facebook.sync-forms') }}">
                                 @csrf
                                 <button type="submit" class="btn btn-outline-primary-600 radius-8">Sync Lead Forms</button>
@@ -81,112 +93,54 @@
                     @endif
                 </div>
             </div>
-        </div>
+        </aside>
 
-        <div class="col-xl-8">
-            <div class="card radius-12 shadow-2 border-0 mb-24">
-                <div class="card-body p-24">
-                    <div class="d-flex align-items-center justify-content-between mb-16">
-                        <h6 class="mb-0">Lead Form mappings</h6>
+        <div class="int-layout__stack">
+            <div class="int-panel">
+                <div class="int-panel__head">
+                    <div>
+                        <h3 class="int-panel__title">Lead Form mappings</h3>
                         @if($connection->isConnected())
-                            <span class="text-sm text-secondary-light">Map each Facebook form to student, teacher, etc.</span>
+                            <p class="int-panel__sub">Map each Facebook form to student, teacher, etc.</p>
                         @endif
                     </div>
-
+                </div>
+                <div class="int-panel__body int-panel__body--flush">
                     @if($connection->formMappings->isEmpty())
-                        <div class="text-center py-32 text-secondary-light">
-                            <iconify-icon icon="solar:document-linear" width="40" class="mb-12"></iconify-icon>
-            <p class="text-sm text-secondary-light mb-0">Most forms appear after you click <strong>Sync Lead Forms</strong>. You can also add one manually below.</p>
+                        <div class="crm-leads-list-empty">
+                            <iconify-icon icon="solar:document-linear"></iconify-icon>
+                            <strong>No forms mapped yet</strong>
+                            <span>Most forms appear after you click <strong>Sync Lead Forms</strong>. You can also add one manually below.</span>
                         </div>
                     @else
-                        <div class="table-responsive">
-                            <table class="table align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Facebook form</th>
-                                        <th>Internal label</th>
-                                        <th>Assignee</th>
-                                        <th>Priority</th>
-                                        <th>Auto lead</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($connection->formMappings as $mapping)
-                                    <tr>
-                                        <td>
-                                            <div class="fw-medium">{{ $mapping->external_form_name }}</div>
-                                        </td>
-                                        <td colspan="4">
-                                            @can('manage integrations')
-                                            <form method="POST" action="{{ route('admin.integrations.facebook.mappings.update', $mapping) }}" class="row g-2 align-items-end">
-                                                @csrf @method('PUT')
-                                                <div class="col-md-3">
-                                                    <input type="text" name="internal_label" class="form-control form-control-sm radius-8" value="{{ old('internal_label', $mapping->internal_label) }}" placeholder="e.g. Student enquiry" required>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <input type="text" name="lead_source_label" class="form-control form-control-sm radius-8" value="{{ old('lead_source_label', $mapping->lead_source_label) }}" placeholder="Lead source label">
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <select name="assigned_to" class="form-select form-select-sm radius-8">
-                                                        <option value="">Unassigned</option>
-                                                        @foreach($admins as $admin)
-                                                            <option value="{{ $admin->id }}" @selected($mapping->assigned_to == $admin->id)>{{ $admin->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <select name="priority" class="form-select form-select-sm radius-8" required>
-                                                        @foreach(['low','medium','high'] as $priority)
-                                                            <option value="{{ $priority }}" @selected($mapping->priority === $priority)>{{ ucfirst($priority) }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-2 d-flex gap-8 align-items-center">
-                                                    <div class="form-check mb-0">
-                                                        <input class="form-check-input" type="checkbox" name="auto_create_lead" value="1" id="auto_{{ $mapping->id }}" @checked($mapping->auto_create_lead)>
-                                                        <label class="form-check-label text-sm" for="auto_{{ $mapping->id }}">Auto</label>
-                                                    </div>
-                                                    <button type="submit" class="btn btn-sm btn-primary-600 radius-8">Save</button>
-                                                </div>
-                                            </form>
-                                            @else
-                                            {{ $mapping->internal_label }}
-                                            @endcan
-                                        </td>
-                                        <td class="text-end">
-                                            @can('manage integrations')
-                                            <form method="POST" action="{{ route('admin.integrations.facebook.mappings.destroy', $mapping) }}" onsubmit="return confirm('Remove this form mapping?');">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger-600 radius-8">Remove</button>
-                                            </form>
-                                            @endcan
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div class="crm-leads-table">
+                            <div class="crm-leads-table__head crm-leads-table__head--mapping" aria-hidden="true">
+                                <span>Facebook form</span><span>Mapping settings</span><span></span>
+                            </div>
+                            <div class="crm-leads-list">
+                                @foreach($connection->formMappings as $mapping)
+                                    @include('admin.integrations.partials.facebook-mapping-row', compact('mapping', 'admins'))
+                                @endforeach
+                            </div>
                         </div>
                     @endif
 
                     @can('manage integrations')
                     @if($connection->isConnected())
-                    <div class="border-top pt-20 mt-20">
-                        <p class="text-sm fw-medium mb-12">Add another form</p>
+                    <div class="int-panel__body border-top">
+                        <p class="text-sm fw-medium mb-8">Add another form</p>
                         <p class="text-sm text-secondary-light mb-12">Most forms appear after you click <strong>Sync Lead Forms</strong>. If one is missing, your marketing team can provide the form reference from Facebook Ads Manager.</p>
-                        <form method="POST" action="{{ route('admin.integrations.facebook.register-form') }}" class="row g-2 align-items-end">
+                        <form method="POST" action="{{ route('admin.integrations.facebook.register-form') }}" class="int-inline-form">
                             @csrf
-                            <div class="col-md-5">
-                                <label class="form-label text-sm" for="external_form_id">Form reference</label>
+                            <div class="int-inline-form__field">
+                                <label class="form-label" for="external_form_id">Form reference</label>
                                 <input type="text" name="external_form_id" id="external_form_id" class="form-control form-control-sm radius-8" placeholder="Paste form reference from Facebook" required>
                             </div>
-                            <div class="col-md-5">
-                                <label class="form-label text-sm" for="external_form_name">Display name (optional)</label>
+                            <div class="int-inline-form__field">
+                                <label class="form-label" for="external_form_name">Display name (optional)</label>
                                 <input type="text" name="external_form_name" id="external_form_name" class="form-control form-control-sm radius-8" placeholder="e.g. Open day enquiry">
                             </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8 w-100">Add form</button>
-                            </div>
+                            <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8">Add form</button>
                         </form>
                     </div>
                     @endif
@@ -194,50 +148,30 @@
                 </div>
             </div>
 
-            <div class="card radius-12 shadow-2 border-0">
-                <div class="card-body p-24">
-                    <h6 class="mb-16">Recent imported leads</h6>
+            <div class="int-panel">
+                <div class="int-panel__head">
+                    <div>
+                        <h3 class="int-panel__title">Recent imported leads</h3>
+                        <p class="int-panel__sub">Latest Facebook submissions received by Enrolliq</p>
+                    </div>
+                </div>
+                <div class="int-panel__body int-panel__body--flush">
                     @if($recentSubmissions->isEmpty())
-                        <p class="text-secondary-light mb-0">No Facebook leads received yet.</p>
+                        <div class="crm-leads-list-empty">
+                            <iconify-icon icon="solar:inbox-in-linear"></iconify-icon>
+                            <strong>No Facebook leads received yet</strong>
+                            <span>Leads will appear here after your Page is connected and a form is submitted.</span>
+                        </div>
                     @else
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Status</th>
-                                        <th>Mapping</th>
-                                        <th>CRM Lead</th>
-                                        <th>Received</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($recentSubmissions as $submission)
-                                    <tr>
-                                        <td><span class="badge bg-neutral-200 text-secondary-light radius-8">{{ ucfirst($submission->status->value) }}</span></td>
-                                        <td>{{ $submission->formMapping?->internal_label ?? 'Unmapped' }}</td>
-                                        <td>
-                                            @if($submission->lead_id)
-                                                <a href="{{ route('admin.crm.leads.show', $submission->lead_id) }}">View lead</a>
-                                            @else
-                                                —
-                                            @endif
-                                        </td>
-                                        <td>{{ $submission->created_at->diffForHumans() }}</td>
-                                        <td>
-                                            @can('manage integrations')
-                                            @if(in_array($submission->status->value, ['unmapped', 'failed', 'pending']))
-                                            <form method="POST" action="{{ route('admin.integrations.facebook.submissions.reprocess', $submission) }}" class="d-inline">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-outline-primary-600 radius-8">Reprocess</button>
-                                            </form>
-                                            @endif
-                                            @endcan
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div class="crm-leads-table">
+                            <div class="crm-leads-table__head crm-leads-table__head--facebook-submissions" aria-hidden="true">
+                                <span>Status</span><span>Mapping</span><span>CRM Lead</span><span>Received</span><span></span>
+                            </div>
+                            <div class="crm-leads-list">
+                                @foreach($recentSubmissions as $submission)
+                                    @include('admin.integrations.partials.submission-row', ['submission' => $submission, 'mode' => 'facebook'])
+                                @endforeach
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -246,5 +180,6 @@
     </div>
 
     @include('admin.integrations.partials.go-live-checklist')
+</div>
 </div>
 @endsection

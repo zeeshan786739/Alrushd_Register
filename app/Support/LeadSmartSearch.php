@@ -37,7 +37,7 @@ final class LeadSmartSearch
                 'form_submission' => ['form submission', 'form submissions', 'from forms', 'form leads', 'form intake', 'website form'],
                 'facebook_lead_ads' => ['facebook', 'meta leads', 'instagram leads'],
                 'tiktok_lead_ads' => ['tiktok', 'tik tok'],
-                'file_import' => ['import', 'file import', 'spreadsheet', 'imported leads'],
+                'file_import' => ['import', 'file import', 'spreadsheet', 'imported leads', 'imported'],
                 'manual' => ['manual entry', 'manual leads', 'added manually'],
             ],
             'priority' => [
@@ -122,10 +122,12 @@ final class LeadSmartSearch
     {
         $items = [
             ['label' => 'My queue', 'query' => 'assigned to me', 'description' => 'Leads assigned to you'],
-            ['label' => 'Needs action', 'query' => 'overdue follow ups', 'description' => 'Overdue follow-ups'],
-            ['label' => 'Form intake', 'query' => 'form submissions', 'description' => 'Leads and pending forms'],
+            ['label' => 'Facebook unassigned', 'query' => 'facebook unassigned', 'description' => 'Meta leads with no owner'],
+            ['label' => 'TikTok leads', 'query' => 'tiktok', 'description' => 'Leads from TikTok ads'],
+            ['label' => 'Imported leads', 'query' => 'imported', 'description' => 'Spreadsheet imports'],
+            ['label' => 'Form intake', 'query' => 'form submissions', 'description' => 'Leads from Form Center'],
             ['label' => 'Unassigned new', 'query' => 'unassigned new leads', 'description' => 'New leads with no owner'],
-            ['label' => 'Urgent', 'query' => 'urgent leads', 'description' => 'Highest priority leads'],
+            ['label' => 'Due today', 'query' => 'follow up today', 'description' => 'Follow-ups due today'],
         ];
 
         $form = $forms->first();

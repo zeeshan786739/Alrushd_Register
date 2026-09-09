@@ -29,25 +29,62 @@ class ProjectController extends Controller
 
     public function index(Request $request): View
     {
-        $projects = Project::forCurrentOrganization()
+        $baseQuery = Project::forCurrentOrganization();
+        $filteredQuery = $this->filteredProjectQuery($request);
+        $perPage = min(max((int) $request->get('per_page', 15), 10), 50);
+        $sortBy = in_array($request->get('sort_by'), ['name', 'status', 'priority', 'progress', 'end_date', 'created_at'], true)
+            ? $request->get('sort_by')
+            : 'created_at';
+        $sortOrder = strtolower((string) $request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $projects = (clone $filteredQuery)
             ->with(['customer', 'assignedAdmin'])
-            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
-            ->when($request->customer_id, fn ($q, $id) => $q->where('customer_id', $id))
-            ->when($request->search, fn ($q, $search) => $q->where('name', 'like', "%{$search}%"))
-            ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'))
-            ->paginate(15)
+            ->orderBy($sortBy, $sortOrder)
+            ->paginate($perPage)
             ->withQueryString();
 
         $stats = [
-            'total' => Project::forCurrentOrganization()->count(),
-            'in_progress' => Project::forCurrentOrganization()->where('status', 'in_progress')->count(),
-            'completed' => Project::forCurrentOrganization()->where('status', 'completed')->count(),
+            'total' => (clone $baseQuery)->count(),
+            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+            'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
+            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'on_hold' => (clone $baseQuery)->where('status', 'on_hold')->count(),
         ];
 
+        $statusCounts = [
+            'all' => $stats['total'],
+            'pending' => $stats['pending'],
+            'in_progress' => $stats['in_progress'],
+            'on_hold' => $stats['on_hold'],
+            'completed' => $stats['completed'],
+            'cancelled' => (clone $baseQuery)->where('status', 'cancelled')->count(),
+        ];
+
+        $filteredTotal = (clone $filteredQuery)->count();
         $customers = Customer::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
         $admins = Admin::forCurrentOrganization()->orderBy('name')->get();
 
-        return view('admin.crm.projects.index', compact('projects', 'stats', 'customers', 'admins'));
+        return view('admin.crm.projects.index', compact('projects', 'stats', 'customers', 'admins', 'statusCounts', 'filteredTotal'));
+    }
+
+    private function filteredProjectQuery(Request $request)
+    {
+        return Project::forCurrentOrganization()
+            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->customer_id, fn ($q, $id) => $q->where('customer_id', $id))
+            ->when($request->priority, fn ($q, $priority) => $q->where('priority', $priority))
+            ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
+            ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
+            ->when(
+                $request->filled('assigned_to') && ! in_array($request->assigned_to, ['me', 'unassigned'], true),
+                fn ($q) => $q->where('assigned_to', (int) $request->assigned_to)
+            )
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('project_code', 'like', "%{$search}%");
+                });
+            });
     }
 
     public function create(Request $request): View

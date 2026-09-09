@@ -1,6 +1,7 @@
 @extends('admin.layouts.app')
 @section('title', 'Billing & Subscription')
 @section('content')
+<div class="dashboard-main-body" id="acct-workspace-page">
 @include('admin.account.partials.shell', [
     'activeTab' => 'billing',
     'shellTitle' => 'Billing & Subscription',
@@ -153,5 +154,8 @@
             </div>
         </div>
     </div>
+</div>
+
+@include('admin.account.partials.shell-close')
 </div>
 @endsection

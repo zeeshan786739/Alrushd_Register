@@ -210,6 +210,17 @@
                 return;
             }
 
+            var listRows = container.querySelectorAll('.crm-leads-list .fc-form-row');
+            if (listRows.length) {
+                input.addEventListener('input', function () {
+                    var q = input.value.toLowerCase().trim();
+                    listRows.forEach(function (row) {
+                        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+                    });
+                });
+                return;
+            }
+
             var roleCards = container.querySelectorAll('.um-role-card');
             if (roleCards.length) {
                 input.addEventListener('input', function () {
@@ -364,6 +375,22 @@
     document.addEventListener('DOMContentLoaded', function () {
         hideLoader();
         reinitPage(document);
+
+        /* Team & Access list rows — article rows with nested action links */
+        document.body.addEventListener('click', function (e) {
+            var row = e.target.closest('[data-um-team-open][data-href],[data-um-role-open][data-href],[data-em-inbox-open][data-href],[data-em-campaign-open][data-href],[data-em-template-open][data-href]');
+            if (row && !e.target.closest('a, button, input, select, textarea, label, form, .crm-list-row__actions')) {
+                window.location.href = row.getAttribute('data-href');
+                return;
+            }
+        });
+        document.body.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            var row = e.target.closest('[data-um-team-open][data-href],[data-um-role-open][data-href],[data-em-inbox-open][data-href],[data-em-campaign-open][data-href],[data-em-template-open][data-href]');
+            if (!row || e.target !== row) return;
+            e.preventDefault();
+            window.location.href = row.getAttribute('data-href');
+        });
 
         /* Global delete confirmation (replaces per-page scripts) */
         document.body.addEventListener('click', function (e) {

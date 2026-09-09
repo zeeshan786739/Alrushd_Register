@@ -2,189 +2,388 @@
 @section('title', 'Document Settings')
 @section('content')
 @include('admin.crm.partials.styles')
-<style>
-    /* Keep checkbox controls and their labels on one clean visual baseline. */
-    .crm-document-settings .form-check {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 24px;
-        padding-left: 0;
-        color: #334155;
-        line-height: 1.35;
-        cursor: pointer;
-    }
-
-    .crm-document-settings .form-check .form-check-input {
-        float: none;
-        flex: 0 0 auto;
-        width: 18px;
-        height: 18px;
-        margin: 0;
-        vertical-align: middle;
-        cursor: pointer;
-    }
-
-    .crm-document-settings .form-check:hover { color: #0f274a; }
-    .crm-document-settings .form-check:has(.form-check-input:focus-visible) {
-        outline: 3px solid rgba(37, 99, 235, .16);
-        outline-offset: 3px;
-        border-radius: 4px;
-    }
-</style>
+@include('admin.crm.partials.workspace-shell')
+@include('admin.crm.settings.partials.premium-styles')
 @php
     $b = $settings['branding'];
     $q = $settings['quotation'];
     $i = $settings['invoice'];
+    $currentLogo = \App\Support\CrmDocument::logoForPreview($settings['logo_path'] ?? null, (int) $settings['organization_id']);
+    $tabs = [
+        ['key' => 'branding', 'label' => 'Shared Branding', 'icon' => 'solar:palette-linear', 'sub' => 'Logo, identity, and contact details'],
+        ['key' => 'quotation', 'label' => 'Quotation', 'icon' => 'solar:document-linear', 'sub' => 'Headings, visibility, and terms'],
+        ['key' => 'invoice', 'label' => 'Invoice', 'icon' => 'solar:bill-list-linear', 'sub' => 'Billing fields, payments, and terms'],
+    ];
 @endphp
-<div class="dashboard-main-body crm-document-settings">
+<div class="dashboard-main-body" id="crm-document-settings-page">
     @include('admin.partials.page-header', [
         'title' => 'Document Settings',
-        'subtitle' => 'Configure Quotation and Invoice branding and visibility for this organization only',
+        'subtitle' => 'Configure quotation and invoice branding and visibility for this organization',
         'showBreadcrumb' => true,
-        'breadcrumbs' => [['label'=>'CRM'],['label'=>'Document Settings']],
+        'breadcrumbs' => [['label' => 'CRM'], ['label' => 'Document Settings']],
     ])
 
-    <div class="alert alert-primary bg-primary-50 text-primary-600 border-0 radius-8 mb-20">
-        Fields appear on documents only when both a value exists and its visibility toggle is enabled. Organization profile data is never shown automatically.
-    </div>
+    <div class="crm-doc-workspace crm-workspace-shell">
+        <div class="crm-metrics-strip" aria-label="Document workspace links">
+            <div class="crm-metrics-strip__items">
+                <span class="crm-metrics-strip__hint">Document workspace</span>
+            </div>
+            <div class="crm-metrics-strip__links">
+                @can('view quotations')
+                    <a href="{{ route('admin.crm.quotations.index') }}" class="crm-metrics-strip__link">Quotations</a>
+                @endcan
+                @can('view invoices')
+                    <a href="{{ route('admin.crm.invoices.index') }}" class="crm-metrics-strip__link">Invoices</a>
+                @endcan
+            </div>
+        </div>
 
-    <ul class="nav nav-pills gap-8 mb-20">
-        <li class="nav-item"><a class="nav-link radius-8 {{ $tab === 'branding' ? 'active' : '' }}" href="{{ route('admin.crm.settings.documents.edit', ['tab'=>'branding']) }}">Shared Branding</a></li>
-        <li class="nav-item"><a class="nav-link radius-8 {{ $tab === 'quotation' ? 'active' : '' }}" href="{{ route('admin.crm.settings.documents.edit', ['tab'=>'quotation']) }}">Quotation</a></li>
-        <li class="nav-item"><a class="nav-link radius-8 {{ $tab === 'invoice' ? 'active' : '' }}" href="{{ route('admin.crm.settings.documents.edit', ['tab'=>'invoice']) }}">Invoice</a></li>
-    </ul>
+        <div class="crm-doc-notice" role="note">
+            <iconify-icon icon="solar:info-circle-linear"></iconify-icon>
+            <span>Fields appear on documents only when both a value exists and its visibility toggle is enabled. Organization profile data is never shown automatically.</span>
+        </div>
 
-    <form method="POST" action="{{ route('admin.crm.settings.documents.update') }}" enctype="multipart/form-data">
-        @csrf
-        @method('PUT')
-        <input type="hidden" name="active_tab" value="{{ $tab }}">
+        <div class="crm-doc-tabs" aria-label="Document settings sections">
+            <div class="crm-doc-tabs__head">
+                <h2 class="crm-doc-tabs__title">Configuration area</h2>
+                <p class="crm-doc-tabs__sub">Choose what to customize for PDF and preview documents</p>
+            </div>
+            <div class="crm-doc-tabs__grid">
+                @foreach($tabs as $item)
+                    <a href="{{ route('admin.crm.settings.documents.edit', ['tab' => $item['key']]) }}"
+                       @class(['crm-doc-tab', 'is-active' => $tab === $item['key']])>
+                        <span class="crm-doc-tab__icon"><iconify-icon icon="{{ $item['icon'] }}"></iconify-icon></span>
+                        <span class="crm-doc-tab__label">{{ $item['label'] }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
 
-        <div class="card radius-12 shadow-2 border-0 mb-20 {{ $tab === 'branding' ? '' : 'd-none' }}">
-            <div class="card-body p-24">
-                <h6 class="crm-section-title">Shared branding</h6>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Document logo</label>
-                        @php $currentLogo = \App\Support\CrmDocument::logoForPreview($settings['logo_path'] ?? null, (int) $settings['organization_id']); @endphp
-                        @if($currentLogo)
-                            <div class="border radius-8 p-12 mb-12 bg-neutral-50">
-                                <div class="crm-lead-meta mb-8">Current logo</div>
-                                <img src="{{ $currentLogo }}" alt="Current document logo" style="max-height:64px;max-width:180px;object-fit:contain;display:block">
+        <form method="POST" action="{{ route('admin.crm.settings.documents.update') }}" enctype="multipart/form-data">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="active_tab" value="{{ $tab }}">
+
+            <div class="crm-doc-panel {{ $tab === 'branding' ? '' : 'd-none' }}">
+                <section class="crm-doc-section">
+                    <div class="crm-doc-section__head">
+                        <h3 class="crm-doc-section__title">Shared branding</h3>
+                        <p class="crm-doc-section__sub">Identity and contact details shown on quotation and invoice documents</p>
+                    </div>
+                    <div class="crm-doc-section__body">
+                        <div class="crm-doc-grid">
+                            <div class="crm-doc-grid__col-6">
+                                <div class="crm-doc-field">
+                                    <div class="crm-doc-field__head">
+                                        <span class="crm-doc-field__label">Document logo</span>
+                                        <label class="crm-doc-toggle" for="crm-doc-show-logo">
+                                            <input type="checkbox" class="crm-doc-toggle__input" id="crm-doc-show-logo" name="branding[show_logo]" value="1" @checked($b['show_logo'])>
+                                            <span class="crm-doc-toggle__track" aria-hidden="true"></span>
+                                            <span class="crm-doc-toggle__text">Show on documents</span>
+                                        </label>
+                                    </div>
+                                    <div class="crm-doc-logo-zone">
+                                        <div class="crm-doc-logo-zone__preview">
+                                            @if($currentLogo)
+                                                <img src="{{ $currentLogo }}" alt="Current document logo">
+                                            @else
+                                                <span class="crm-doc-logo-zone__empty">No logo uploaded yet</span>
+                                            @endif
+                                        </div>
+                                        <div class="crm-doc-logo-zone__file">
+                                            <input type="file" name="logo" class="form-control" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                                        </div>
+                                        @error('logo')<div class="text-danger-600">{{ $message }}</div>@enderror
+                                        @if($currentLogo)
+                                            <label class="crm-doc-check">
+                                                <input type="checkbox" class="form-check-input" name="remove_logo" value="1">
+                                                Remove current logo
+                                            </label>
+                                        @endif
+                                    </div>
+                                </div>
                             </div>
-                            <label class="form-label text-sm">Replace logo</label>
-                        @else
-                            <div class="crm-lead-meta mb-8">No logo uploaded</div>
-                        @endif
-                        <input type="file" name="logo" class="form-control radius-8" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
-                        @error('logo')<div class="text-danger-600 text-sm mt-4">{{ $message }}</div>@enderror
-                        @if($currentLogo)
-                            <label class="form-check mt-8 mb-0">
-                                <input type="checkbox" class="form-check-input" name="remove_logo" value="1">
-                                Remove logo
-                            </label>
-                        @endif
-                        <label class="form-check mt-8">
-                            <input type="checkbox" class="form-check-input" name="branding[show_logo]" value="1" @checked($b['show_logo'])>
-                            Show logo on quotation/invoice documents
-                        </label>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Display name</label>
-                        <input type="text" name="branding[display_name]" class="form-control radius-8" value="{{ old('branding.display_name', $b['display_name']) }}">
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_display_name]" value="1" @checked($b['show_display_name'])> Show organization name</label>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Address</label>
-                        <textarea name="branding[address]" class="form-control radius-8" rows="2">{{ old('branding.address', $b['address']) }}</textarea>
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_address]" value="1" @checked($b['show_address'])> Show address</label>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="branding[email]" class="form-control radius-8" value="{{ old('branding.email', $b['email']) }}">
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_email]" value="1" @checked($b['show_email'])> Show email</label>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Phone</label>
-                        <input type="text" name="branding[phone]" class="form-control radius-8" value="{{ old('branding.phone', $b['phone']) }}">
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_phone]" value="1" @checked($b['show_phone'])> Show phone</label>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Website</label>
-                        <input type="text" name="branding[website]" class="form-control radius-8" value="{{ old('branding.website', $b['website']) }}">
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_website]" value="1" @checked($b['show_website'])> Show website</label>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Registration / company number</label>
-                        <input type="text" name="branding[registration_number]" class="form-control radius-8" value="{{ old('branding.registration_number', $b['registration_number']) }}">
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_registration_number]" value="1" @checked($b['show_registration_number'])> Show registration number</label>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">VAT / tax number</label>
-                        <input type="text" name="branding[vat_number]" class="form-control radius-8" value="{{ old('branding.vat_number', $b['vat_number']) }}">
-                        <label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="branding[show_vat_number]" value="1" @checked($b['show_vat_number'])> Show VAT/tax number</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card radius-12 shadow-2 border-0 mb-20 {{ $tab === 'quotation' ? '' : 'd-none' }}">
-            <div class="card-body p-24">
-                <h6 class="crm-section-title">Quotation document</h6>
-                <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Heading</label><input type="text" name="quotation[heading]" class="form-control radius-8" value="{{ old('quotation.heading', $q['heading']) }}"></div>
-                    <div class="col-md-6"><label class="form-label">Subtitle</label><input type="text" name="quotation[subtitle]" class="form-control radius-8" value="{{ old('quotation.subtitle', $q['subtitle']) }}"></div>
-                    <div class="col-12"><div class="crm-lead-meta mb-8">Visibility</div>
-                        <div class="row g-2">
-                            @foreach([
-                                'show_customer_email'=>'Customer email','show_customer_phone'=>'Customer phone','show_project'=>'Project',
-                                'show_status'=>'Status','show_issue_date'=>'Issue date','show_valid_until'=>'Valid until',
-                                'show_subtotal'=>'Subtotal','show_discount'=>'Discount','show_tax'=>'Tax',
-                                'show_terms'=>'Terms section','show_notes'=>'Notes section',
-                            ] as $key=>$label)
-                                <div class="col-md-4"><label class="form-check"><input type="checkbox" class="form-check-input" name="quotation[{{ $key }}]" value="1" @checked($q[$key])> {{ $label }}</label></div>
-                            @endforeach
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Display name',
+                                    'name' => 'branding[display_name]',
+                                    'value' => old('branding.display_name', $b['display_name']),
+                                    'toggleName' => 'branding[show_display_name]',
+                                    'toggleLabel' => 'Show name',
+                                    'toggleChecked' => $b['show_display_name'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Address',
+                                    'name' => 'branding[address]',
+                                    'value' => old('branding.address', $b['address']),
+                                    'type' => 'textarea',
+                                    'rows' => 2,
+                                    'toggleName' => 'branding[show_address]',
+                                    'toggleLabel' => 'Show address',
+                                    'toggleChecked' => $b['show_address'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-4">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Email',
+                                    'name' => 'branding[email]',
+                                    'value' => old('branding.email', $b['email']),
+                                    'type' => 'email',
+                                    'toggleName' => 'branding[show_email]',
+                                    'toggleLabel' => 'Show email',
+                                    'toggleChecked' => $b['show_email'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-4">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Phone',
+                                    'name' => 'branding[phone]',
+                                    'value' => old('branding.phone', $b['phone']),
+                                    'toggleName' => 'branding[show_phone]',
+                                    'toggleLabel' => 'Show phone',
+                                    'toggleChecked' => $b['show_phone'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-4">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Website',
+                                    'name' => 'branding[website]',
+                                    'value' => old('branding.website', $b['website']),
+                                    'toggleName' => 'branding[show_website]',
+                                    'toggleLabel' => 'Show website',
+                                    'toggleChecked' => $b['show_website'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Registration / company number',
+                                    'name' => 'branding[registration_number]',
+                                    'value' => old('branding.registration_number', $b['registration_number']),
+                                    'toggleName' => 'branding[show_registration_number]',
+                                    'toggleLabel' => 'Show registration',
+                                    'toggleChecked' => $b['show_registration_number'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'VAT / tax number',
+                                    'name' => 'branding[vat_number]',
+                                    'value' => old('branding.vat_number', $b['vat_number']),
+                                    'toggleName' => 'branding[show_vat_number]',
+                                    'toggleLabel' => 'Show VAT/tax',
+                                    'toggleChecked' => $b['show_vat_number'],
+                                ])
+                            </div>
                         </div>
-                        <p class="crm-lead-meta mt-8 mb-0">Line items and Grand Total always remain visible.</p>
                     </div>
-                    <div class="col-12"><label class="form-label">Default terms text</label><textarea name="quotation[terms_text]" class="form-control radius-8" rows="3">{{ old('quotation.terms_text', $q['terms_text']) }}</textarea></div>
-                    <div class="col-12"><label class="form-label">Footer text</label><textarea name="quotation[footer_text]" class="form-control radius-8" rows="2">{{ old('quotation.footer_text', $q['footer_text']) }}</textarea></div>
-                </div>
+                </section>
             </div>
-        </div>
 
-        <div class="card radius-12 shadow-2 border-0 mb-20 {{ $tab === 'invoice' ? '' : 'd-none' }}">
-            <div class="card-body p-24">
-                <h6 class="crm-section-title">Invoice document</h6>
-                <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Heading</label><input type="text" name="invoice[heading]" class="form-control radius-8" value="{{ old('invoice.heading', $i['heading']) }}"></div>
-                    <div class="col-md-6"><label class="form-label">Subtitle</label><input type="text" name="invoice[subtitle]" class="form-control radius-8" value="{{ old('invoice.subtitle', $i['subtitle']) }}"></div>
-                    <div class="col-12"><div class="crm-lead-meta mb-8">Visibility</div>
-                        <div class="row g-2">
-                            @foreach([
-                                'show_customer_email'=>'Customer email','show_customer_phone'=>'Customer phone','show_project'=>'Project',
-                                'show_source_quotation'=>'Source quotation','show_status'=>'Status','show_issue_date'=>'Issue date','show_due_date'=>'Due date',
-                                'show_subtotal'=>'Subtotal','show_discount'=>'Discount','show_tax'=>'Tax','show_total'=>'Total',
-                                'show_amount_paid'=>'Amount paid','show_balance_due'=>'Balance due','show_payment_history'=>'Payment history','show_terms'=>'Terms section',
-                            ] as $key=>$label)
-                                <div class="col-md-4"><label class="form-check"><input type="checkbox" class="form-check-input" name="invoice[{{ $key }}]" value="1" @checked($i[$key])> {{ $label }}</label></div>
-                            @endforeach
+            <div class="crm-doc-panel {{ $tab === 'quotation' ? '' : 'd-none' }}">
+                <section class="crm-doc-section">
+                    <div class="crm-doc-section__head">
+                        <h3 class="crm-doc-section__title">Quotation document</h3>
+                        <p class="crm-doc-section__sub">Control headings, field visibility, and default copy</p>
+                    </div>
+                    <div class="crm-doc-section__body">
+                        <div class="crm-doc-grid">
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Heading',
+                                    'name' => 'quotation[heading]',
+                                    'value' => old('quotation.heading', $q['heading']),
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Subtitle',
+                                    'name' => 'quotation[subtitle]',
+                                    'value' => old('quotation.subtitle', $q['subtitle']),
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                <span class="crm-doc-field__label">Field visibility</span>
+                                @include('admin.crm.settings.partials.visibility-grid', [
+                                    'prefix' => 'quotation',
+                                    'values' => $q,
+                                    'fields' => [
+                                        'show_customer_email' => 'Customer email',
+                                        'show_customer_phone' => 'Customer phone',
+                                        'show_project' => 'Project',
+                                        'show_status' => 'Status',
+                                        'show_issue_date' => 'Issue date',
+                                        'show_valid_until' => 'Valid until',
+                                        'show_subtotal' => 'Subtotal',
+                                        'show_discount' => 'Discount',
+                                        'show_tax' => 'Tax',
+                                        'show_terms' => 'Terms section',
+                                        'show_notes' => 'Notes section',
+                                    ],
+                                ])
+                                <p class="crm-doc-footnote">Line items and Grand Total always remain visible.</p>
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Default terms text',
+                                    'name' => 'quotation[terms_text]',
+                                    'value' => old('quotation.terms_text', $q['terms_text']),
+                                    'type' => 'textarea',
+                                    'rows' => 3,
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Footer text',
+                                    'name' => 'quotation[footer_text]',
+                                    'value' => old('quotation.footer_text', $q['footer_text']),
+                                    'type' => 'textarea',
+                                    'rows' => 2,
+                                ])
+                            </div>
                         </div>
-                        <p class="crm-lead-meta mt-8 mb-0">Line items always remain visible.</p>
                     </div>
-                    <div class="col-12"><hr class="my-8"><div class="crm-lead-meta mb-8">Optional payment information (hidden unless enabled)</div></div>
-                    <div class="col-md-6"><label class="form-label">Bank name</label><input type="text" name="invoice[bank_name]" class="form-control radius-8" value="{{ old('invoice.bank_name', $i['bank_name']) }}"><label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="invoice[show_bank_name]" value="1" @checked($i['show_bank_name'])> Show bank name</label></div>
-                    <div class="col-md-6"><label class="form-label">Account name</label><input type="text" name="invoice[account_name]" class="form-control radius-8" value="{{ old('invoice.account_name', $i['account_name']) }}"><label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="invoice[show_account_name]" value="1" @checked($i['show_account_name'])> Show account name</label></div>
-                    <div class="col-md-6"><label class="form-label">Account / IBAN</label><input type="text" name="invoice[account_number]" class="form-control radius-8" value="{{ old('invoice.account_number', $i['account_number']) }}"><label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="invoice[show_account_number]" value="1" @checked($i['show_account_number'])> Show account / IBAN</label></div>
-                    <div class="col-md-6"><label class="form-label">Sort code / SWIFT</label><input type="text" name="invoice[sort_code]" class="form-control radius-8" value="{{ old('invoice.sort_code', $i['sort_code']) }}"><label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="invoice[show_sort_code]" value="1" @checked($i['show_sort_code'])> Show sort code / SWIFT</label></div>
-                    <div class="col-12"><label class="form-label">Other payment instructions</label><textarea name="invoice[payment_instructions]" class="form-control radius-8" rows="2">{{ old('invoice.payment_instructions', $i['payment_instructions']) }}</textarea><label class="form-check mt-8"><input type="checkbox" class="form-check-input" name="invoice[show_payment_instructions]" value="1" @checked($i['show_payment_instructions'])> Show payment instructions</label></div>
-                    <div class="col-12"><label class="form-label">Default terms text</label><textarea name="invoice[terms_text]" class="form-control radius-8" rows="3">{{ old('invoice.terms_text', $i['terms_text']) }}</textarea></div>
-                    <div class="col-12"><label class="form-label">Footer text</label><textarea name="invoice[footer_text]" class="form-control radius-8" rows="2">{{ old('invoice.footer_text', $i['footer_text']) }}</textarea></div>
+                </section>
+            </div>
+
+            <div class="crm-doc-panel {{ $tab === 'invoice' ? '' : 'd-none' }}">
+                <section class="crm-doc-section">
+                    <div class="crm-doc-section__head">
+                        <h3 class="crm-doc-section__title">Invoice document</h3>
+                        <p class="crm-doc-section__sub">Billing layout, payment details, and default copy</p>
+                    </div>
+                    <div class="crm-doc-section__body">
+                        <div class="crm-doc-grid">
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Heading',
+                                    'name' => 'invoice[heading]',
+                                    'value' => old('invoice.heading', $i['heading']),
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Subtitle',
+                                    'name' => 'invoice[subtitle]',
+                                    'value' => old('invoice.subtitle', $i['subtitle']),
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                <span class="crm-doc-field__label">Field visibility</span>
+                                @include('admin.crm.settings.partials.visibility-grid', [
+                                    'prefix' => 'invoice',
+                                    'values' => $i,
+                                    'fields' => [
+                                        'show_customer_email' => 'Customer email',
+                                        'show_customer_phone' => 'Customer phone',
+                                        'show_project' => 'Project',
+                                        'show_source_quotation' => 'Source quotation',
+                                        'show_status' => 'Status',
+                                        'show_issue_date' => 'Issue date',
+                                        'show_due_date' => 'Due date',
+                                        'show_subtotal' => 'Subtotal',
+                                        'show_discount' => 'Discount',
+                                        'show_tax' => 'Tax',
+                                        'show_total' => 'Total',
+                                        'show_amount_paid' => 'Amount paid',
+                                        'show_balance_due' => 'Balance due',
+                                        'show_payment_history' => 'Payment history',
+                                        'show_terms' => 'Terms section',
+                                    ],
+                                ])
+                                <p class="crm-doc-footnote">Line items always remain visible.</p>
+                            </div>
+                            <div class="crm-doc-grid__col-12"><div class="crm-doc-divider"></div></div>
+                            <div class="crm-doc-grid__col-12">
+                                <span class="crm-doc-field__label">Optional payment information</span>
+                                <p class="crm-doc-footnote" style="margin-top:0;margin-bottom:10px">Hidden on documents unless both a value exists and its toggle is enabled.</p>
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Bank name',
+                                    'name' => 'invoice[bank_name]',
+                                    'value' => old('invoice.bank_name', $i['bank_name']),
+                                    'toggleName' => 'invoice[show_bank_name]',
+                                    'toggleLabel' => 'Show bank',
+                                    'toggleChecked' => $i['show_bank_name'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Account name',
+                                    'name' => 'invoice[account_name]',
+                                    'value' => old('invoice.account_name', $i['account_name']),
+                                    'toggleName' => 'invoice[show_account_name]',
+                                    'toggleLabel' => 'Show account',
+                                    'toggleChecked' => $i['show_account_name'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Account / IBAN',
+                                    'name' => 'invoice[account_number]',
+                                    'value' => old('invoice.account_number', $i['account_number']),
+                                    'toggleName' => 'invoice[show_account_number]',
+                                    'toggleLabel' => 'Show IBAN',
+                                    'toggleChecked' => $i['show_account_number'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-6">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Sort code / SWIFT',
+                                    'name' => 'invoice[sort_code]',
+                                    'value' => old('invoice.sort_code', $i['sort_code']),
+                                    'toggleName' => 'invoice[show_sort_code]',
+                                    'toggleLabel' => 'Show SWIFT',
+                                    'toggleChecked' => $i['show_sort_code'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Other payment instructions',
+                                    'name' => 'invoice[payment_instructions]',
+                                    'value' => old('invoice.payment_instructions', $i['payment_instructions']),
+                                    'type' => 'textarea',
+                                    'rows' => 2,
+                                    'toggleName' => 'invoice[show_payment_instructions]',
+                                    'toggleLabel' => 'Show instructions',
+                                    'toggleChecked' => $i['show_payment_instructions'],
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Default terms text',
+                                    'name' => 'invoice[terms_text]',
+                                    'value' => old('invoice.terms_text', $i['terms_text']),
+                                    'type' => 'textarea',
+                                    'rows' => 3,
+                                ])
+                            </div>
+                            <div class="crm-doc-grid__col-12">
+                                @include('admin.crm.settings.partials.field-with-toggle', [
+                                    'label' => 'Footer text',
+                                    'name' => 'invoice[footer_text]',
+                                    'value' => old('invoice.footer_text', $i['footer_text']),
+                                    'type' => 'textarea',
+                                    'rows' => 2,
+                                ])
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="crm-doc-savebar">
+                <span class="crm-doc-savebar__hint">Changes apply to this organization only and affect PDF and preview documents.</span>
+                <div class="crm-doc-savebar__actions">
+                    <button type="submit" class="btn btn-primary-600">
+                        <iconify-icon icon="solar:diskette-linear"></iconify-icon>
+                        Save document settings
+                    </button>
                 </div>
             </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary-600 radius-8 px-24 py-11">Save document settings</button>
-    </form>
+        </form>
+    </div>
 </div>
 @endsection

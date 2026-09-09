@@ -13,6 +13,7 @@
     ]] : [];
 @endphp
 
+<div class="dashboard-main-body" id="um-workspace-page">
 @include('admin.role-permission.partials.shell', [
     'activeTab' => 'permissions',
     'stats' => $stats,
@@ -21,7 +22,7 @@
     'shellActions' => $shellActions,
 ])
 
-<div class="um-info-banner mb-20">
+<div class="um-info-banner">
     <iconify-icon icon="solar:info-circle-linear"></iconify-icon>
     <div>
         <strong>How permissions work</strong>
@@ -29,18 +30,26 @@
     </div>
 </div>
 
-<div class="um-panel">
-    <div class="um-panel__toolbar">
-        <div class="um-search-bar um-search-bar--wide">
-            <iconify-icon icon="solar:magnifer-linear"></iconify-icon>
+<div class="um-filter-workspace">
+    <div class="um-ai-search">
+        <div class="um-ai-search__head">
+            <span class="um-ai-search__badge"><iconify-icon icon="solar:magnifer-linear"></iconify-icon> Find</span>
+            <span class="um-muted-pill">{{ $permissions->count() }} total permissions</span>
+        </div>
+        <div class="um-ai-search__shell">
+            <span class="um-ai-search__icon"><iconify-icon icon="solar:magnifer-linear"></iconify-icon></span>
             <input type="search"
-                   class="form-control radius-8"
+                   class="um-ai-search__input"
                    placeholder="Search permissions…"
                    aria-label="Search permissions"
                    data-perm-catalog-search>
         </div>
-        <span class="um-muted-pill">{{ $permissions->count() }} total</span>
     </div>
+</div>
+
+<div class="crm-list-shell">
+<div class="crm-leads-table crm-leads-table--permissions">
+<div class="um-perm-catalog-shell">
 
     @if($permissions->isEmpty())
         <div class="um-empty-state um-empty-state--panel">
@@ -81,6 +90,9 @@
             @endforeach
         </div>
     @endif
+</div>
+</div>
+</div>
 </div>
 @endsection
 

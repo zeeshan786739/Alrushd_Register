@@ -3,81 +3,70 @@
 @section('title') Add Open Events @endsection
 
 @section('content')
+<div class="dashboard-main-body" id="oe-workspace-page">
+@include('admin.open-event.partials.shell', [
+    'activeTab' => 'events',
+    'compact' => true,
+    'shellTitle' => 'Add open event',
+    'shellSubtitle' => 'Create a new event for your public registration page.',
+    'shellActions' => [[
+        'label' => 'Back to events',
+        'url' => route('admin.open-events.index'),
+        'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11',
+        'icon' => 'solar:alt-arrow-left-linear',
+    ]],
+])
 
-<div class="row gy-4 pt-5">
-    <div class="col-lg-12 m-auto">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title text-primary mb-0"><span class="icon">
-                        <iconify-icon icon="fa-solid:save"></iconify-icon>
-                    </span>Add Open Events</h5>
+<form class="needs-validation oe-form-page" novalidate action="{{ route('admin.open-events.store') }}" method="POST" enctype="multipart/form-data">
+    @csrf
+    @method('POST')
 
-
-                <a href="{{ route('admin.open-events.index') }}" class="btn btn-primary btn-sm">← Back</a>
-
+    <div class="oe-form-grid">
+        <section class="oe-form-card">
+            <div class="oe-form-card__head">
+                <span class="oe-form-card__icon"><iconify-icon icon="solar:calendar-mark-linear"></iconify-icon></span>
+                <div>
+                    <h2 class="oe-form-card__title">Event details</h2>
+                    <p class="oe-form-card__sub">Basic information shown on the public open events page</p>
+                </div>
             </div>
-            <div class="card-body">
-                <form class="row gy-3 needs-validation" novalidate action="{{ route('admin.open-events.store') }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    @method('POST')
-
-                    <div class="col-md-6">
-                        <label class="form-label">Name</label>
-                        <div class="has-validation">
-                            <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name') }}">
-                            @error('name')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
-                        </div>
+            <div class="oe-form-card__body">
+                <div class="oe-form-fields">
+                    <div class="oe-form-field">
+                        <label class="oe-form-field__label">Name</label>
+                        <input type="text" name="name" id="name" class="form-control radius-8 @error('name') is-invalid @enderror" value="{{ old('name') }}">
+                        @error('name')<span class="text-danger d-block mt-1">{{ $message }}</span>@enderror
                     </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Title</label>
-                        <div class="has-validation">
-                            <input type="text" name="title" id="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title') }}">
-                            @error('title')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
-                        </div>
+                    <div class="oe-form-field">
+                        <label class="oe-form-field__label">Title</label>
+                        <input type="text" name="title" id="title" class="form-control radius-8 @error('title') is-invalid @enderror" value="{{ old('title') }}">
+                        @error('title')<span class="text-danger d-block mt-1">{{ $message }}</span>@enderror
                     </div>
-
-                    <div class="col-md-12">
-                        <label class="form-label">Description</label>
-                        <div class="has-validation">
-                            <textarea name="description" id="description" class="form-control @error('description') is-invalid @enderror" cols="4" rows="4"></textarea>
-                            @error('description')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
-                        </div>
+                    <div class="oe-form-field oe-form-field--full">
+                        <label class="oe-form-field__label">Description</label>
+                        <textarea name="description" id="description" class="form-control radius-8 @error('description') is-invalid @enderror" rows="4">{{ old('description') }}</textarea>
+                        @error('description')<span class="text-danger d-block mt-1">{{ $message }}</span>@enderror
                     </div>
-
-                    <div class="col-md-12">
-                        <label class="form-label">Status</label>
-                        <div class="has-validation">
-                            <select name="status" id="status" class="form-control form-select @error('status') is-invalid @enderror">
-                                <option value="1">Active</option>
-                                <option value="0">Deactive</option>
-                            </select>
-                            @error('status')
-                            <span class="text-danger">{{$message}}</span>
-                            @enderror
-
-                        </div>
+                    <div class="oe-form-field oe-form-field--full">
+                        <label class="oe-form-field__label">Status</label>
+                        <select name="status" id="status" class="form-control form-select radius-8 @error('status') is-invalid @enderror">
+                            <option value="1">Active</option>
+                            <option value="0">Deactive</option>
+                        </select>
+                        @error('status')<span class="text-danger d-block mt-1">{{ $message }}</span>@enderror
                     </div>
-
-                    <div class="col-md-12 text-end">
-
-                        <a href="{{ route('admin.open-events.index') }}" class="btn btn-primary btn-sm">← Back</a>
-
-                        <button class="btn btn-sm btn-success-600" type="submit"><span class="icon">
-                                <iconify-icon icon="fa-solid:save"></iconify-icon>
-                            </span> Save</button>
-                    </div>
-                </form>
+                </div>
             </div>
+        </section>
+
+        <div class="oe-form-save-bar">
+            <a href="{{ route('admin.open-events.index') }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11 fc-btn">Cancel</a>
+            <button class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn" type="submit">
+                <iconify-icon icon="solar:diskette-linear"></iconify-icon>
+                Save
+            </button>
         </div>
     </div>
+</form>
+</div>
 @endsection

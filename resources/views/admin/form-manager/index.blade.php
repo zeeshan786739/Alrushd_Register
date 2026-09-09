@@ -3,285 +3,130 @@
 @section('title') Form Center @endsection
 
 @section('content')
-@include('admin.form-manager.partials.styles')
+@once
+    @include('admin.crm.partials.styles')
+    @include('admin.crm.partials.workspace-shell')
+    @include('admin.form-manager.partials.premium-styles')
+@endonce
 
-<div class="dashboard-main-body">
-    @include('admin.form-manager.partials.header', [
+<div class="dashboard-main-body" id="form-center-page">
+    @include('admin.partials.page-header', [
         'title' => 'Form Center',
         'subtitle' => 'Create, customize, and manage every form and submission from one place.',
+        'showBreadcrumb' => true,
+        'breadcrumbs' => [['label' => 'Forms & Intake'], ['label' => 'Form Center']],
         'actions' => [
             ['label' => 'Create New Form', 'url' => route('admin.form-manager.create'), 'class' => 'btn-primary-600 radius-8 px-20 py-11', 'icon' => 'solar:add-circle-linear'],
         ],
     ])
 
-    <div class="row gy-4 mb-24" id="formStatFilters">
-        <div class="col-xxl-3 col-sm-6">
-            <button type="button"
-                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-1 fc-stat-card fc-stat-filter w-100 text-start is-active"
-                    data-stat-filter="all"
-                    aria-pressed="true">
-                <div class="card-body p-0 d-flex align-items-center gap-3">
-                    <span class="w-48-px h-48-px bg-primary-600 text-white d-flex justify-content-center align-items-center rounded-circle">
-                        <iconify-icon icon="solar:document-text-linear" class="text-xl"></iconify-icon>
-                    </span>
-                    <div>
-                        <span class="fw-medium text-secondary-light text-sm d-block mb-4">Total Forms</span>
-                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="total">{{ $stats['total_forms'] }}</h6>
-                    </div>
-                </div>
-            </button>
+    <div class="fc-workspace crm-workspace-shell">
+        <div class="crm-metrics-strip" aria-label="Form Center metrics">
+            <div class="crm-metrics-strip__items">
+                <span class="crm-metrics-strip__hint">Form Center workspace</span>
+                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
+                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Total</span><strong>{{ $stats['total_forms'] }}</strong></span>
+                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
+                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Active</span><strong>{{ $stats['active_forms'] }}</strong></span>
+                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
+                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Submissions</span><strong>{{ number_format($stats['total_submissions']) }}</strong></span>
+            </div>
         </div>
-        <div class="col-xxl-3 col-sm-6">
-            <button type="button"
-                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-2 fc-stat-card fc-stat-filter w-100 text-start"
-                    data-stat-filter="active"
-                    aria-pressed="false">
-                <div class="card-body p-0 d-flex align-items-center gap-3">
-                    <span class="w-48-px h-48-px bg-success-main text-white d-flex justify-content-center align-items-center rounded-circle">
-                        <iconify-icon icon="solar:check-circle-linear" class="text-xl"></iconify-icon>
-                    </span>
-                    <div>
-                        <span class="fw-medium text-secondary-light text-sm d-block mb-4">Active Forms</span>
-                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="active">{{ $stats['active_forms'] }}</h6>
-                    </div>
-                </div>
-            </button>
-        </div>
-        <div class="col-xxl-3 col-sm-6">
-            <button type="button"
-                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-3 fc-stat-card fc-stat-filter w-100 text-start"
-                    data-stat-filter="landing"
-                    aria-pressed="false">
-                <div class="card-body p-0 d-flex align-items-center gap-3">
-                    <span class="w-48-px h-48-px bg-yellow text-white d-flex justify-content-center align-items-center rounded-circle">
-                        <iconify-icon icon="solar:global-linear" class="text-xl"></iconify-icon>
-                    </span>
-                    <div>
-                        <span class="fw-medium text-secondary-light text-sm d-block mb-4">On Landing Page</span>
-                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="landing">{{ $stats['landing_forms'] }}</h6>
-                    </div>
-                </div>
-            </button>
-        </div>
-        <div class="col-xxl-3 col-sm-6">
-            <button type="button"
-                    class="card p-3 shadow-2 radius-12 border-0 h-100 bg-gradient-end-4 fc-stat-card fc-stat-filter w-100 text-start"
-                    data-stat-filter="submissions"
-                    aria-pressed="false">
-                <div class="card-body p-0 d-flex align-items-center gap-3">
-                    <span class="w-48-px h-48-px bg-purple text-white d-flex justify-content-center align-items-center rounded-circle">
-                        <iconify-icon icon="solar:inbox-linear" class="text-xl"></iconify-icon>
-                    </span>
-                    <div>
-                        <span class="fw-medium text-secondary-light text-sm d-block mb-4">With Submissions</span>
-                        <h6 class="fw-bold mb-0 text-lg" data-stat-count="submissions">{{ $forms->where('entries_count', '>', 0)->count() }}</h6>
-                        <span class="text-secondary-light text-xs">{{ number_format($stats['total_submissions']) }} total entries</span>
-                    </div>
-                </div>
-            </button>
+
+        @if(session('success'))
+            <div class="alert alert-success bg-success-focus text-success-main border-0 radius-8 m-3 d-flex align-items-center gap-8">
+                <iconify-icon icon="solar:check-circle-linear" class="text-xl flex-shrink-0"></iconify-icon>
+                <span>{{ session('success') }}</span>
+            </div>
+        @endif
+
+        <div class="fc-filter-workspace">
+            <div class="fc-filter-workspace__head">
+                <h2 class="fc-filter-workspace__title">Form filters</h2>
+                <p class="fc-filter-workspace__sub">Quickly narrow the list by status, placement, or activity</p>
+            </div>
+            <div class="fc-source-grid" id="formStatFilters">
+                <button type="button"
+                        class="fc-stat-filter fc-stat-filter--all is-active"
+                        data-stat-filter="all"
+                        aria-pressed="true">
+                    <span class="fc-stat-filter__icon"><iconify-icon icon="solar:document-text-linear"></iconify-icon></span>
+                    <span class="fc-stat-filter__label">Total Forms</span>
+                    <strong class="fc-stat-filter__count" data-stat-count="total">{{ $stats['total_forms'] }}</strong>
+                </button>
+                <button type="button"
+                        class="fc-stat-filter fc-stat-filter--active"
+                        data-stat-filter="active"
+                        aria-pressed="false">
+                    <span class="fc-stat-filter__icon"><iconify-icon icon="solar:check-circle-linear"></iconify-icon></span>
+                    <span class="fc-stat-filter__label">Active Forms</span>
+                    <strong class="fc-stat-filter__count" data-stat-count="active">{{ $stats['active_forms'] }}</strong>
+                </button>
+                <button type="button"
+                        class="fc-stat-filter fc-stat-filter--landing"
+                        data-stat-filter="landing"
+                        aria-pressed="false">
+                    <span class="fc-stat-filter__icon"><iconify-icon icon="solar:global-linear"></iconify-icon></span>
+                    <span class="fc-stat-filter__label">On Landing Page</span>
+                    <strong class="fc-stat-filter__count" data-stat-count="landing">{{ $stats['landing_forms'] }}</strong>
+                </button>
+                <button type="button"
+                        class="fc-stat-filter fc-stat-filter--submissions"
+                        data-stat-filter="submissions"
+                        aria-pressed="false">
+                    <span class="fc-stat-filter__icon"><iconify-icon icon="solar:inbox-linear"></iconify-icon></span>
+                    <span class="fc-stat-filter__label">With Submissions</span>
+                    <strong class="fc-stat-filter__count" data-stat-count="submissions">{{ $forms->where('entries_count', '>', 0)->count() }}</strong>
+                    <span class="fc-stat-filter__meta">{{ number_format($stats['total_submissions']) }} total entries</span>
+                </button>
+            </div>
         </div>
     </div>
 
-    @if($forms->isEmpty())
-    <div class="card shadow-2 radius-12 border-0">
-        <div class="card-body text-center py-60 px-24">
-            <div class="w-72-px h-72-px bg-primary-50 text-primary-600 rounded-circle d-flex align-items-center justify-content-center mx-auto mb-16">
-                <iconify-icon icon="solar:document-add-linear" class="text-3xl"></iconify-icon>
+    <div class="fc-page-body">
+        @if($forms->isEmpty())
+            <div class="crm-leads-table">
+                <div class="crm-leads-list-empty">
+                    <iconify-icon icon="solar:document-add-linear"></iconify-icon>
+                    <strong>No forms yet</strong>
+                    <span>Create your first form to collect enquiries, applications, or registrations. You can publish it on your website or share a direct link.</span>
+                    <a href="{{ route('admin.form-manager.create') }}" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn mt-12">
+                        <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
+                        <span>Create your first form</span>
+                    </a>
+                </div>
             </div>
-            <h6 class="fw-semibold mb-8">No forms yet</h6>
-            <p class="text-secondary-light text-sm mb-24 max-w-500-px mx-auto">Create your first form to collect enquiries, applications, or registrations. You can publish it on your website or share a direct link.</p>
-            <div>
-                <a href="{{ route('admin.form-manager.create') }}" class="btn btn-primary-600 radius-8 px-24 py-11 fc-btn">
-                    <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
-                    <span>Create your first form</span>
-                </a>
-            </div>
-        </div>
-    </div>
-    @else
-    <div class="card shadow-2 radius-12 border-0">
-        <div class="card-body p-0">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-12 px-24 py-16 border-bottom">
-                <div>
-                    <h6 class="mb-4 fw-semibold fc-panel-title">
-                        <iconify-icon icon="solar:documents-linear"></iconify-icon>
-                        <span id="formTableTitle">All Forms</span>
-                    </h6>
-                    <p class="text-secondary-light text-sm mb-0">
-                        <span id="formTableSubtitle">Showing all forms</span>
-                        <span class="text-primary-600 fw-medium" id="formTableCount"></span>
-                    </p>
+        @else
+            <div class="crm-leads-toolbar">
+                <div class="crm-leads-toolbar__meta">
+                    <strong id="formTableTitle">All Forms</strong>
+                    <span id="formTableSubtitle">Showing all forms</span>
+                    <span class="text-primary-600 fw-medium" id="formTableCount"></span>
                 </div>
                 <button type="button" class="btn btn-outline-neutral-500 radius-8 px-16 py-10 text-sm d-none" id="clearFormFilter">
                     Clear filter
                 </button>
             </div>
-            <div class="table-responsive">
-                <table class="table bordered-table mb-0 align-middle" id="formsTable">
-                    <thead>
-                        <tr>
-                            <th class="ps-24">Form</th>
-                            <th>Steps</th>
-                            <th>Fields</th>
-                            <th>Submissions</th>
-                            <th>Display</th>
-                            <th>Status</th>
-                            <th class="text-end pe-24">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+
+            <div class="crm-list-shell">
+                <div class="crm-leads-table">
+                    <div class="crm-leads-table__head" aria-hidden="true">
+                        <span>Form</span><span>Steps</span><span>Fields</span><span>Submissions</span><span>Display</span><span>Status</span><span></span>
+                    </div>
+                    <div class="crm-leads-list" id="formsTable">
                         @foreach($forms as $form)
-                        @php
-                            $icons = [
-                                'job-applications' => ['solar:case-round-linear', '#487FFF'],
-                                'staff-application' => ['solar:user-id-linear', '#16a34a'],
-                                'student-admission' => ['solar:square-academic-cap-linear', '#7c3aed'],
-                                'debit-form' => ['solar:wallet-linear', '#ca8a04'],
-                                'enquire-now' => ['solar:letter-linear', '#0891b2'],
-                                'referral' => ['solar:hand-shake-linear', '#db2777'],
-                                'meeting-form' => ['solar:calendar-linear', '#64748b'],
-                            ];
-                            [$icon, $color] = $icons[$form->slug] ?? ['solar:document-text-linear', '#487FFF'];
-                        @endphp
-                        <tr class="fc-form-row"
-                            data-form-row
-                            data-form-id="{{ $form->id }}"
-                            data-form-name="{{ $form->name }}"
-                            data-is-active="{{ $form->is_active ? '1' : '0' }}"
-                            data-on-landing="{{ $form->hasPlacement('landing') ? '1' : '0' }}"
-                            data-entries-count="{{ $form->entries_count }}"
-                            data-entries-url="{{ route('admin.form-manager.entries', $form) }}"
-                            data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
-                            data-toggle-url="{{ route('admin.form-manager.toggle', $form) }}"
-                            data-toggle-placement-url="{{ route('admin.form-manager.toggle-placement', $form) }}"
-                            data-placements="{{ implode(',', $form->placements()) }}"
-                            data-form-url="{{ $form->routePath() }}"
-                            data-destroy-url="{{ route('admin.form-manager.destroy', $form) }}">
-                            <td class="ps-24">
-                                <div class="d-flex align-items-center gap-12">
-                                    <span class="fc-form-icon" style="background: {{ $color }}18; color: {{ $color }};">
-                                        <iconify-icon icon="{{ $icon }}"></iconify-icon>
-                                    </span>
-                                    <div class="fc-form-identity">
-                                        <h6 class="text-md fw-semibold mb-4">{{ $form->name }}</h6>
-                                        <span class="fc-table-url text-sm" title="/{{ $form->slug }}">/{{ $form->slug }}</span>
-                                        @if($form->legacy_route && trim($form->legacy_route, '/') !== $form->slug)
-                                        <span class="fc-table-url text-xs d-block mt-2">{{ $form->legacy_route }}</span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </td>
-                            <td><span class="fw-semibold">{{ $form->steps_count }}</span></td>
-                            <td><span class="fw-semibold">{{ $form->fields_count }}</span></td>
-                            <td>
-                                <a href="{{ route('admin.form-manager.entries', $form) }}" class="fw-bold text-primary-600 hover-text-primary">
-                                    {{ number_format($form->entries_count) }}
-                                </a>
-                            </td>
-                            <td data-display-cell>
-                                @php $placements = $form->placements(); @endphp
-                                @if(empty($placements))
-                                    <button type="button"
-                                            class="fc-badge fc-badge-neutral fc-badge-interactive border-0"
-                                            title="Open display settings"
-                                            data-form-settings>
-                                        Not shown
-                                    </button>
-                                @else
-                                    <div class="d-flex flex-wrap gap-6">
-                                        @foreach($placements as $placement)
-                                            @php $opt = $placementOptions[$placement] ?? null; @endphp
-                                            <button type="button"
-                                                    class="fc-badge fc-badge-primary fc-badge-interactive border-0"
-                                                    title="{{ $opt['description'] ?? $placement }} — click to toggle"
-                                                    data-toggle-placement="{{ $placement }}">
-                                                {{ $opt['label'] ?? ucfirst($placement) }}
-                                            </button>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </td>
-                            <td>
-                                <button type="button"
-                                        class="fc-badge fc-badge-interactive border-0 {{ $form->is_active ? 'fc-badge-primary' : 'fc-badge-neutral' }}"
-                                        data-toggle-status
-                                        title="Click to toggle status">
-                                    {{ $form->is_active ? 'Active' : 'Inactive' }}
-                                </button>
-                            </td>
-                            <td class="text-end pe-24" onclick="event.stopPropagation()">
-                                <div class="fc-table-actions">
-                                    @if($form->usesDynamicRenderer())
-                                    <a href="{{ $form->routePath() }}"
-                                       target="_blank"
-                                       rel="noopener"
-                                       class="fc-action-icon view"
-                                       title="Preview live form"
-                                       aria-label="Preview live form">
-                                        <x-form-action-icon name="view" />
-                                    </a>
-                                    @endif
-                                    <a href="{{ route('admin.form-manager.edit', $form) }}"
-                                       class="fc-action-icon edit"
-                                       title="Customize form"
-                                       aria-label="Customize form">
-                                        <x-form-action-icon name="edit" />
-                                    </a>
-                                    <button type="button"
-                                            class="fc-action-icon settings border-0"
-                                            title="Display settings"
-                                            aria-label="Display settings"
-                                            data-form-settings
-                                            data-form-name="{{ $form->name }}"
-                                            data-settings-url="{{ route('admin.form-manager.settings', $form) }}"
-                                            data-placements="{{ implode(',', $form->placements()) }}">
-                                        <x-form-action-icon name="settings" />
-                                    </button>
-                                    <button type="button"
-                                            class="fc-action-icon link border-0"
-                                            title="Copy form URL"
-                                            aria-label="Copy form URL"
-                                            data-copy-form-url="{{ $form->routePath() }}">
-                                        <x-form-action-icon name="link" />
-                                    </button>
-                                    <form action="{{ route('admin.form-manager.duplicate', $form) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        <button type="submit"
-                                                class="fc-action-icon duplicate"
-                                                title="Duplicate form"
-                                                aria-label="Duplicate form">
-                                            <x-form-action-icon name="duplicate" />
-                                        </button>
-                                    </form>
-                                    <button type="button"
-                                            class="fc-action-icon delete border-0"
-                                            title="Delete form"
-                                            aria-label="Delete form"
-                                            data-delete-form>
-                                        <x-form-action-icon name="delete" />
-                                    </button>
-                                    <a href="{{ route('admin.form-manager.entries', $form) }}"
-                                       class="btn btn-sm fc-submissions-btn radius-8 px-12 py-8 fc-btn"
-                                       title="View submissions"
-                                       aria-label="View submissions">
-                                        <i class="ri-inbox-2-fill" aria-hidden="true"></i>
-                                        <span>Submissions</span>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
+                            @include('admin.form-manager.partials.form-row', compact('form', 'placementOptions'))
                         @endforeach
-                    </tbody>
-                </table>
-                <div class="d-none px-24 py-40 text-center" id="formFilterEmpty">
-                    <iconify-icon icon="solar:filter-linear" class="text-3xl text-secondary-light mb-12 d-block"></iconify-icon>
-                    <h6 class="fw-semibold mb-8">No forms match this filter</h6>
-                    <p class="text-secondary-light text-sm mb-0">Try another stat card or clear the filter.</p>
+                    </div>
+                    <div class="d-none px-24 py-40 text-center crm-leads-list-empty" id="formFilterEmpty">
+                        <iconify-icon icon="solar:filter-linear"></iconify-icon>
+                        <strong>No forms match this filter</strong>
+                        <span>Try another stat card or clear the filter.</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
     </div>
-    @endif
 </div>
 @endsection
 
@@ -405,7 +250,7 @@
     function applyFormFilter(filter) {
         currentFormFilter = filter;
         const rows = Array.from(document.querySelectorAll('[data-form-row]'));
-        const table = document.getElementById('formsTable');
+        const list = document.getElementById('formsTable');
         const emptyState = document.getElementById('formFilterEmpty');
         const clearBtn = document.getElementById('clearFormFilter');
         const titleEl = document.getElementById('formTableTitle');
@@ -448,7 +293,7 @@
         if (subtitleEl && filterMeta[filter]) subtitleEl.textContent = filterMeta[filter].subtitle;
         if (countEl) countEl.textContent = visibleCount ? ' · ' + visibleCount + ' shown' : '';
         if (clearBtn) clearBtn.classList.toggle('d-none', filter === 'all');
-        if (table) table.classList.toggle('d-none', visibleCount === 0);
+        if (list) list.classList.toggle('d-none', visibleCount === 0);
         if (emptyState) emptyState.classList.toggle('d-none', visibleCount > 0);
     }
 

@@ -47,6 +47,7 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('leads/{lead}/email', [LeadController::class, 'emailForm'])->name('leads.email.form');
     Route::post('leads/{lead}/email', [LeadController::class, 'sendEmail'])->name('leads.email.send');
     Route::patch('leads/bulk', [LeadController::class, 'bulkUpdate'])->name('leads.bulk');
+    Route::patch('leads/reorder-list', [LeadController::class, 'reorderList'])->name('leads.reorder-list');
     Route::get('leads/create/panel', [LeadController::class, 'createPanel'])->name('leads.create.panel');
     Route::get('leads/{lead}/panel', [LeadController::class, 'panel'])->name('leads.panel');
     Route::get('leads/{lead}/panel/edit', [LeadController::class, 'panelEdit'])->name('leads.panel.edit');

@@ -5,10 +5,15 @@ namespace App\Http\Controllers\Admin\Crm;
 use App\Http\Controllers\Controller;
 use App\Models\Crm\Invoice;
 use App\Models\Crm\Lead;
+use App\Models\Crm\LeadCategory;
 use App\Models\Crm\Project;
 use App\Models\Crm\Quotation;
+use App\Models\Form;
+use App\Support\CrmFormStats;
+use App\Support\CrmOverviewInsights;
 use App\Support\InvoiceDueState;
 use App\Support\LeadFollowUpState;
+use App\Support\LeadSmartSearch;
 use App\Support\ProjectDueState;
 use App\Support\QuotationExpiryState;
 use Illuminate\Http\Request;
@@ -155,6 +160,11 @@ class CrmOverviewController extends Controller
             ->values()
             ->take(15);
 
+        $formStats = CrmFormStats::summary();
+        $stats['submissions_pending'] = $formStats['submissions_pending'];
+        $stats['submissions_total'] = $formStats['submissions_total'];
+        $stats['active_forms'] = $formStats['active_forms'];
+
         $quickLinks = array_values(array_filter([
             $request->user('admin')?->can('view leads') ? ['label' => 'Leads', 'url' => route('admin.crm.leads.index'), 'icon' => 'solar:user-hand-up-linear'] : null,
             $request->user('admin')?->can('view customers') ? ['label' => 'Customers', 'url' => route('admin.crm.customers.index'), 'icon' => 'solar:users-group-rounded-linear'] : null,
@@ -163,6 +173,20 @@ class CrmOverviewController extends Controller
             $request->user('admin')?->can('view invoices') ? ['label' => 'Invoices', 'url' => route('admin.crm.invoices.index'), 'icon' => 'solar:bill-list-linear'] : null,
         ]));
 
-        return view('admin.crm.overview', compact('stats', 'attention', 'quickLinks'));
+        $forms = Form::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
+        $categories = LeadCategory::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
+        $insights = CrmOverviewInsights::generate($stats, $attention, $request->user('admin'));
+        $smartSuggestions = LeadSmartSearch::suggestions($forms, $categories);
+        $formBreakdown = CrmFormStats::formBreakdown();
+
+        return view('admin.crm.overview', compact(
+            'stats',
+            'attention',
+            'quickLinks',
+            'insights',
+            'smartSuggestions',
+            'formBreakdown',
+            'formStats',
+        ));
     }
 }

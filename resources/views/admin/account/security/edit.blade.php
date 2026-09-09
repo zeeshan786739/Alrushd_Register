@@ -1,6 +1,7 @@
 @extends('admin.layouts.app')
 @section('title', 'Security')
 @section('content')
+<div class="dashboard-main-body" id="acct-workspace-page">
 @include('admin.account.partials.shell', [
     'activeTab' => 'security',
     'shellTitle' => 'Security',
@@ -82,5 +83,8 @@
             </div>
         </div>
     </div>
+</div>
+
+@include('admin.account.partials.shell-close')
 </div>
 @endsection

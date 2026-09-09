@@ -5,7 +5,7 @@
     $placeholder = $inputType === 'date' ? 'YYYY-MM-DD' : 'Add new '.strtolower($cfg['label']).'…';
 @endphp
 <section
-    class="card radius-12 border-0 shadow-sm enroll-panel enroll-setup__panel {{ $isActive ? 'is-visible' : '' }}"
+    class="enroll-panel enroll-setup__panel {{ $isActive ? 'is-visible' : '' }}"
     data-tab-panel="{{ $typeKey }}"
     id="panel-{{ $typeKey }}"
     role="tabpanel"
@@ -34,55 +34,20 @@
     </form>
     @endif
 
-    <div class="enroll-table-wrap">
-        <table class="table enroll-table mb-0">
-            <thead>
-                <tr>
-                    <th>{{ $cfg['label'] }}</th>
-                    <th>Status</th>
-                    @if($typeData['can_edit'] || $typeData['can_delete'])<th class="text-end">Actions</th>@endif
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($typeData['items'] as $item)
-                <tr>
-                    <td>
-                        @if($typeData['can_edit'])
-                        <form method="POST" action="{{ route('admin.enrollment-setup.update', [$typeKey, $item->id]) }}" class="enroll-inline-form">
-                            @csrf @method('PUT')
-                            <input type="{{ $inputType }}" name="{{ $field }}" value="{{ \App\Support\EnrollmentCatalog::displayValue($item, $cfg) }}" class="enroll-inline-form__input" required>
-                            <select name="status" class="enroll-inline-form__status">
-                                <option value="1" @selected((int)$item->status === 1)>Active</option>
-                                <option value="0" @selected((int)$item->status === 0)>Hidden</option>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                        </form>
-                        @else
-                        {{ \App\Support\EnrollmentCatalog::displayValue($item, $cfg) }}
-                        @endif
-                    </td>
-                    <td>
-                        @include('admin.partials.status-badge', ['status' => $item->status])
-                    </td>
-                    @if($typeData['can_edit'] || $typeData['can_delete'])
-                    <td class="text-end">
-                        @if($typeData['can_delete'])
-                        <form method="POST" action="{{ route('admin.enrollment-setup.destroy', [$typeKey, $item->id]) }}" class="d-inline" onsubmit="return confirm('Remove this item? It will disappear from form dropdowns.');">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                        </form>
-                        @endif
-                    </td>
-                    @endif
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="3" class="text-center py-32 text-secondary-light">
-                        No items yet. Add your first {{ strtolower($cfg['label']) }} above.
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+    <div class="crm-leads-table">
+        <div class="crm-leads-table__head" aria-hidden="true">
+            <span>{{ $cfg['label'] }}</span><span>Status</span><span></span>
+        </div>
+        <div class="crm-leads-list">
+            @forelse($typeData['items'] as $item)
+                @include('admin.enrollment-setup.partials.catalog-row', compact('typeKey', 'typeData', 'item'))
+            @empty
+                <div class="crm-leads-list-empty">
+                    <iconify-icon icon="solar:widget-linear"></iconify-icon>
+                    <strong>No items yet</strong>
+                    <span>Add your first {{ strtolower($cfg['label']) }} above.</span>
+                </div>
+            @endforelse
+        </div>
     </div>
 </section>

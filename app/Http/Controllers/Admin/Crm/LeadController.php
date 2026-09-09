@@ -46,7 +46,7 @@ class LeadController extends Controller
         $this->middleware('permission:view leads')->only(['index', 'show', 'panel']);
         $this->middleware('permission:create leads')->only(['create', 'store', 'createPanel']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit',
+            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList',
         ]);
         $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate']);
         $this->middleware('permission:delete leads')->only(['destroy']);
@@ -828,6 +828,7 @@ class LeadController extends Controller
             ->with(array_filter([
                 'assignedAdmin',
                 'formEntry.form',
+                'leadImport',
                 LeadCategorySchema::ready() ? 'category' : null,
             ]))
             ->when(LeadCategorySchema::ready() && $request->filled('lead_category_id'), function ($q) use ($request) {
@@ -866,7 +867,49 @@ class LeadController extends Controller
                         ->orWhere('phone', 'like', "%{$search}%");
                 });
             })
-            ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'));
+            ->when(
+                $request->query('view') === 'list' && ! $request->filled('sort_by'),
+                fn ($q) => $q->orderByRaw('list_position IS NULL')
+                    ->orderBy('list_position')
+                    ->orderBy('created_at', 'desc'),
+                fn ($q) => $q->orderBy(
+                    $request->get('sort_by', 'created_at'),
+                    $request->get('sort_order', 'desc')
+                )
+            );
+    }
+
+    public function reorderList(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lead_ids' => ['required', 'array', 'min:1'],
+            'lead_ids.*' => ['integer', 'distinct'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:10', 'max:50'],
+        ]);
+
+        $leadIds = array_values(array_unique(array_map('intval', $validated['lead_ids'])));
+        $page = max(1, (int) ($validated['page'] ?? 1));
+        $perPage = min(50, max(10, (int) ($validated['per_page'] ?? 15)));
+        $basePosition = ($page - 1) * $perPage;
+
+        $leads = Lead::forCurrentOrganization()->whereIn('id', $leadIds)->get()->keyBy('id');
+
+        if ($leads->count() !== count($leadIds)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'One or more leads could not be found.',
+            ], 422);
+        }
+
+        foreach ($leadIds as $index => $leadId) {
+            $leads[$leadId]->update(['list_position' => $basePosition + $index + 1]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Row order updated.',
+        ]);
     }
 
     private function shouldShowFormIntake(Request $request): bool

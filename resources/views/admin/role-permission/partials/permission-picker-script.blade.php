@@ -24,7 +24,7 @@
                     var q = searchInput.value.toLowerCase().trim();
                     picker.querySelectorAll('[data-perm-group]').forEach(function (group) {
                         var visible = 0;
-                        group.querySelectorAll('.um-perm-item').forEach(function (item) {
+                        group.querySelectorAll('[data-perm-label]').forEach(function (item) {
                             var label = item.getAttribute('data-perm-label') || '';
                             var show = !q || label.includes(q);
                             item.style.display = show ? '' : 'none';
@@ -42,7 +42,10 @@
                     var group = btn.closest('[data-perm-group]');
                     if (!group) return;
                     var boxes = Array.from(group.querySelectorAll('[data-perm-checkbox]'))
-                        .filter(function (box) { return box.closest('.um-perm-item').style.display !== 'none'; });
+                        .filter(function (box) {
+                            var chip = box.closest('[data-perm-label]');
+                            return !chip || chip.style.display !== 'none';
+                        });
                     var allChecked = boxes.length > 0 && boxes.every(function (box) { return box.checked; });
                     boxes.forEach(function (box) { box.checked = !allChecked; });
                     btn.textContent = allChecked ? 'Select all' : 'Clear group';

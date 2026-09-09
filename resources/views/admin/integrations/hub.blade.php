@@ -1,134 +1,87 @@
 @extends('admin.layouts.app')
 @section('title', 'Integrations')
 @section('content')
-<div class="dashboard-main-body">
-    @include('admin.partials.page-header', [
-        'title' => 'Integrations',
-        'subtitle' => 'Connect ad platforms and import leads into your CRM',
-        'showBreadcrumb' => true,
-        'breadcrumbs' => [['label' => 'Integrations']],
-    ])
+<div class="dashboard-main-body" id="integrations-workspace-page">
+@include('admin.integrations.partials.shell', [
+    'activeTab' => 'hub',
+    'shellTitle' => 'Integrations',
+    'shellSubtitle' => 'Connect ad platforms and import leads into your CRM',
+    'shellBreadcrumbs' => [['label' => 'Integrations']],
+    'hideFlash' => true,
+    'metrics' => [
+        ['label' => 'Facebook', 'value' => $stats['facebook_connected'] ? 'Connected' : 'Not connected'],
+        ['label' => 'Leads', 'value' => number_format($stats['facebook_leads_total'])],
+        ['label' => 'Unmapped', 'value' => number_format($stats['facebook_leads_unmapped'])],
+    ],
+])
 
-    @if(session('success'))<div class="alert alert-success radius-8">{{ session('success') }}</div>@endif
-    @if(session('error'))<div class="alert alert-danger radius-8">{{ session('error') }}</div>@endif
-
-    <div class="row g-3 mb-24">
-        <div class="col-md-4">
-            @include('admin.partials.dashboard-stat-card', [
-                'label' => 'Facebook',
-                'value' => $stats['facebook_connected'] ? 'Connected' : 'Not connected',
-                'icon' => 'logos:facebook',
-                'tone' => $stats['facebook_connected'] ? 'green' : 'amber',
-            ])
-        </div>
-        <div class="col-md-4">
-            @include('admin.partials.dashboard-stat-card', [
-                'label' => 'Facebook Leads',
-                'value' => $stats['facebook_leads_total'],
-                'icon' => 'solar:inbox-in-linear',
-                'tone' => 'navy',
-            ])
-        </div>
-        <div class="col-md-4">
-            @include('admin.partials.dashboard-stat-card', [
-                'label' => 'Needs Mapping',
-                'value' => $stats['facebook_leads_unmapped'],
-                'icon' => 'solar:settings-linear',
-                'tone' => $stats['facebook_leads_unmapped'] > 0 ? 'amber' : 'green',
-            ])
-        </div>
-    </div>
-
-    <div class="row g-3">
-        <div class="col-lg-6">
-            <div class="card radius-12 shadow-2 border-0 h-100">
-                <div class="card-body p-24">
-                    <div class="d-flex align-items-start justify-content-between gap-12 mb-16">
-                        <div class="d-flex align-items-center gap-12">
-                            <span class="w-48-px h-48-px rounded-circle d-flex align-items-center justify-content-center bg-primary-50">
-                                <iconify-icon icon="logos:facebook" width="28"></iconify-icon>
-                            </span>
-                            <div>
-                                <h6 class="mb-4">Facebook Lead Ads</h6>
-                                <p class="text-sm text-secondary-light mb-0">Import leads from Facebook &amp; Instagram ads directly into CRM.</p>
-                            </div>
-                        </div>
-                        @if($facebookConnection?->isConnected())
-                            <span class="badge {{ $facebookConnection->status->badgeClass() }} radius-8">{{ $facebookConnection->status->label() }}</span>
-                        @else
-                            <span class="badge bg-neutral-200 text-secondary-light radius-8">Not connected</span>
-                        @endif
+<div class="int-page-body">
+    <div class="int-platform-grid mb-16">
+        <div class="int-platform-card">
+            <div class="int-platform-card__head">
+                <div class="int-platform-card__identity">
+                    <span class="int-platform-card__icon int-platform-card__icon--facebook"><iconify-icon icon="logos:facebook"></iconify-icon></span>
+                    <div>
+                        <h3 class="int-platform-card__title">Facebook Lead Ads</h3>
+                        <p class="int-platform-card__desc">Import leads from Facebook &amp; Instagram ads directly into CRM.</p>
                     </div>
-
-                    @if($facebookConnection?->isConnected())
-                        <p class="text-sm mb-8"><strong>Page:</strong> {{ $facebookConnection->external_account_name }}</p>
-                        <p class="text-sm mb-16 text-secondary-light">
-                            Last lead received: {{ $facebookConnection->last_webhook_at?->diffForHumans() ?? 'None yet' }}
-                        </p>
-                    @endif
-
-            <a href="{{ route('admin.integrations.facebook.show') }}" class="btn btn-primary-600 radius-8">
+                </div>
+                @if($facebookConnection?->isConnected())
+                    <span class="badge {{ $facebookConnection->status->badgeClass() }} radius-8">{{ $facebookConnection->status->label() }}</span>
+                @else
+                    <span class="int-status-badge int-status-badge--neutral">Not connected</span>
+                @endif
+            </div>
+            @if($facebookConnection?->isConnected())
+                <p class="int-platform-card__meta mb-0"><strong>Page:</strong> {{ $facebookConnection->external_account_name }}</p>
+                <p class="int-platform-card__meta mb-0">Last lead received: {{ $facebookConnection->last_webhook_at?->diffForHumans() ?? 'None yet' }}</p>
+            @endif
+            <a href="{{ route('admin.integrations.facebook.show') }}" class="btn btn-primary-600 radius-8 align-self-start">
                 {{ $facebookConnection?->isConnected() ? 'Manage Facebook' : 'Connect Facebook' }}
             </a>
-                </div>
-            </div>
         </div>
 
-        <div class="col-lg-6">
-            <div class="card radius-12 shadow-2 border-0 h-100">
-                <div class="card-body p-24">
-                    <div class="d-flex align-items-start justify-content-between gap-12 mb-16">
-                        <div class="d-flex align-items-center gap-12">
-                            <span class="w-48-px h-48-px rounded-circle d-flex align-items-center justify-content-center bg-neutral-100">
-                                <iconify-icon icon="logos:tiktok-icon" width="28"></iconify-icon>
-                            </span>
-                            <div>
-                                <h6 class="mb-4">TikTok Lead Ads</h6>
-                                <p class="text-sm text-secondary-light mb-0">Import leads from TikTok Lead Generation Instant Forms into CRM.</p>
-                            </div>
-                        </div>
-                        @if($tiktokConnection?->isConnected())
-                            <span class="badge {{ $tiktokConnection->status->badgeClass() }} radius-8">{{ $tiktokConnection->status->label() }}</span>
-                        @else
-                            <span class="badge bg-neutral-200 text-secondary-light radius-8">Not connected</span>
-                        @endif
+        <div class="int-platform-card">
+            <div class="int-platform-card__head">
+                <div class="int-platform-card__identity">
+                    <span class="int-platform-card__icon int-platform-card__icon--tiktok"><iconify-icon icon="logos:tiktok-icon"></iconify-icon></span>
+                    <div>
+                        <h3 class="int-platform-card__title">TikTok Lead Ads</h3>
+                        <p class="int-platform-card__desc">Import leads from TikTok Lead Generation Instant Forms into CRM.</p>
                     </div>
-                    <a href="{{ route('admin.integrations.tiktok.show') }}" class="btn btn-primary-600 radius-8">
-                        {{ $tiktokConnection?->isConnected() ? 'Manage TikTok' : 'Set up TikTok' }}
-                    </a>
                 </div>
+                @if($tiktokConnection?->isConnected())
+                    <span class="badge {{ $tiktokConnection->status->badgeClass() }} radius-8">{{ $tiktokConnection->status->label() }}</span>
+                @else
+                    <span class="int-status-badge int-status-badge--neutral">Not connected</span>
+                @endif
             </div>
+            <a href="{{ route('admin.integrations.tiktok.show') }}" class="btn btn-primary-600 radius-8 align-self-start">
+                {{ $tiktokConnection?->isConnected() ? 'Manage TikTok' : 'Set up TikTok' }}
+            </a>
         </div>
     </div>
 
     @if($recentFacebookLeads->isNotEmpty())
-    <div class="card radius-12 shadow-2 border-0 mt-24">
-        <div class="card-body p-24">
-            <h6 class="mb-16">Recent Facebook leads</h6>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Lead</th>
-                            <th>Form</th>
-                            <th>Status</th>
-                            <th>Received</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($recentFacebookLeads as $submission)
-                        <tr>
-                            <td class="text-sm">{{ $submission->formMapping?->internal_label ?? 'Facebook lead' }}</td>
-                            <td>{{ $submission->formMapping?->external_form_name ?? $submission->formMapping?->internal_label ?? '—' }}</td>
-                            <td><span class="badge bg-neutral-200 text-secondary-light radius-8">{{ ucfirst($submission->status->value) }}</span></td>
-                            <td>{{ $submission->created_at->diffForHumans() }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+        <div class="crm-list-shell">
+            <div class="crm-leads-toolbar">
+                <div class="crm-leads-toolbar__meta">
+                    <strong>Recent Facebook leads</strong>
+                    <span>Latest imported submissions</span>
+                </div>
+            </div>
+            <div class="crm-leads-table">
+                <div class="crm-leads-table__head crm-leads-table__head--hub-submissions" aria-hidden="true">
+                    <span>Lead</span><span>Form</span><span>Status</span><span>Received</span>
+                </div>
+                <div class="crm-leads-list">
+                    @foreach($recentFacebookLeads as $submission)
+                        @include('admin.integrations.partials.submission-row', ['submission' => $submission, 'mode' => 'hub'])
+                    @endforeach
+                </div>
             </div>
         </div>
-    </div>
     @endif
+</div>
 </div>
 @endsection

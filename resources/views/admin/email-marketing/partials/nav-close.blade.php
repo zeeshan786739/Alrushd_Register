@@ -1,4 +1,4 @@
 @if($showInboxFolders ?? false)
-    </div>
-</div>
+    </div>{{-- /.em-inbox-main --}}
+</div>{{-- /.em-inbox-layout --}}
 @endif

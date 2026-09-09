@@ -1,91 +1,74 @@
 @extends('admin.layouts.app')
 
-@section('title') Open Event-Items List @endsection
+@section('title') Event Items @endsection
 
 @section('content')
+@php
+    $activeCount = $data->where('status', 1)->count();
+    $inactiveCount = $data->where('status', '!=', 1)->count();
+@endphp
 
-<div class="col-12">
-    <div class="card basic-data-table">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="card-title text-primary mb-0"> Open Event-Items Lists</h6>
+<div class="dashboard-main-body" id="oe-workspace-page">
+@include('admin.open-event.partials.shell', [
+    'activeTab' => 'items',
+    'shellTitle' => 'Event Items',
+    'shellSubtitle' => 'Manage sessions, time slots, and registration options linked to each event.',
+    'shellActions' => auth()->user()->can('create event_item') ? [[
+        'label' => 'Add item',
+        'url' => route('admin.open-event-items.create'),
+        'class' => 'btn-primary-600 radius-8 px-20 py-11',
+        'icon' => 'solar:add-circle-linear',
+    ]] : [],
+])
 
-            <a href="{{ route('admin.open-event-items.create') }}" class="btn btn-primary btn-sm">+ Add</a>
+@include('admin.open-event.partials.status-filters', ['items' => $data])
 
-        </div>
-        <div class="card-body">
-            <table class="table bordered-table mb-0" id="dataTable" data-page-length='10'>
-                <thead>
-                    <tr>
-                        <th scope="col">
-                             S.L
-                        </th>
-                        <th scope="col">Open Event</th>
-                        <th scope="col">Title</th>
-                        <!-- <th scope="col">Time</th> -->
-                        <th scope="col">Years</th>
-                        <th scope="col">Minutes</th>
-                        <!-- <th scope="col">Image</th> -->
-                        <th scope="col">Status</th>
-                        <th scope="col">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($data as $item)
-
-                    <tr>
-                        <td>
-                             {{ $loop->iteration }}
-                        </td>
-                        <td>{{ $item->openevent?->name }}</td>
-                        <td>{{ $item->title }}</td>
-                        <!-- <td>{{ $item->time }}</td> -->
-                        <td>{{ $item->year }}</td>
-                        <td>{{ $item->minutes }}</td>
-                        <!-- <td>
-                            @if($item->image)
-                            <img src="{{Storage::url($item->image)}}" width="70px" height="70px">
-                            @endif
-                        </td> -->
-                       
-                        <td>
-                            @if($item->status==1)
-                            <span class="bg-success-focus text-success-main px-24 py-4 rounded-pill fw-medium text-sm">Active</span>
-                            @else
-                            <span class="bg-danger-focus text-light-main px-24 py-4 rounded-pill fw-medium text-sm">Deactive</span>
-                            @endif
-                        </td>
-
-                        <td>
-
-                            <a href="{{ route('admin.open-event-items.edit', $item->id) }}"
-                                class="w-32-px h-32-px bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center">
-                                <iconify-icon icon="iconamoon:eye-light"></iconify-icon>
-                            </a>
-
-
-                            <a href="{{ route('admin.open-event-items.edit', $item->id) }}"
-                                class="w-32-px h-32-px bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                                <iconify-icon icon="lucide:edit"></iconify-icon>
-                            </a>
-
-
-                            <form id="delete-form-{{ $item->id }}" action="{{ route('admin.open-event-items.destroy', $item->id) }}" method="POST" style="display: none;">
-                                @csrf @method('DELETE')
-                            </form>
-                            <a href="javascript:void(0)" data-id="{{ $item->id }}"
-                                class="delete-btn w-32-px h-32-px bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center">
-                                <iconify-icon icon="mingcute:delete-2-line"></iconify-icon>
-                            </a>
-
-                        </td>
-                    </tr>
-
-                    @endforeach
-
-
-
-                </tbody>
-            </table>
+<div class="oe-filter-workspace um-search-scope">
+    <div class="oe-filter-grid">
+        <div class="oe-ai-search">
+            <div class="oe-ai-search__badge"><iconify-icon icon="solar:magnifer-linear"></iconify-icon> Find</div>
+            <div class="oe-ai-search__shell">
+                <span class="oe-ai-search__icon"><iconify-icon icon="solar:magnifer-linear"></iconify-icon></span>
+                <input type="search" class="oe-ai-search__input um-table-search" placeholder="Search by title or event…" aria-label="Search event items">
+            </div>
         </div>
     </div>
+</div>
+
+<div class="crm-leads-toolbar">
+    <div class="crm-leads-toolbar__meta">
+        <strong>{{ number_format($data->count()) }} item{{ $data->count() === 1 ? '' : 's' }}</strong>
+        <span>{{ number_format($activeCount) }} active · {{ number_format($inactiveCount) }} inactive</span>
+    </div>
+</div>
+
+<div class="crm-list-shell um-search-scope">
+    <div class="crm-leads-table">
+        <div class="crm-leads-table__head crm-leads-table__head--items" aria-hidden="true">
+            <span>Item</span><span>Open event</span><span>Years</span><span>Minutes</span><span>Status</span><span></span>
+        </div>
+        <div class="crm-leads-list">
+            @forelse($data as $item)
+                @include('admin.open-event.partials.item-row', ['item' => $item])
+            @empty
+                <div class="crm-leads-list-empty">
+                    <iconify-icon icon="solar:checklist-linear"></iconify-icon>
+                    <strong>No event items yet</strong>
+                    <span>Add sessions or registration slots linked to your open events.</span>
+                    @can('create event_item')
+                        <a href="{{ route('admin.open-event-items.create') }}" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn mt-12">
+                            <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
+                            Add item
+                        </a>
+                    @endcan
+                </div>
+            @endforelse
+        </div>
+    </div>
+</div>
+</div>
+@endsection
+
+@section('script')
+<script src="{{ asset('admin/assets/js/open-events.js') }}?v={{ @filemtime(public_path('admin/assets/js/open-events.js')) ?: time() }}"></script>
 @endsection

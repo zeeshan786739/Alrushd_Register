@@ -11,7 +11,6 @@
     $activeSource = request('source');
     $activeFormId = request('form_id');
     $activePlatform = request('advertising_platform');
-    $activeCategory = request('lead_category_id');
 
     $filterUrl = fn (array $merge = [], array $except = []) => route('admin.crm.leads.index', array_merge(
         request()->except(array_merge(['page'], $except)),
@@ -21,25 +20,18 @@
 
     $totalLeads = (int) ($segments['all']['total'] ?? array_sum($sourceCounts));
 
-    $sourceChannels = [
-        ['value' => '', 'label' => 'All leads', 'short' => 'All', 'icon' => 'solar:layers-minimalistic-linear'],
-        ['value' => 'form_submission', 'label' => 'Form Center', 'short' => 'Forms', 'icon' => LeadSourceOptions::icon('form_submission')],
-        ['value' => 'facebook_lead_ads', 'label' => 'Facebook', 'short' => 'Facebook', 'icon' => LeadSourceOptions::icon('facebook_lead_ads')],
-        ['value' => 'tiktok_lead_ads', 'label' => 'TikTok', 'short' => 'TikTok', 'icon' => LeadSourceOptions::icon('tiktok_lead_ads')],
-        ['value' => 'file_import', 'label' => 'Import', 'short' => 'Import', 'icon' => LeadSourceOptions::icon('file_import')],
-        ['value' => 'manual', 'label' => 'Manual', 'short' => 'Manual', 'icon' => LeadSourceOptions::icon('manual')],
-        ['value' => 'student_admission', 'label' => 'Admission', 'short' => 'Admission', 'icon' => LeadSourceOptions::icon('student_admission')],
+    $primaryChannels = [
+        ['value' => '', 'label' => 'All leads', 'hint' => 'Every lead in your pipeline', 'icon' => 'solar:layers-minimalistic-linear', 'tone' => 'all'],
+        ['value' => 'facebook_lead_ads', 'label' => 'Facebook', 'hint' => 'Meta Lead Ads', 'icon' => LeadSourceOptions::icon('facebook_lead_ads'), 'tone' => 'facebook'],
+        ['value' => 'tiktok_lead_ads', 'label' => 'TikTok', 'hint' => 'TikTok Lead Ads', 'icon' => LeadSourceOptions::icon('tiktok_lead_ads'), 'tone' => 'tiktok'],
+        ['value' => 'form_submission', 'label' => 'Forms', 'hint' => 'Form Center submissions', 'icon' => LeadSourceOptions::icon('form_submission'), 'tone' => 'forms'],
+        ['value' => 'file_import', 'label' => 'Import', 'hint' => 'Spreadsheet imports', 'icon' => LeadSourceOptions::icon('file_import'), 'tone' => 'import'],
+        ['value' => 'manual', 'label' => 'Manual', 'hint' => 'Added by your team', 'icon' => LeadSourceOptions::icon('manual'), 'tone' => 'manual'],
     ];
 
-    $visibleChannels = collect($sourceChannels)->filter(function ($channel) use ($sourceCounts, $totalLeads, $activeSource) {
-        if ($channel['value'] === '') {
-            return true;
-        }
-
-        $count = (int) ($sourceCounts[$channel['value']] ?? 0);
-
-        return $count > 0 || $activeSource === $channel['value'];
-    });
+    $secondaryChannels = collect([
+        ['value' => 'student_admission', 'label' => 'Admission', 'hint' => 'Student admission sync', 'icon' => LeadSourceOptions::icon('student_admission'), 'tone' => 'admission'],
+    ])->filter(fn ($channel) => (int) ($sourceCounts[$channel['value']] ?? 0) > 0 || $activeSource === $channel['value']);
 
     $isAssignedToMe = request('assigned_to') === 'me' || (string) request('assigned_to') === (string) $currentAdminId;
     $isUnassigned = request('assigned_to') === 'unassigned';
@@ -55,52 +47,41 @@
         ['key' => 'high_priority', 'label' => 'High priority', 'icon' => 'solar:flag-linear', 'active' => $isHighPriority, 'url' => $isHighPriority ? $filterUrl([], ['priority']) : $filterUrl(['priority' => 'high_urgent'], ['priority'])],
     ];
 
-    $showFormSubfilters = $activeSource === 'form_submission' || request()->filled('form_id');
-    $showImportSubfilters = $activeSource === 'file_import' || request()->filled('advertising_platform');
-
-    $expandMore = request()->filled('campaign_name');
-
-    $activeFilterKeys = ['search', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'priority', 'assigned_to', 'follow_up', 'lead_category_id'];
-    $activeFilterCount = collect(request()->only($activeFilterKeys))
-        ->filter(fn ($value) => $value !== null && $value !== '')
-        ->count();
+    $showFormPicker = $activeSource === 'form_submission' || request()->filled('form_id');
+    $showImportPicker = $activeSource === 'file_import' || request()->filled('advertising_platform');
+    $formLeadsTotal = (int) ($sourceCounts['form_submission'] ?? 0);
+    $expandMore = request()->filled('campaign_name') || request()->filled('lead_status') || request()->filled('lead_category_id')
+        || request()->filled('assigned_to') || request()->filled('follow_up') || request()->filled('priority');
 
     $activeFilterChips = [];
     if (request()->filled('search')) {
         $activeFilterChips[] = ['label' => 'Search', 'value' => request('search'), 'url' => $filterUrl([], ['search'])];
-    }
-    if (request()->filled('source')) {
-        $activeFilterChips[] = ['label' => 'Source', 'value' => LeadSourceOptions::label(request('source')), 'url' => $filterUrl([], ['source'])];
     }
     if (request()->filled('form_id')) {
         $formName = $forms->firstWhere('id', (int) request('form_id'))?->name ?? 'Form';
         $activeFilterChips[] = ['label' => 'Form', 'value' => $formName, 'url' => $filterUrl([], ['form_id'])];
     }
     if (request()->filled('advertising_platform')) {
-        $activeFilterChips[] = ['label' => 'Platform', 'value' => ($platformOptions ?? [])[request('advertising_platform')] ?? request('advertising_platform'), 'url' => $filterUrl([], ['advertising_platform'])];
+        $activeFilterChips[] = ['label' => 'Channel', 'value' => ($platformOptions ?? [])[request('advertising_platform')] ?? request('advertising_platform'), 'url' => $filterUrl([], ['advertising_platform'])];
     }
     if (request()->filled('campaign_name')) {
         $activeFilterChips[] = ['label' => 'Campaign', 'value' => request('campaign_name'), 'url' => $filterUrl([], ['campaign_name'])];
     }
-    if (request()->filled('lead_status')) {
+    if (request()->filled('lead_status') && ! $isNewStatus) {
         $activeFilterChips[] = ['label' => 'Status', 'value' => \App\Enums\LeadStatus::tryFrom(request('lead_status'))?->label() ?? request('lead_status'), 'url' => $filterUrl([], ['lead_status'])];
     }
-    if (request()->filled('priority')) {
+    if (request()->filled('priority') && ! $isHighPriority) {
         $priorityLabel = request('priority') === 'high_urgent'
             ? 'High & urgent'
             : (\App\Enums\LeadPriority::tryFrom(request('priority'))?->label() ?? request('priority'));
         $activeFilterChips[] = ['label' => 'Priority', 'value' => $priorityLabel, 'url' => $filterUrl([], ['priority'])];
     }
-    if (request()->filled('assigned_to')) {
-        $assigneeLabel = match (true) {
-            request('assigned_to') === 'me' => 'Me',
-            request('assigned_to') === 'unassigned' => 'Unassigned',
-            default => $admins->firstWhere('id', (int) request('assigned_to'))?->name ?? 'Assignee',
-        };
+    if (request()->filled('assigned_to') && ! $isAssignedToMe && ! $isUnassigned) {
+        $assigneeLabel = $admins->firstWhere('id', (int) request('assigned_to'))?->name ?? 'Assignee';
         $activeFilterChips[] = ['label' => 'Assignee', 'value' => $assigneeLabel, 'url' => $filterUrl([], ['assigned_to'])];
     }
-    if (request()->filled('follow_up')) {
-        $followLabel = request('follow_up') === 'today' ? 'Due today' : (request('follow_up') === 'overdue' ? 'Overdue' : request('follow_up'));
+    if (request()->filled('follow_up') && ! $isFollowUpToday) {
+        $followLabel = request('follow_up') === 'overdue' ? 'Overdue' : request('follow_up');
         $activeFilterChips[] = ['label' => 'Follow-up', 'value' => $followLabel, 'url' => $filterUrl([], ['follow_up'])];
     }
     if (request()->filled('lead_category_id')) {
@@ -111,60 +92,85 @@
     }
 
     $smartSuggestions = $smartSearchSuggestions ?? [];
+    $hasExtraFilters = ! empty($activeFilterChips);
 @endphp
 <div class="crm-filter-workspace crm-lead-finder" data-crm-filter-workspace>
-    {{-- Smart search: natural language + keyword lookup --}}
-    <div class="crm-smart-search crm-lead-finder__search" data-crm-smart-search>
-        <label class="visually-hidden" for="crm-leads-smart-search">Find leads</label>
-        <div class="crm-smart-search__shell">
-            <span class="crm-smart-search__badge">
-                <iconify-icon icon="solar:magic-stick-3-linear" aria-hidden="true"></iconify-icon>
-                Find
-            </span>
-            <input type="search"
-                   id="crm-leads-smart-search"
-                   class="crm-smart-search__input"
-                   value="{{ request('search') }}"
-                   placeholder="Name, email, phone — or try &quot;facebook unassigned&quot;, &quot;form submissions&quot;, &quot;teachers due today&quot;"
-                   autocomplete="off"
-                   aria-label="Find leads"
-                   aria-controls="crm-leads-smart-panel"
-                   aria-expanded="false"
-                   data-crm-smart-search-input>
-            <button type="button" class="crm-smart-search__go" data-crm-smart-search-go aria-label="Search leads">
-                <iconify-icon icon="solar:magnifer-linear"></iconify-icon>
-            </button>
-        </div>
-        <div id="crm-leads-smart-panel" class="crm-smart-search__panel" data-crm-smart-search-panel hidden>
-            <div class="crm-smart-search__interpretation" data-crm-smart-search-label hidden>
-                <iconify-icon icon="solar:check-circle-linear"></iconify-icon>
-                <span data-crm-smart-search-label-text></span>
+    <div class="crm-lead-finder__lookup">
+        <div class="crm-ai-search crm-smart-search" data-crm-smart-search>
+            <div class="crm-ai-search__head">
+                <span class="crm-ai-search__badge">
+                    <iconify-icon icon="solar:magic-stick-3-linear" aria-hidden="true"></iconify-icon>
+                    AI Find
+                </span>
+                <span class="crm-ai-search__hint">Ask in plain English — or type a name, email, or phone number</span>
             </div>
-            @if(!empty($smartSuggestions))
-                <span class="crm-smart-search__section-label">Try these</span>
-                <div class="crm-smart-search__suggestions">
-                    @foreach(array_slice($smartSuggestions, 0, 6) as $suggestion)
-                        <button type="button"
-                                class="crm-smart-search__suggestion"
-                                data-crm-smart-suggestion
-                                data-query="{{ $suggestion['query'] }}">
-                            <strong>{{ $suggestion['label'] }}</strong>
-                            <span>{{ $suggestion['description'] }}</span>
-                        </button>
-                    @endforeach
+            <label class="visually-hidden" for="crm-leads-smart-search">AI lead search</label>
+            <div class="crm-smart-search__shell crm-ai-search__shell">
+                <span class="crm-ai-search__icon" aria-hidden="true">
+                    <iconify-icon icon="solar:chat-round-dots-linear"></iconify-icon>
+                </span>
+                <input type="search"
+                       id="crm-leads-smart-search"
+                       class="crm-smart-search__input crm-ai-search__input"
+                       value="{{ request('search') }}"
+                       placeholder="Try: facebook unassigned · import teachers · form submissions · due today"
+                       autocomplete="off"
+                       aria-label="AI lead search"
+                       aria-controls="crm-leads-smart-panel"
+                       aria-expanded="false"
+                       data-crm-smart-search-input>
+                <button type="button" class="crm-smart-search__go crm-ai-search__go" data-crm-smart-search-go aria-label="Run AI search">
+                    <iconify-icon icon="solar:magic-stick-3-linear"></iconify-icon>
+                    <span>Find</span>
+                </button>
+            </div>
+            <div id="crm-leads-smart-panel" class="crm-smart-search__panel crm-ai-search__panel" data-crm-smart-search-panel hidden>
+                <div class="crm-ai-search__panel-kicker">
+                    <iconify-icon icon="solar:stars-minimalistic-linear" aria-hidden="true"></iconify-icon>
+                    AI understands sources, status, assignee, category, and follow-ups
                 </div>
-            @endif
+                <div class="crm-smart-search__interpretation crm-ai-search__interpretation" data-crm-smart-search-label hidden>
+                    <iconify-icon icon="solar:check-circle-linear"></iconify-icon>
+                    <span data-crm-smart-search-label-text></span>
+                </div>
+                @if(!empty($smartSuggestions))
+                    <span class="crm-smart-search__section-label">Try asking</span>
+                    <div class="crm-smart-search__suggestions crm-ai-search__suggestions">
+                        @foreach(array_slice($smartSuggestions, 0, 6) as $suggestion)
+                            <button type="button"
+                                    class="crm-smart-search__suggestion crm-ai-search__suggestion"
+                                    data-crm-smart-suggestion
+                                    data-query="{{ $suggestion['query'] }}">
+                                <strong>{{ $suggestion['label'] }}</strong>
+                                <span>{{ $suggestion['description'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        <div class="crm-lead-finder__quick">
+            <div class="crm-lead-finder__quick-pills" role="toolbar" aria-label="Quick filters">
+                @foreach($shortcuts as $chip)
+                    <a href="{{ $chip['url'] }}"
+                       @class(['crm-quick-pill', 'is-active' => $chip['active']])
+                       @if($chip['active']) aria-current="true" @endif>
+                        <iconify-icon icon="{{ $chip['icon'] }}" aria-hidden="true"></iconify-icon>
+                        {{ $chip['label'] }}
+                    </a>
+                @endforeach
+            </div>
         </div>
     </div>
 
-    {{-- Source channels: where did this lead come from? --}}
-    <div class="crm-lead-finder__section">
-        <div class="crm-lead-finder__section-head">
-            <span class="crm-lead-finder__section-label">Where leads come from</span>
-            <span class="crm-lead-finder__section-hint">Pick a channel first — then narrow down</span>
+    <div class="crm-lead-finder__sources">
+        <div class="crm-lead-finder__sources-head">
+            <h3 class="crm-lead-finder__sources-title">Lead source</h3>
+            <p class="crm-lead-finder__sources-sub">Choose where leads came from — Facebook, TikTok, forms, or imports</p>
         </div>
-        <div class="crm-lead-finder__channels" role="tablist" aria-label="Lead source channels">
-            @foreach($visibleChannels as $channel)
+        <div class="crm-lead-finder__source-grid" role="tablist" aria-label="Lead sources">
+            @foreach($primaryChannels as $channel)
                 @php
                     $isActive = ($channel['value'] === '' && ! request()->filled('source'))
                         || ($channel['value'] !== '' && $activeSource === $channel['value']);
@@ -176,68 +182,102 @@
                         : $filterUrl(['source' => $channel['value']], ['source', 'form_id', 'advertising_platform']);
                 @endphp
                 <a href="{{ $channelUrl }}"
-                   @class(['crm-channel-tab', 'crm-channel-tab--'.$channel['value'], 'is-active' => $isActive])
+                   @class([
+                       'crm-source-card',
+                       'crm-source-card--'.$channel['tone'],
+                       'is-active' => $isActive,
+                       'is-empty' => $channel['value'] !== '' && $count === 0,
+                   ])
                    role="tab"
                    @if($isActive) aria-selected="true" @else aria-selected="false" @endif
-                   title="{{ $channel['label'] }}">
-                    <span class="crm-channel-tab__icon" aria-hidden="true">
+                   title="{{ $channel['hint'] }}">
+                    <span class="crm-source-card__icon" aria-hidden="true">
                         <iconify-icon icon="{{ $channel['icon'] }}"></iconify-icon>
                     </span>
-                    <span class="crm-channel-tab__copy">
-                        <span class="crm-channel-tab__label">{{ $channel['short'] }}</span>
-                        <strong class="crm-channel-tab__count">{{ number_format($count) }}</strong>
+                    <span class="crm-source-card__label">{{ $channel['label'] }}</span>
+                    <strong class="crm-source-card__count">{{ number_format($count) }}</strong>
+                </a>
+            @endforeach
+            @foreach($secondaryChannels as $channel)
+                @php
+                    $isActive = $activeSource === $channel['value'];
+                    $count = (int) ($sourceCounts[$channel['value']] ?? 0);
+                    $channelUrl = $filterUrl(['source' => $channel['value']], ['source', 'form_id', 'advertising_platform']);
+                @endphp
+                <a href="{{ $channelUrl }}"
+                   @class(['crm-source-card', 'crm-source-card--'.$channel['tone'], 'is-active' => $isActive])
+                   role="tab"
+                   title="{{ $channel['hint'] }}">
+                    <span class="crm-source-card__icon" aria-hidden="true">
+                        <iconify-icon icon="{{ $channel['icon'] }}"></iconify-icon>
                     </span>
+                    <span class="crm-source-card__label">{{ $channel['label'] }}</span>
+                    <strong class="crm-source-card__count">{{ number_format($count) }}</strong>
                 </a>
             @endforeach
         </div>
     </div>
 
-    {{-- Sub-filters: which form / import platform --}}
-    @if($showFormSubfilters && $forms->isNotEmpty())
-        <div class="crm-lead-finder__subfilters">
-            <span class="crm-lead-finder__subfilters-label">Which form</span>
-            <div class="crm-lead-finder__subfilters-chips">
+    @if($showFormPicker)
+        <div class="crm-lead-finder__step2 crm-lead-finder__step2--forms">
+            <div class="crm-lead-finder__step2-head">
+                <iconify-icon icon="solar:arrow-right-linear" aria-hidden="true"></iconify-icon>
+                <div>
+                    <strong>Which form?</strong>
+                    <span>Pick all forms or one specific form</span>
+                </div>
+            </div>
+            <div class="crm-lead-finder__step2-options">
                 <a href="{{ $filterUrl(['source' => 'form_submission'], ['form_id']) }}"
-                   @class(['crm-filter-chip', 'crm-filter-chip--form', 'is-active' => ! request()->filled('form_id')])>
-                    All forms
+                   @class(['crm-source-pill', 'crm-source-pill--form', 'is-active' => ! request()->filled('form_id')])>
+                    <iconify-icon icon="solar:inbox-in-linear" aria-hidden="true"></iconify-icon>
+                    <span>All forms</span>
+                    <span class="crm-source-pill__count">{{ number_format($formLeadsTotal) }}</span>
                 </a>
-                @foreach($forms as $form)
+                @forelse($forms as $form)
                     @php
                         $formCount = (int) ($formLeadCounts[$form->id] ?? 0);
                         $isFormActive = (string) $activeFormId === (string) $form->id;
                     @endphp
-                    @if($formCount > 0 || $isFormActive)
-                        <a href="{{ $filterUrl(['source' => 'form_submission', 'form_id' => $form->id], ['form_id']) }}"
-                           @class(['crm-filter-chip', 'crm-filter-chip--form', 'is-active' => $isFormActive])>
-                            {{ $form->name }}
-                            <span class="crm-filter-chip__count">{{ $formCount }}</span>
-                        </a>
-                    @endif
-                @endforeach
+                    <a href="{{ $filterUrl(['source' => 'form_submission', 'form_id' => $form->id], ['form_id']) }}"
+                       @class(['crm-source-pill', 'crm-source-pill--form', 'is-active' => $isFormActive, 'is-empty' => $formCount === 0 && ! $isFormActive])>
+                        <iconify-icon icon="solar:document-text-linear" aria-hidden="true"></iconify-icon>
+                        <span>{{ $form->name }}</span>
+                        <span class="crm-source-pill__count">{{ number_format($formCount) }}</span>
+                    </a>
+                @empty
+                    <span class="crm-lead-finder__step2-empty">No active forms yet — create one in Form Center.</span>
+                @endforelse
             </div>
         </div>
     @endif
 
-    @if($showImportSubfilters)
-        <div class="crm-lead-finder__subfilters">
-            <span class="crm-lead-finder__subfilters-label">Import channel</span>
-            <div class="crm-lead-finder__subfilters-chips">
+    @if($showImportPicker)
+        <div class="crm-lead-finder__step2 crm-lead-finder__step2--import">
+            <div class="crm-lead-finder__step2-head">
+                <iconify-icon icon="solar:arrow-right-linear" aria-hidden="true"></iconify-icon>
+                <div>
+                    <strong>Import channel</strong>
+                    <span>Filter imported leads by where they originally came from</span>
+                </div>
+            </div>
+            <div class="crm-lead-finder__step2-options">
                 <a href="{{ $filterUrl(['source' => 'file_import'], ['advertising_platform']) }}"
-                   @class(['crm-filter-chip', 'is-active' => ! request()->filled('advertising_platform')])>
-                    All imports
+                   @class(['crm-source-pill', 'is-active' => ! request()->filled('advertising_platform')])>
+                    <span>All imports</span>
+                    <span class="crm-source-pill__count">{{ number_format((int) ($sourceCounts['file_import'] ?? 0)) }}</span>
                 </a>
                 @foreach($platformOptions ?? [] as $platformValue => $platformLabel)
                     @php $isPlatformActive = $activePlatform === $platformValue; @endphp
                     <a href="{{ $filterUrl(['source' => 'file_import', 'advertising_platform' => $platformValue], ['advertising_platform']) }}"
-                       @class(['crm-filter-chip', 'is-active' => $isPlatformActive])>
-                        {{ $platformLabel }}
+                       @class(['crm-source-pill', 'is-active' => $isPlatformActive])>
+                        <span>{{ $platformLabel }}</span>
                     </a>
                 @endforeach
             </div>
         </div>
     @endif
 
-    {{-- Refine: always-visible dropdowns --}}
     <form method="GET" action="{{ route('admin.crm.leads.index') }}" id="crm-leads-filter-form" class="crm-lead-finder__refine-form">
         <input type="hidden" name="view" value="{{ $viewMode }}" data-crm-view-input>
         @if(($viewMode ?? 'board') === 'list' && request('per_page'))
@@ -249,8 +289,14 @@
             @endif
         @endforeach
 
-        <div class="crm-lead-finder__section">
-            <span class="crm-lead-finder__section-label">Narrow results</span>
+        <details class="crm-lead-finder__more" @if($expandMore) open @endif>
+            <summary class="crm-lead-finder__more-summary">
+                <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
+                More filters
+                @if(count($activeFilterChips) > 0)
+                    <span class="crm-filter-workspace__filter-count">{{ count($activeFilterChips) }}</span>
+                @endif
+            </summary>
             <div class="crm-lead-finder__refine">
                 <div class="crm-lead-finder__refine-field">
                     <label for="lead_status">Status</label>
@@ -301,62 +347,25 @@
                         <option value="high_urgent" @selected(request('priority') === 'high_urgent')>High &amp; urgent</option>
                     </select>
                 </div>
-            </div>
-        </div>
-
-        <div class="crm-lead-finder__more-row">
-            <button type="button"
-                    class="crm-lead-finder__more-toggle"
-                    data-crm-toggle-advanced-filters
-                    aria-expanded="{{ $expandMore ? 'true' : 'false' }}"
-                    aria-controls="crm-leads-more-filters">
-                <iconify-icon icon="solar:settings-linear" aria-hidden="true"></iconify-icon>
-                Campaign filter
-                @if(request()->filled('campaign_name'))
-                    <span class="crm-filter-workspace__filter-count">1</span>
-                @endif
-                <iconify-icon icon="solar:alt-arrow-down-linear" class="crm-filter-workspace__chevron" aria-hidden="true"></iconify-icon>
-            </button>
-        </div>
-
-        <div id="crm-leads-more-filters"
-             class="crm-lead-finder__more-panel"
-             data-crm-advanced-filters
-             @if(! $expandMore) hidden @endif>
-            <div class="crm-lead-finder__refine-field crm-lead-finder__refine-field--wide">
-                <label for="campaign_name">Campaign name contains</label>
-                <div class="crm-lead-finder__campaign-row">
-                    <input type="text"
-                           name="campaign_name"
-                           id="campaign_name"
-                           class="form-control"
-                           placeholder="e.g. Year 7 Open Day"
-                           value="{{ request('campaign_name') }}">
-                    <button type="submit" class="crm-filter-workspace__btn crm-filter-workspace__btn--primary">Apply</button>
+                <div class="crm-lead-finder__refine-field crm-lead-finder__refine-field--wide">
+                    <label for="campaign_name">Campaign contains</label>
+                    <div class="crm-lead-finder__campaign-row">
+                        <input type="text"
+                               name="campaign_name"
+                               id="campaign_name"
+                               class="form-control"
+                               placeholder="e.g. Year 7 Open Day"
+                               value="{{ request('campaign_name') }}">
+                        <button type="submit" class="crm-filter-workspace__btn crm-filter-workspace__btn--primary">Apply</button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </details>
     </form>
 
-    {{-- Shortcuts: one-click common workflows --}}
-    <div class="crm-lead-finder__shortcuts">
-        <span class="crm-lead-finder__section-label">Shortcuts</span>
-        <div class="crm-lead-finder__shortcuts-chips">
-            @foreach($shortcuts as $chip)
-                <a href="{{ $chip['url'] }}"
-                   @class(['crm-filter-chip', 'crm-filter-chip--'.$chip['key'], 'is-active' => $chip['active']])
-                   @if($chip['active']) aria-current="true" @endif>
-                    <iconify-icon icon="{{ $chip['icon'] }}" aria-hidden="true"></iconify-icon>
-                    {{ $chip['label'] }}
-                </a>
-            @endforeach
-        </div>
-    </div>
-
-    {{-- Active filters: what's applied right now --}}
-    @if(!empty($activeFilterChips))
+    @if($hasExtraFilters)
         <div class="crm-lead-finder__active" aria-label="Active filters">
-            <span class="crm-lead-finder__active-label">Showing</span>
+            <span class="crm-lead-finder__active-label">Also filtered by</span>
             <div class="crm-lead-finder__active-list">
                 @foreach($activeFilterChips as $chip)
                     <a href="{{ $chip['url'] }}" class="crm-active-filter" title="Remove {{ $chip['label'] }} filter">
@@ -366,7 +375,7 @@
                     </a>
                 @endforeach
             </div>
-            <a href="{{ route('admin.crm.leads.index', ['view' => $viewMode]) }}" class="crm-lead-finder__clear">Clear all</a>
+            <a href="{{ route('admin.crm.leads.index', ['view' => $viewMode]) }}" class="crm-lead-finder__clear">Reset all</a>
         </div>
     @endif
 </div>

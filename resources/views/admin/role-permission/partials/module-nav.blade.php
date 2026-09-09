@@ -5,35 +5,66 @@
         'users' => 0,
     ]);
     $activeTab = $activeTab ?? '';
+
+    $sections = [
+        [
+            'key' => 'overview',
+            'label' => 'Overview',
+            'icon' => 'solar:widget-2-linear',
+            'tone' => 'all',
+            'url' => route('admin.user-management.index'),
+            'count' => null,
+            'can' => true,
+        ],
+        [
+            'key' => 'users',
+            'label' => 'Team',
+            'icon' => 'solar:users-group-rounded-linear',
+            'tone' => 'team',
+            'url' => route('admin.users.index'),
+            'count' => $umStats['users'],
+            'can' => auth()->user()->canany(['view user', 'create user', 'edit user']),
+        ],
+        [
+            'key' => 'roles',
+            'label' => 'Roles',
+            'icon' => 'solar:shield-user-linear',
+            'tone' => 'roles',
+            'url' => route('admin.roles.index'),
+            'count' => $umStats['roles'],
+            'can' => auth()->user()->canany(['view role', 'create role', 'edit role']),
+        ],
+        [
+            'key' => 'permissions',
+            'label' => 'Permissions',
+            'icon' => 'solar:key-linear',
+            'tone' => 'permissions',
+            'url' => route('admin.permissions.index'),
+            'count' => $umStats['permissions'],
+            'can' => auth()->user()->canany(['view permission', 'create permission', 'edit permission']),
+        ],
+    ];
 @endphp
-<nav class="um-module-nav" aria-label="Team and access sections">
-    <a href="{{ route('admin.user-management.index') }}"
-       class="um-module-nav__link {{ $activeTab === 'overview' ? 'is-active' : '' }}">
-        <iconify-icon icon="solar:widget-2-linear"></iconify-icon>
-        Overview
-    </a>
-    @canany(['view user','create user','edit user'])
-    <a href="{{ route('admin.users.index') }}"
-       class="um-module-nav__link {{ $activeTab === 'users' ? 'is-active' : '' }}">
-        <iconify-icon icon="solar:users-group-rounded-linear"></iconify-icon>
-        Team
-        <span class="um-module-nav__count">{{ $umStats['users'] }}</span>
-    </a>
-    @endcanany
-    @canany(['view role','create role','edit role'])
-    <a href="{{ route('admin.roles.index') }}"
-       class="um-module-nav__link {{ $activeTab === 'roles' ? 'is-active' : '' }}">
-        <iconify-icon icon="solar:shield-user-linear"></iconify-icon>
-        Roles
-        <span class="um-module-nav__count">{{ $umStats['roles'] }}</span>
-    </a>
-    @endcanany
-    @canany(['view permission','create permission','edit permission'])
-    <a href="{{ route('admin.permissions.index') }}"
-       class="um-module-nav__link {{ $activeTab === 'permissions' ? 'is-active' : '' }}">
-        <iconify-icon icon="solar:key-linear"></iconify-icon>
-        Permissions
-        <span class="um-module-nav__count">{{ $umStats['permissions'] }}</span>
-    </a>
-    @endcanany
+<nav class="um-module-nav" aria-label="Team and access sections" role="tablist">
+    @foreach($sections as $section)
+        @if($section['can'])
+            @php $isActive = $activeTab === $section['key']; @endphp
+            <a href="{{ $section['url'] }}"
+               @class([
+                   'crm-source-card',
+                   'crm-source-card--'.$section['tone'],
+                   'is-active' => $isActive,
+               ])
+               role="tab"
+               @if($isActive) aria-selected="true" @else aria-selected="false" @endif>
+                <span class="crm-source-card__icon" aria-hidden="true">
+                    <iconify-icon icon="{{ $section['icon'] }}"></iconify-icon>
+                </span>
+                <span class="crm-source-card__label">{{ $section['label'] }}</span>
+                @if($section['count'] !== null)
+                    <strong class="crm-source-card__count">{{ number_format($section['count']) }}</strong>
+                @endif
+            </a>
+        @endif
+    @endforeach
 </nav>

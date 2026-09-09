@@ -27,7 +27,7 @@ class Lead extends Model
     protected $fillable = [
         'organization_id', 'form_submission_id', 'form_entry_id', 'enquire_id', 'referral_id',
         'customer_id', 'source', 'lead_category_id', 'title', 'first_name', 'last_name', 'email', 'phone', 'company',
-        'selected_school', 'lead_source', 'lead_status', 'priority', 'assigned_to',
+        'selected_school', 'lead_source', 'lead_status', 'list_position', 'priority', 'assigned_to',
         'estimated_value', 'probability', 'next_follow_up_date', 'next_follow_up_time',
         'next_follow_up_type', 'appointment_date', 'appointment_type', 'appointment_notes',
         'lead_description', 'address', 'city', 'province', 'postal_code',
@@ -47,6 +47,7 @@ class Lead extends Model
             'last_contacted_at' => 'datetime',
             'source_submitted_at' => 'datetime',
             'custom_data' => 'array',
+            'list_position' => 'integer',
         ];
     }
 

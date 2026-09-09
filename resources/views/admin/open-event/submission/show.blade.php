@@ -2,108 +2,97 @@
 
 @section('title') Open Event (Entry #{{ $data->entry_id }}) @endsection
 
-
 @section('content')
+<div class="dashboard-main-body" id="oe-workspace-page">
+@include('admin.open-event.partials.shell', [
+    'activeTab' => 'submissions',
+    'compact' => true,
+    'shellTitle' => 'Submission #Entry-'.$data->entry_id,
+    'shellSubtitle' => 'Registration details submitted through the open event form.',
+    'shellActions' => [[
+        'label' => 'Back to submissions',
+        'url' => route('admin.open-event-form.index'),
+        'class' => 'btn-outline-neutral-500 radius-8 px-20 py-11',
+        'icon' => 'solar:alt-arrow-left-linear',
+    ]],
+])
 
-
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
-    <h6 class="fw-semibold mb-0">Open Event (Entry #{{ $data->entry_id }})</h6>
-    <ul class="d-flex align-items-center gap-2">
-        <li class="fw-medium"><a href="{{ route('admin.open-event-form.index') }}" class="btn btn-dark btn-sm">Back</a></li>
-    </ul>
-</div>
-
-
-<div class="container">
-
-
-    {{-- Parent / Guardian Details --}}
-    <div class="card mb-5 shadow-sm">
-        <div class="card-header bg-success text-white">Parent / Guardian Details</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <tbody>
-                    <tr>
-                        <th>First Name</th>
-                        <td>{{ $data->fname ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Last Name</th>
-                        <td>{{ $data->lname ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Email Address</th>
-                        <td>{{ $data->email ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Mobile Number </th>
-                        <td>{{ $data->mobile_number ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Country of Residence</th>
-                        <td>
-                            {{ $data->country }}
-                        </td>
-                    </tr>
-
-                </tbody>
-            </table>
+<div class="oe-detail-grid">
+    <section class="oe-detail-card">
+        <div class="oe-detail-card__head">
+            <h2>Parent / Guardian Details</h2>
+            <p>Contact information for the registering parent or guardian</p>
         </div>
-    </div>
+        <table class="oe-detail-table">
+            <tbody>
+                <tr>
+                    <th>First Name</th>
+                    <td>{{ $data->fname ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Last Name</th>
+                    <td>{{ $data->lname ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Email Address</th>
+                    <td>{{ $data->email ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Mobile Number</th>
+                    <td>{{ $data->mobile_number ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Country of Residence</th>
+                    <td>{{ $data->country }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
 
-    {{-- Student Details --}}
-    <div class="card mb-5 shadow-sm">
-        <div class="card-header bg-success text-white">Student Details</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <tbody>
-                    <tr>
-                        <th style="width: 50%;">Student First Name</th>
-                        <td>{{ $data->sfname ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <th style="width: 50%;">Student Last Name</th>
-                        <td>{{ $data->slname ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <th style="width: 50%;">Date of Birth</th>
-                        <td>
-                            {{ $data->dob ?? '' }}
-                        </td>
-
-                    </tr>
-                    <tr>
-                        <th style="width: 50%;">Preferred Start Date</th>
-                        <td>{{ $data->start_date ?? '' }}</td>
-                    </tr>
-
-                    <tr>
-                        <th style="width: 50%;">Times </th>
-                        <td>
-                            @if(is_array($data->time))
+    <section class="oe-detail-card">
+        <div class="oe-detail-card__head">
+            <h2>Student Details</h2>
+            <p>Student information and preferences from the registration form</p>
+        </div>
+        <table class="oe-detail-table">
+            <tbody>
+                <tr>
+                    <th>Student First Name</th>
+                    <td>{{ $data->sfname ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Student Last Name</th>
+                    <td>{{ $data->slname ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Date of Birth</th>
+                    <td>{{ $data->dob ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Preferred Start Date</th>
+                    <td>{{ $data->start_date ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Times</th>
+                    <td>
+                        @if(is_array($data->time))
                             {{ implode(', ', $data->time) }}
-                            @else
+                        @else
                             {{ $data->time }}
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <th style="width: 50%;">Questions </th>
-                        <td>{{ $data->questions ?? '' }}</td>
-                    </tr>
-
-                    <tr>
-                        <th style="width: 50%;">Terms</th>
-                        <td>{{ $data->terms ?? '' }}</td>
-                    </tr>
-
-
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-
-
-
+                        @endif
+                    </td>
+                </tr>
+                <tr>
+                    <th>Questions</th>
+                    <td>{{ $data->questions ?? '' }}</td>
+                </tr>
+                <tr>
+                    <th>Terms</th>
+                    <td>{{ $data->terms ?? '' }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+</div>
 @endsection

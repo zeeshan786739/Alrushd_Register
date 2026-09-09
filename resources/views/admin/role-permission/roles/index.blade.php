@@ -13,6 +13,7 @@
     ]] : [];
 @endphp
 
+<div class="dashboard-main-body" id="um-workspace-page">
 @include('admin.role-permission.partials.shell', [
     'activeTab' => 'roles',
     'stats' => $stats,
@@ -22,91 +23,54 @@
 ])
 
 @if($roles->isEmpty())
-    <div class="um-panel">
-        <div class="um-empty-state um-empty-state--panel">
+    <div class="crm-list-shell">
+        <div class="crm-leads-list-empty">
             <iconify-icon icon="solar:shield-user-linear"></iconify-icon>
-            <h6>No roles yet</h6>
-            <p>Create your first role to define what each job title can access.</p>
+            <strong>No roles yet</strong>
+            <span>Create your first role to define what each job title can access.</span>
             @can('create role')
-            <a href="{{ route('admin.roles.create') }}" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn mt-12">
-                <iconify-icon icon="solar:shield-plus-linear"></iconify-icon>
-                Create role
-            </a>
+                <a href="{{ route('admin.roles.create') }}" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn mt-12">
+                    <iconify-icon icon="solar:shield-plus-linear"></iconify-icon>
+                    Create role
+                </a>
             @endcan
         </div>
     </div>
 @else
-    <div class="um-search-scope card shadow-2 radius-12 border-0 p-24">
-        <div class="um-search-toolbar mb-20">
-            <div class="um-search-bar um-search-bar--wide">
-                <iconify-icon icon="solar:magnifer-linear"></iconify-icon>
+    <div class="um-filter-workspace um-filter-workspace--standalone um-search-scope">
+        <div class="um-ai-search">
+            <div class="um-ai-search__head">
+                <span class="um-ai-search__badge"><iconify-icon icon="solar:magnifer-linear"></iconify-icon> Find</span>
+            </div>
+            <div class="um-ai-search__shell">
+                <span class="um-ai-search__icon"><iconify-icon icon="solar:magnifer-linear"></iconify-icon></span>
                 <input type="search"
-                       class="form-control radius-8 um-table-search"
+                       class="um-ai-search__input um-table-search"
                        placeholder="Search roles by name…"
                        aria-label="Search roles">
             </div>
         </div>
+    </div>
 
-        <div class="um-role-grid">
-        @foreach($roles as $role)
-        @php
-            $isProtected = UserManagementHelper::isProtectedRole($role);
-            $permTotal = $stats['permissions'] ?: 1;
-            $coverage = min(100, round(($role->permissions->count() / $permTotal) * 100));
-        @endphp
-        <article class="um-role-card {{ $isProtected ? 'is-protected' : '' }}">
-            <div class="um-role-card__top">
-                <span class="um-user-avatar" style="background: {{ UserManagementHelper::avatarGradient($role->name) }};">
-                    {{ UserManagementHelper::initials($role->name) }}
-                </span>
-                <div class="flex-grow-1 min-w-0">
-                    <div class="d-flex align-items-center gap-8 flex-wrap">
-                        <h3 class="um-role-card__name">{{ UserManagementHelper::formatRoleName($role->name) }}</h3>
-                        @if($isProtected)
-                            <span class="um-system-badge">System role</span>
-                        @endif
-                    </div>
-                    <p class="um-role-card__slug">{{ $role->name }}</p>
-                </div>
-            </div>
+    <div class="crm-leads-toolbar">
+        <div class="crm-leads-toolbar__meta">
+            <strong>{{ number_format($roles->count()) }} role{{ $roles->count() === 1 ? '' : 's' }}</strong>
+            <span>Permission bundles assigned to teammates</span>
+        </div>
+    </div>
 
-            <div class="um-role-card__metrics">
-                <div>
-                    <strong>{{ $role->permissions->count() }}</strong>
-                    <span>Permissions</span>
-                </div>
-                <div>
-                    <strong>{{ $role->users_count }}</strong>
-                    <span>Members</span>
-                </div>
+    <div class="crm-list-shell um-search-scope">
+        <div class="crm-leads-table">
+            <div class="crm-leads-table__head crm-leads-table__head--roles" aria-hidden="true">
+                <span>Role</span><span>Permissions</span><span>Members</span><span>Coverage</span><span></span>
             </div>
-
-            <div class="um-role-card__progress" aria-hidden="true">
-                <span style="width: {{ $coverage }}%"></span>
+            <div class="crm-leads-list">
+                @foreach($roles as $role)
+                    @include('admin.role-permission.partials.role-row', ['role' => $role, 'permTotal' => $stats['permissions'] ?? 1])
+                @endforeach
             </div>
-            <p class="um-role-card__coverage">{{ $coverage }}% of all permissions</p>
-
-            <div class="um-role-card__actions">
-                @can('edit role')
-                <a href="{{ route('admin.roles.edit', $role->id) }}" class="btn btn-primary-600 radius-8 px-16 py-10 fc-btn flex-grow-1">
-                    <iconify-icon icon="solar:pen-linear"></iconify-icon>
-                    Edit role
-                </a>
-                @endcan
-                @if(auth()->user()->can('delete role') && ! $isProtected && $role->users_count === 0)
-                    @include('admin.partials.table-actions', [
-                        'editUrl' => null,
-                        'deleteId' => $role->id,
-                        'deleteRoute' => route('admin.roles.destroy', $role->id),
-                        'canView' => false,
-                        'canEdit' => false,
-                        'canDelete' => true,
-                    ])
-                @endif
-            </div>
-        </article>
-        @endforeach
         </div>
     </div>
 @endif
+</div>
 @endsection

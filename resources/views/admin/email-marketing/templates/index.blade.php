@@ -1,6 +1,10 @@
 @extends('admin.layouts.app')
 @section('title', 'Templates')
 @section('content')
+@php
+    $activeFilters = request()->filled('search') ? 1 : 0;
+@endphp
+<div class="dashboard-main-body" id="em-workspace-page">
 @include('admin.email-marketing.partials.shell', [
     'activeTab' => 'templates',
     'shellTitle' => 'Email templates',
@@ -15,64 +19,53 @@
     ])),
 ])
 
-<div class="em-panel">
-    <div class="em-panel__head">
-        <div>
-            <h2 class="em-panel__title">Saved templates</h2>
-            <p class="em-panel__desc">Use templates when creating campaigns for faster setup.</p>
+@include('admin.email-marketing.partials.templates.filter-workspace')
+
+<div class="crm-leads-toolbar">
+    <div class="crm-leads-toolbar__left">
+        <div class="crm-leads-toolbar__meta">
+            <strong>{{ number_format($templates->total()) }} template{{ $templates->total() === 1 ? '' : 's' }}</strong>
+            @if($activeFilters > 0)
+                <span class="crm-leads-toolbar__filters">{{ $activeFilters }} filter</span>
+            @endif
+            @if($templates->total() > 0)
+                <span>{{ $templates->firstItem() }}–{{ $templates->lastItem() }} shown</span>
+            @endif
         </div>
     </div>
+</div>
 
-    @if($templates->isEmpty())
-        <div class="em-empty-state">
-            <iconify-icon icon="solar:clipboard-list-linear"></iconify-icon>
-            <h3>No templates yet</h3>
-            <p>Create a reusable email design for open days, reminders, and newsletters.</p>
-            @can('create templates')
-            <a href="{{ route('admin.email.templates.create') }}" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn">
-                <iconify-icon icon="solar:add-circle-linear"></iconify-icon> Create template
-            </a>
-            @endcan
+<div class="em-list-shell">
+    <div class="crm-leads-table">
+        <div class="crm-leads-table__head crm-leads-table__head--templates" aria-hidden="true">
+            <span>Template</span><span>Subject</span><span>Category</span><span>Status</span><span></span>
         </div>
-    @else
-        <div class="table-responsive">
-            <table class="table mb-0 align-middle em-table">
-                <thead>
-                    <tr>
-                        <th class="ps-24">Name</th>
-                        <th>Subject</th>
-                        <th>Category</th>
-                        <th>Active</th>
-                        <th class="pe-24"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($templates as $template)
-                    <tr>
-                        <td class="ps-24 fw-semibold">{{ $template->name }}</td>
-                        <td>{{ $template->subject ?: '—' }}</td>
-                        <td>{{ $template->category ?: '—' }}</td>
-                        <td>
-                            @if($template->is_active)
-                                <span class="em-status-pill em-status-pill--sent">Active</span>
-                            @else
-                                <span class="em-status-pill em-status-pill--draft">Inactive</span>
-                            @endif
-                        </td>
-                        <td class="pe-24 text-end">
-                            <div class="d-flex gap-8 justify-content-end">
-                                <a href="{{ route('admin.email.templates.preview', $template) }}" class="btn btn-sm btn-outline-neutral-500 radius-8">Preview</a>
-                                @can('update templates')
-                                <a href="{{ route('admin.email.templates.edit', $template) }}" class="btn btn-sm btn-outline-primary-600 radius-8">Edit</a>
-                                @endcan
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
+        <div class="crm-leads-list">
+            @forelse($templates as $template)
+                @include('admin.email-marketing.partials.template-row', ['template' => $template])
+            @empty
+                <div class="crm-leads-list-empty">
+                    <iconify-icon icon="solar:clipboard-list-linear"></iconify-icon>
+                    <strong>No templates yet</strong>
+                    <span>Create a reusable email design for open days, reminders, and newsletters.</span>
+                    @can('create templates')
+                    <a href="{{ route('admin.email.templates.create') }}" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn mt-8">
+                        <iconify-icon icon="solar:add-circle-linear"></iconify-icon> Create template
+                    </a>
+                    @endcan
+                </div>
+            @endforelse
         </div>
-        <div class="p-20">{{ $templates->links() }}</div>
-    @endif
+    </div>
+</div>
+
+@include('admin.crm.partials.list-workspace-pagination', [
+    'paginator' => $templates,
+    'routeName' => 'admin.email.templates.index',
+    'entityLabel' => 'templates',
+    'paginationId' => 'em-templates-per-page',
+])
+
+@include('admin.email-marketing.partials.shell-close')
 </div>
 @endsection

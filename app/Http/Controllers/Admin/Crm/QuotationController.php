@@ -38,25 +38,55 @@ class QuotationController extends Controller
 
     public function index(Request $request): View
     {
-        $quotations = Quotation::forCurrentOrganization()
+        $baseQuery = Quotation::forCurrentOrganization();
+        $filteredQuery = $this->filteredQuotationQuery($request);
+        $perPage = min(max((int) $request->get('per_page', 15), 10), 50);
+        $sortBy = in_array($request->get('sort_by'), ['quotation_number', 'total', 'quotation_date', 'valid_until', 'created_at'], true)
+            ? $request->get('sort_by')
+            : 'created_at';
+        $sortOrder = strtolower((string) $request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $quotations = (clone $filteredQuery)
             ->with(['customer', 'project'])
-            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
-            ->when($request->customer_id, fn ($q, $id) => $q->where('customer_id', $id))
-            ->when($request->search, fn ($q, $search) => $q->where('quotation_number', 'like', "%{$search}%"))
-            ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_order', 'desc'))
-            ->paginate(15)
+            ->orderBy($sortBy, $sortOrder)
+            ->paginate($perPage)
             ->withQueryString();
 
         $stats = [
-            'total' => Quotation::forCurrentOrganization()->count(),
-            'draft' => Quotation::forCurrentOrganization()->where('status', 'draft')->count(),
-            'sent' => Quotation::forCurrentOrganization()->where('status', 'sent')->count(),
-            'accepted' => Quotation::forCurrentOrganization()->where('status', 'accepted')->count(),
+            'total' => (clone $baseQuery)->count(),
+            'draft' => (clone $baseQuery)->where('status', 'draft')->count(),
+            'sent' => (clone $baseQuery)->where('status', 'sent')->count(),
+            'accepted' => (clone $baseQuery)->where('status', 'accepted')->count(),
+            'rejected' => (clone $baseQuery)->where('status', 'rejected')->count(),
+            'expired' => (clone $baseQuery)->where('status', 'expired')->count(),
         ];
 
+        $statusCounts = [
+            'all' => $stats['total'],
+            'draft' => $stats['draft'],
+            'sent' => $stats['sent'],
+            'accepted' => $stats['accepted'],
+            'rejected' => $stats['rejected'],
+            'expired' => $stats['expired'],
+        ];
+
+        $filteredTotal = (clone $filteredQuery)->count();
         $customers = Customer::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.crm.quotations.index', compact('quotations', 'stats', 'customers'));
+        return view('admin.crm.quotations.index', compact('quotations', 'stats', 'customers', 'statusCounts', 'filteredTotal'));
+    }
+
+    private function filteredQuotationQuery(Request $request)
+    {
+        return Quotation::forCurrentOrganization()
+            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->customer_id, fn ($q, $id) => $q->where('customer_id', $id))
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('quotation_number', 'like', "%{$search}%")
+                        ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$search}%"));
+                });
+            });
     }
 
     public function create(Request $request): View

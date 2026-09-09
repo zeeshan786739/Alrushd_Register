@@ -18,25 +18,14 @@
             $counts = ['inbox'=>0,'inbox_unread'=>0,'sent'=>0,'draft'=>0,'starred'=>0];
         }
     }
-
-    $emActiveTab = $emActiveTab ?? (match ($folder) {
-        'campaigns' => 'campaigns',
-        'templates' => 'templates',
-        'settings' => 'settings',
-        default => 'inbox',
-    });
 @endphp
 
-@if(! $skipModuleNav)
-    @include('admin.email-marketing.partials.module-nav', ['activeTab' => $emActiveTab])
-@endif
-
 @if($showInboxFolders)
-<div class="em-shell em-shell--inbox">
-    <aside class="em-folder-nav">
+<div class="em-inbox-layout">
+    <aside class="em-folder-nav" aria-label="Mail folders">
         <p class="em-folder-nav__label">Folders</p>
         @can('compose emails')
-        <a href="{{ route('admin.email.compose') }}" class="btn btn-primary-600 radius-8 w-100 mb-16 justify-content-center fc-btn em-folder-nav__compose">
+        <a href="{{ route('admin.email.compose') }}" class="btn btn-primary-600 radius-8 w-100 mb-12 justify-content-center fc-btn em-folder-nav__compose">
             <iconify-icon icon="solar:pen-new-square-linear"></iconify-icon> Compose
         </a>
         @endcan
@@ -69,5 +58,5 @@
         </a>
         @endcan
     </aside>
-    <div class="em-shell__content">
+    <div class="em-inbox-main">
 @endif
