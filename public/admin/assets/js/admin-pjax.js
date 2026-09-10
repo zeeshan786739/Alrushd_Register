@@ -21,6 +21,7 @@
     var STYLES_SEL = '#admin-page-styles';
     var MODALS_SEL = '#admin-page-modals';
     var SCRIPTS_SEL = '#admin-page-scripts';
+    var CRM_LEADS_VIEW_KEY = 'crm_leads_view';
 
     var abortController = null;
     var navigating = false;
@@ -166,6 +167,58 @@
         return true;
     }
 
+    function isCrmLeadsIndexPath(pathname) {
+        return pathname === '/admin/crm/leads';
+    }
+
+    function normalizeCrmLeadsView(value) {
+        return value === 'list' ? 'list' : 'board';
+    }
+
+    function readCrmLeadsViewPreference(pageUrl) {
+        try {
+            var url = new URL(pageUrl, window.location.origin);
+            var fromQuery = url.searchParams.get('view');
+            if (fromQuery === 'list' || fromQuery === 'board') {
+                return fromQuery;
+            }
+            var stored = localStorage.getItem(CRM_LEADS_VIEW_KEY);
+            if (stored === 'list' || stored === 'board') {
+                return stored;
+            }
+        } catch (err) { /* ignore */ }
+        return 'board';
+    }
+
+    /** Keep list/board preference on sidebar links and PJAX GET navigations. */
+    function withCrmLeadsViewPreference(urlString) {
+        try {
+            var url = new URL(urlString, window.location.origin);
+            if (!isCrmLeadsIndexPath(url.pathname)) {
+                return urlString;
+            }
+            if (url.searchParams.has('view')) {
+                return url.toString();
+            }
+            var preferred = readCrmLeadsViewPreference(url.toString());
+            url.searchParams.set('view', preferred);
+            return url.toString();
+        } catch (err) {
+            return urlString;
+        }
+    }
+
+    /** Apply view class before deferred page scripts run (avoids board→list flash). */
+    function syncCrmLeadsViewClass(root, pageUrl) {
+        if (!root) return;
+        var page = root.querySelector('#crm-leads-page');
+        if (!page) return;
+
+        var view = readCrmLeadsViewPreference(pageUrl || window.location.href);
+        page.classList.remove('crm-board-view', 'crm-list-view');
+        page.classList.add(view === 'list' ? 'crm-list-view' : 'crm-board-view');
+    }
+
     /** Re-execute <script> tags injected via innerHTML (they do not run automatically). */
     function activateContentScripts(container) {
         if (!container) return Promise.resolve();
@@ -293,7 +346,7 @@
     function navigate(url, options) {
         options = options || {};
         var push = options.push !== false;
-        var absoluteUrl = typeof url === 'string' ? url : url.href;
+        var absoluteUrl = withCrmLeadsViewPreference(typeof url === 'string' ? url : url.href);
 
         if (navigating && abortController) {
             try { abortController.abort(); } catch (err) { /* ignore */ }
@@ -362,6 +415,7 @@
                 }
 
                 replaceHtml(currentContent, nextContent);
+                syncCrmLeadsViewClass(currentContent, payload.finalUrl || absoluteUrl);
                 if (currentStyles) {
                     var nextStyles = doc.querySelector(STYLES_SEL);
                     if (nextStyles) replaceHtml(currentStyles, nextStyles);

@@ -59,7 +59,29 @@
         savedView = initialView;
     }
 
-    applyView(savedView === 'list' ? 'list' : 'board');
+    var desiredView = savedView === 'list' ? 'list' : 'board';
+    var serverView = page.getAttribute('data-initial-view') === 'list' ? 'list' : 'board';
+
+    function redirectForViewHydration(view) {
+        try {
+            var reloadUrl = new URL(window.location.href);
+            reloadUrl.searchParams.set('view', view);
+            if (window.AdminPjax && typeof window.AdminPjax.navigate === 'function') {
+                window.AdminPjax.navigate(reloadUrl.toString(), { push: false });
+                return true;
+            }
+            window.location.replace(reloadUrl.toString());
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    if (desiredView !== serverView && redirectForViewHydration(desiredView)) {
+        return;
+    }
+
+    applyView(desiredView);
 
     if (toggle) {
         toggle.addEventListener('click', function (event) {

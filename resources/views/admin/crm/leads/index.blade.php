@@ -61,6 +61,24 @@
      data-board-total="{{ $filteredTotal ?? 0 }}"
      data-smart-search-url="{{ route('admin.crm.leads.smart-search') }}"
      data-initial-view="{{ $viewMode ?? 'board' }}">
+    <script>
+        (function () {
+            var page = document.currentScript && document.currentScript.parentElement;
+            if (!page || page.id !== 'crm-leads-page') return;
+            var key = 'crm_leads_view';
+            var view = page.getAttribute('data-initial-view') === 'list' ? 'list' : 'board';
+            try {
+                var q = new URL(window.location.href).searchParams.get('view');
+                if (q === 'list' || q === 'board') view = q;
+                else {
+                    var stored = localStorage.getItem(key);
+                    if (stored === 'list' || stored === 'board') view = stored;
+                }
+            } catch (e) { /* ignore */ }
+            page.classList.remove('crm-board-view', 'crm-list-view');
+            page.classList.add(view === 'list' ? 'crm-list-view' : 'crm-board-view');
+        })();
+    </script>
     @include('admin.partials.page-header', [
         'title' => 'Leads',
         'subtitle' => 'Pipeline, follow-ups, and conversions in one workspace',
