@@ -87,14 +87,27 @@
         toggle.addEventListener('click', function (event) {
             var button = event.target.closest('button[data-view]');
             if (!button) return;
+            event.preventDefault();
+            event.stopPropagation();
+
             var nextView = button.getAttribute('data-view') === 'list' ? 'list' : 'board';
-            applyView(nextView);
+            if (button.classList.contains('is-active')) return;
+
             try {
+                localStorage.setItem(STORAGE_KEY, nextView);
                 var url = new URL(window.location.href);
                 url.searchParams.set('view', nextView);
+                url.searchParams.delete('page');
+
+                if (window.AdminPjax && typeof window.AdminPjax.navigate === 'function') {
+                    window.AdminPjax.navigate(url.toString(), { push: true });
+                    return;
+                }
+
+                applyView(nextView);
                 window.location.href = url.toString();
             } catch (e) {
-                /* fallback keeps local toggle only */
+                applyView(nextView);
             }
         });
     }
