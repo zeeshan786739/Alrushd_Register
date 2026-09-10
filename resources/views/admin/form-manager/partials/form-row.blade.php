@@ -44,7 +44,7 @@
             {{ number_format($form->entries_count) }}
         </a>
     </div>
-    <div class="fc-list-row__field" data-display-cell onclick="event.stopPropagation()">
+    <div class="fc-list-row__field" data-display-cell>
         @php $placements = $form->placements(); @endphp
         @if(empty($placements))
             <button type="button"
@@ -67,7 +67,7 @@
             </div>
         @endif
     </div>
-    <div class="fc-list-row__field" onclick="event.stopPropagation()">
+    <div class="fc-list-row__field">
         <button type="button"
                 class="fc-badge fc-badge-interactive border-0 {{ $form->is_active ? 'fc-badge-primary' : 'fc-badge-neutral' }}"
                 data-toggle-status
@@ -75,7 +75,7 @@
             {{ $form->is_active ? 'Active' : 'Inactive' }}
         </button>
     </div>
-    <div class="fc-list-row__actions" onclick="event.stopPropagation()">
+    <div class="fc-list-row__actions">
         <div class="fc-table-actions">
             @if($form->usesDynamicRenderer())
             <a href="{{ $form->routePath() }}"

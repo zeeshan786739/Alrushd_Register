@@ -39,13 +39,18 @@ class MailConfigResolver
             return;
         }
 
-        // Never override the testing/array/log mailers during automated tests.
-        if (app()->environment('testing') || in_array(config('mail.default'), ['array', 'log', 'failover'], true)) {
-            Config::set('mail.from', [
-                'address' => $settings->from_email,
-                'name' => $settings->from_name ?: $settings->from_email,
-            ]);
+        $this->applyRuntimeConfigForDelivery($settings);
+    }
 
+    /** Apply org SMTP for a real outbound send (ignores MAIL_MAILER=log). */
+    public function applyRuntimeConfigForDelivery(MailboxSetting $settings): void
+    {
+        Config::set('mail.from', [
+            'address' => $settings->from_email,
+            'name' => $settings->from_name ?: $settings->from_email,
+        ]);
+
+        if (app()->environment('testing') || ! $settings->isSmtpConfigured()) {
             return;
         }
 
@@ -59,10 +64,6 @@ class MailConfigResolver
             'password' => $settings->smtp_password,
             'timeout' => 30,
         ]);
-        Config::set('mail.from', [
-            'address' => $settings->from_email,
-            'name' => $settings->from_name ?: $settings->from_email,
-        ]);
     }
 
     public function resolveOrFail(int $organizationId): MailboxSetting
@@ -70,10 +71,20 @@ class MailConfigResolver
         $settings = $this->forOrganization($organizationId);
 
         if (! $this->canSend($settings)) {
+            if (! $settings) {
+                throw new \RuntimeException('Mailbox settings are missing for this organization. Open Email Marketing → Mailbox settings and save your sender.');
+            }
+
+            if (! $settings->is_enabled) {
+                throw new \RuntimeException('Outbound mail is disabled for this organization. Enable the mailbox in Email Marketing → Mailbox settings.');
+            }
+
+            if (! filled($settings->from_email)) {
+                throw new \RuntimeException('From email is missing. Set a verified sender address in Email Marketing → Mailbox settings.');
+            }
+
             throw new \RuntimeException(
-                $this->sendGridConfigured($settings)
-                    ? 'Mailbox is not enabled or From email is missing for this organization.'
-                    : 'Mailbox SMTP is not configured for this organization.'
+                'No delivery provider is configured. Add a SendGrid API key (organization or platform) or complete SMTP settings in Email Marketing → Mailbox settings.'
             );
         }
 

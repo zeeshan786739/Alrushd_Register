@@ -223,7 +223,7 @@
                 <div class="crm-list-status-rail" data-crm-list-status-rail>
                     <div class="crm-list-status-rail__hint">
                         <iconify-icon icon="solar:transfer-horizontal-linear" aria-hidden="true"></iconify-icon>
-                        Click a status to filter. Double-click a row (or drag the handle) to pick it up, reorder in the list, or drop on a status to move it.
+                        Click a status to filter. Drag any row to reorder, or drop on a status pill to move it.
                     </div>
                     <div class="crm-list-status-rail__zones">
                         @foreach($workflowStatuses as $status)

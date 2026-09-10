@@ -21,7 +21,7 @@ class EmailDeliveryService
 
     public function activeProviderName(MailboxSetting $settings): string
     {
-        if ($this->shouldUseLaravelBridge()) {
+        if (app()->environment('testing')) {
             return $this->laravel->name();
         }
 
@@ -29,19 +29,51 @@ class EmailDeliveryService
             return $this->sendGrid->name();
         }
 
+        if ($settings->isSmtpConfigured()) {
+            return $this->laravel->name().'+smtp';
+        }
+
+        if ($this->shouldUseLaravelBridge()) {
+            return $this->laravel->name();
+        }
+
         return $this->laravel->name();
     }
 
     public function send(OutboundEmail $email, MailboxSetting $settings): DeliveryResult
     {
-        if ($this->shouldUseLaravelBridge()) {
+        if (app()->environment('testing')) {
             $this->mailConfig->applyRuntimeConfig($settings);
 
             return $this->laravel->send($email);
         }
 
         if ($this->preferSendGrid($settings)) {
-            return $this->sendGrid->send($email, $settings->sendgrid_api_key);
+            $result = $this->sendGrid->send($email, $settings->sendgrid_api_key);
+
+            if ($result->accepted) {
+                return $result;
+            }
+
+            if ($settings->isSmtpConfigured()) {
+                $this->mailConfig->applyRuntimeConfigForDelivery($settings);
+
+                return $this->laravel->send($email);
+            }
+
+            return $result;
+        }
+
+        if ($settings->isSmtpConfigured()) {
+            $this->mailConfig->applyRuntimeConfigForDelivery($settings);
+
+            return $this->laravel->send($email);
+        }
+
+        if ($this->shouldUseLaravelBridge()) {
+            $this->mailConfig->applyRuntimeConfig($settings);
+
+            return $this->laravel->send($email);
         }
 
         $this->mailConfig->applyRuntimeConfig($settings);

@@ -58,7 +58,7 @@ class AdminPasswordController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $isInvitation = $request->boolean('invitation');
+        $isInvitation = $this->isInvitationRequest($request);
 
         $rules = [
             'token' => ['required'],
@@ -107,15 +107,39 @@ class AdminPasswordController extends Controller
         }
 
         if ($isInvitation && $admin instanceof Admin) {
-            Auth::guard('admin')->login($admin);
+            $admin = $admin->fresh();
+
+            Auth::guard('admin')->login($admin, true);
             $request->session()->regenerate();
             $admin->forceFill(['last_login_at' => now()])->save();
 
-            return redirect()->route('admin.dashboard')
+            if ($admin->isPlatformAdmin()) {
+                return redirect()->intended(route('platform.dashboard', absolute: false))
+                    ->with('success', 'Welcome! Your account is ready.');
+            }
+
+            return redirect()->intended(route('admin.dashboard', absolute: false))
                 ->with('success', 'Welcome! Your account is ready.');
         }
 
         return redirect()->route('admin.login', ['email' => $credentials['email']])
             ->with('status', 'Your password has been set. You can now sign in.');
+    }
+
+    private function isInvitationRequest(Request $request): bool
+    {
+        if ($request->boolean('invitation') || $request->routeIs('admin.invitation.accept')) {
+            return true;
+        }
+
+        $email = mb_strtolower(trim((string) $request->input('email', '')));
+        if ($email === '') {
+            return false;
+        }
+
+        return Admin::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->where('name', Admin::INVITATION_PLACEHOLDER_NAME)
+            ->exists();
     }
 }

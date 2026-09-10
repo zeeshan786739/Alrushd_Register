@@ -1643,6 +1643,40 @@
         });
     }
 
+    function listRowFromTarget(fromTarget) {
+        return fromTarget && fromTarget.closest
+            ? fromTarget.closest('[data-crm-list-row][data-lead-id]')
+            : null;
+    }
+
+    function handleListRowDrop(item, targetRow, event) {
+        if (!item || !targetRow || item === targetRow) return false;
+
+        var list = page.querySelector('[data-crm-leads-list]');
+        if (!list || !list.contains(item) || !list.contains(targetRow)) return false;
+
+        var rect = targetRow.getBoundingClientRect();
+        var insertAfter = event.clientY >= rect.top + (rect.height / 2);
+
+        event.preventDefault();
+        event.stopPropagation();
+        clearListReorderHighlights();
+        clearDropzoneHighlights();
+
+        if (insertAfter) {
+            if (targetRow.nextElementSibling !== item) {
+                targetRow.after(item);
+            }
+        } else if (targetRow.previousElementSibling !== item) {
+            targetRow.before(item);
+        }
+
+        suppressOpenUntil = Date.now() + 300;
+        persistListOrder();
+
+        return true;
+    }
+
     function handleBoardCardDrop(item, card, event) {
         if (!item || !card || item === card) return false;
 
@@ -1968,18 +2002,6 @@
             cancelRowOpenTimer();
         }
 
-        if (page.classList.contains('crm-list-view') && canUpdateLeads && event.button === 0 && !listDragArm) {
-            var handle = closestFromEvent(event, '.crm-list-row__handle');
-            if (handle && !isDragBlockedTarget(event)) {
-                var handleRow = handle.closest('[data-crm-list-row][data-lead-id]');
-                if (handleRow && page.contains(handleRow)) {
-                    cancelRowOpenTimer();
-                    armListRowForDrag(handleRow, event);
-                    suppressOpenUntil = Date.now() + 1500;
-                }
-            }
-        }
-
         if (!listDragArm || event.button !== 0) return;
         if (Date.now() < listDragArm.ignoreUntil) return;
 
@@ -2064,6 +2086,8 @@
                 persistListOrder().finally(function () {
                     disarmListDrag();
                 });
+            } else {
+                disarmListDrag();
             }
 
             return;
@@ -2092,11 +2116,6 @@
     });
 
     page.addEventListener('dragstart', function (event) {
-        if (event.target.closest('[data-crm-list-row]')) {
-            event.preventDefault();
-            return;
-        }
-
         if (event.target.closest('[data-crm-inline], .crm-board-card__quick-action')) {
             event.preventDefault();
             return;
@@ -2104,6 +2123,25 @@
 
         if (dragStartBlocked) {
             event.preventDefault();
+            return;
+        }
+
+        var listRow = listRowFromTarget(event.target);
+        if (listRow && page.contains(listRow) && canUpdateLeads && page.classList.contains('crm-list-view')) {
+            cancelRowOpenTimer();
+            disarmListDrag();
+            draggedItem = listRow;
+            dragOrigin = listRow.parentElement;
+            dragNextSibling = listRow.nextElementSibling;
+            dragMoved = false;
+            listRow.classList.add('is-dragging');
+            setDragActive(true);
+            page.classList.add('crm-list-drop-mode');
+            suppressOpenUntil = Date.now() + 800;
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', listRow.getAttribute('data-lead-id') || 'lead');
+            }
             return;
         }
 
@@ -2130,13 +2168,36 @@
 
     page.addEventListener('dragenter', function (event) {
         if (!draggedItem) return;
-        var zone = statusDropZone(event.target);
+        var zone = statusDropZone(event.target) || resolveListDropZone(event.target);
         if (!zone || !page.contains(zone)) return;
         event.preventDefault();
     });
 
     page.addEventListener('dragover', function (event) {
-        if (!draggedItem || !draggedItem.hasAttribute('data-crm-board-card')) return;
+        if (!draggedItem) return;
+
+        if (draggedItem.hasAttribute('data-crm-list-row')) {
+            var targetRow = listRowFromTarget(event.target);
+            if (targetRow && targetRow !== draggedItem) {
+                event.preventDefault();
+                clearListReorderHighlights();
+                targetRow.classList.add('is-reorder-over');
+                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+                return;
+            }
+
+            var listZone = resolveListDropZone(event.target);
+            if (listZone && page.contains(listZone)) {
+                event.preventDefault();
+                clearListReorderHighlights();
+                clearDropzoneHighlights();
+                listZone.classList.add('is-drag-over');
+                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+            }
+            return;
+        }
+
+        if (!draggedItem.hasAttribute('data-crm-board-card')) return;
 
         var card = boardCardFromTarget(event.target);
         var zone = statusDropZone(event.target);
@@ -2170,7 +2231,26 @@
     });
 
     page.addEventListener('drop', function (event) {
-        if (!draggedItem || !draggedItem.hasAttribute('data-crm-board-card')) return;
+        if (!draggedItem) return;
+
+        if (draggedItem.hasAttribute('data-crm-list-row')) {
+            var dropRow = listRowFromTarget(event.target);
+            if (dropRow && handleListRowDrop(draggedItem, dropRow, event)) {
+                return;
+            }
+
+            var listZone = resolveListDropZone(event.target);
+            if (listZone && page.contains(listZone)) {
+                event.preventDefault();
+                event.stopPropagation();
+                clearListReorderHighlights();
+                clearDropzoneHighlights();
+                applyLeadStatusDrop(draggedItem, listZone);
+            }
+            return;
+        }
+
+        if (!draggedItem.hasAttribute('data-crm-board-card')) return;
 
         var card = boardCardFromTarget(event.target);
         if (card && handleBoardCardDrop(draggedItem, card, event)) {
@@ -2189,9 +2269,13 @@
     });
 
     page.addEventListener('dragend', function () {
-        if (draggedItem) draggedItem.classList.remove('is-dragging');
+        if (draggedItem) {
+            draggedItem.classList.remove('is-dragging', 'is-drag-armed');
+        }
         clearBoardReorderHighlights();
+        clearListReorderHighlights();
         clearDropzoneHighlights();
+        page.classList.remove('crm-list-drop-mode');
         setDragActive(false);
         dragStartBlocked = false;
         draggedItem = null;

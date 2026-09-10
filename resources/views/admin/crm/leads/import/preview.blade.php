@@ -84,15 +84,19 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.crm.leads.import.confirm', $import) }}">
+    <form method="POST" action="{{ route('admin.crm.leads.import.confirm', $import) }}" class="card radius-12 shadow-2 border-0">
         @csrf
-        <div class="form-check mb-16">
-            <input class="form-check-input" type="checkbox" name="confirm" id="confirm" value="1" required>
-            <label class="form-check-label" for="confirm">I confirm these rows should be imported into the current organization.</label>
+        <div class="card-body p-20">
+            <div class="form-check style-check d-flex align-items-start mb-0">
+                <input class="form-check-input" type="checkbox" name="confirm" id="confirm" value="1" required>
+                <label class="form-check-label cursor-pointer" for="confirm">I confirm these rows should be imported into the current organization.</label>
+            </div>
+            @error('confirm')<div class="text-danger text-sm mt-8">{{ $message }}</div>@enderror
+            <div class="d-flex flex-wrap align-items-center gap-12 mt-20">
+                <a href="{{ route('admin.crm.leads.import.map', $import) }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11">Back to mapping</a>
+                <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11">Confirm import</button>
+            </div>
         </div>
-        @error('confirm')<div class="text-danger text-sm mb-12">{{ $message }}</div>@enderror
-        <a href="{{ route('admin.crm.leads.import.map', $import) }}" class="btn btn-outline-neutral-500 radius-8 px-20 py-11">Back to mapping</a>
-        <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11">Confirm import</button>
     </form>
 </div>
 @endsection

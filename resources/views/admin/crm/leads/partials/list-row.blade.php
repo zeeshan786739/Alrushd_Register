@@ -11,7 +11,8 @@
          data-current-status="{{ $lead->lead_status }}"
          tabindex="0"
          role="button"
-         aria-label="Open lead {{ $lead->full_name }}">
+         aria-label="Open lead {{ $lead->full_name }}"
+         @if($canUpdate) draggable="true" @endif>
     <span class="crm-list-row__priority-rail" aria-hidden="true"></span>
 
     @canany(['update leads', 'assign leads'])
@@ -26,7 +27,7 @@
         <span class="crm-list-row__select crm-list-row__select--spacer" aria-hidden="true"></span>
     @endcanany
 
-    <span class="crm-list-row__handle" aria-hidden="true" title="Drag to reorder, or double-click the row to move to another status">
+    <span class="crm-list-row__handle" aria-hidden="true" title="Drag row to reorder or drop on a status below">
         <iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon>
     </span>
 

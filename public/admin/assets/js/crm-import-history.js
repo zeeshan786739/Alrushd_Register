@@ -58,6 +58,71 @@
         });
     }
 
+    function confirmWithCrmModal(options, fallbackMessage) {
+        if (window.CrmUI && typeof window.CrmUI.confirm === 'function') {
+            return window.CrmUI.confirm(options);
+        }
+        return Promise.resolve(window.confirm(fallbackMessage || 'Are you sure?'));
+    }
+
+    function confirmSingleBatchUndo(filename, count) {
+        var countNote = count
+            ? count + ' lead(s) will disappear from the board and list.'
+            : 'Imported leads will disappear from the board and list.';
+        var fallback = 'Remove all imported leads from "' + filename + '"?\n\n' + countNote
+            + '\n\nNothing is permanently deleted from the database.';
+
+        return confirmWithCrmModal({
+            title: 'Remove imported leads?',
+            message: 'Remove all imported leads from “' + filename + '”?',
+            note: countNote + ' Nothing is permanently deleted from the database.',
+            label: 'Remove imported leads',
+            tone: 'danger',
+            icon: 'solar:trash-bin-minimalistic-linear',
+        }, fallback);
+    }
+
+    function confirmUndoAll(activeLeads, batchCount) {
+        var message = activeLeads + ' lead(s) across ' + batchCount + ' batch(es) will disappear from the CRM board and list.';
+        var fallback = 'Remove ALL imported leads?\n\n' + message
+            + '\n\nManually created leads are not affected. Nothing is permanently deleted from the database.';
+
+        return confirmWithCrmModal({
+            title: 'Remove all imported leads?',
+            message: message,
+            note: 'Manually created leads are not affected. Nothing is permanently deleted from the database.',
+            label: 'Remove all imported leads',
+            tone: 'danger',
+            icon: 'solar:trash-bin-minimalistic-linear',
+        }, fallback);
+    }
+
+    function runUndo(button, url) {
+        button.disabled = true;
+        button.classList.add('is-busy');
+
+        postUndo(url).then(function (result) {
+            button.disabled = false;
+            button.classList.remove('is-busy');
+
+            if (!result.ok) {
+                var message = (result.data && result.data.message) || 'Could not remove imported leads.';
+                if (result.status === 419) {
+                    message = 'Session expired. Please refresh the page and try again.';
+                }
+                showToast(message, true);
+                return;
+            }
+
+            showToast(result.data.message || 'Imported leads removed.');
+            setTimeout(function () { window.location.reload(); }, 900);
+        }).catch(function () {
+            button.disabled = false;
+            button.classList.remove('is-busy');
+            showToast('Could not remove imported leads. Please try again.', true);
+        });
+    }
+
     page.querySelectorAll('[data-crm-import-undo]').forEach(function (button) {
         if (button.getAttribute('data-bound') === '1') return;
         button.setAttribute('data-bound', '1');
@@ -76,34 +141,9 @@
                 return;
             }
 
-            var countLine = count ? '\n\n' + count + ' lead(s) will disappear from the board and list.' : '';
-            var confirmed = window.confirm(
-                'Remove all imported leads from "' + filename + '"?' + countLine + '\n\nNothing is permanently deleted from the database.'
-            );
-            if (!confirmed) return;
-
-            button.disabled = true;
-            button.classList.add('is-busy');
-
-            postUndo(url).then(function (result) {
-                button.disabled = false;
-                button.classList.remove('is-busy');
-
-                if (!result.ok) {
-                    var message = (result.data && result.data.message) || 'Could not remove imported leads.';
-                    if (result.status === 419) {
-                        message = 'Session expired. Please refresh the page and try again.';
-                    }
-                    showToast(message, true);
-                    return;
-                }
-
-                showToast(result.data.message || 'Imported leads removed.');
-                setTimeout(function () { window.location.reload(); }, 900);
-            }).catch(function () {
-                button.disabled = false;
-                button.classList.remove('is-busy');
-                showToast('Could not remove imported leads. Please try again.', true);
+            confirmSingleBatchUndo(filename, count).then(function (confirmed) {
+                if (!confirmed) return;
+                runUndo(button, url);
             });
         });
     });
@@ -126,35 +166,9 @@
             var activeLeads = button.getAttribute('data-active-leads') || '0';
             var batchCount = button.getAttribute('data-batch-count') || '0';
 
-            var confirmed = window.confirm(
-                'Remove ALL imported leads?\n\n' +
-                activeLeads + ' lead(s) across ' + batchCount + ' batch(es) will disappear from the CRM board and list.\n\n' +
-                'Manually created leads are not affected. Nothing is permanently deleted from the database.'
-            );
-            if (!confirmed) return;
-
-            button.disabled = true;
-            button.classList.add('is-busy');
-
-            postUndo(undoAllUrl).then(function (result) {
-                button.disabled = false;
-                button.classList.remove('is-busy');
-
-                if (!result.ok) {
-                    var message = (result.data && result.data.message) || 'Could not remove imported leads.';
-                    if (result.status === 419) {
-                        message = 'Session expired. Please refresh the page and try again.';
-                    }
-                    showToast(message, true);
-                    return;
-                }
-
-                showToast(result.data.message || 'All imported leads removed.');
-                setTimeout(function () { window.location.reload(); }, 900);
-            }).catch(function () {
-                button.disabled = false;
-                button.classList.remove('is-busy');
-                showToast('Could not remove imported leads. Please try again.', true);
+            confirmUndoAll(activeLeads, batchCount).then(function (confirmed) {
+                if (!confirmed) return;
+                runUndo(button, undoAllUrl);
             });
         });
     });

@@ -754,6 +754,7 @@
     position:relative;min-height:72px;padding-top:10px;padding-bottom:10px;border-bottom:1px solid var(--crm-border);
     cursor:grab;transition:background .12s ease;
 }
+#crm-leads-page .crm-list-row[draggable="true"]:active{cursor:grabbing}
 #crm-leads-page .crm-list-row:last-child{border-bottom:0}
 #crm-leads-page .crm-list-row__priority-rail{
     position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 3px 3px 0;

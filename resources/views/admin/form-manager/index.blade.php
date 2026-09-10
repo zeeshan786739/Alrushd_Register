@@ -398,7 +398,23 @@
         modal.show();
     }
 
-    document.addEventListener('click', async function (event) {
+    function confirmDeleteForm(formName) {
+        const note = 'This permanently removes the form and all of its submissions. This cannot be undone.';
+        if (window.CrmUI && typeof window.CrmUI.confirm === 'function') {
+            return window.CrmUI.confirm({
+                title: 'Delete form?',
+                message: 'Delete “' + formName + '”?',
+                note: note,
+                label: 'Delete form',
+                tone: 'danger',
+                icon: 'solar:trash-bin-minimalistic-linear',
+            });
+        }
+        return Promise.resolve(window.confirm('Delete "' + formName + '"?\n\n' + note));
+    }
+
+    const formCenterPage = document.getElementById('form-center-page');
+    (formCenterPage || document).addEventListener('click', async function (event) {
         const settingsBtn = event.target.closest('[data-form-settings]');
         if (settingsBtn) {
             event.preventDefault();
@@ -521,21 +537,9 @@
                 }
             };
 
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    title: 'Delete form?',
-                    html: 'This will permanently remove <strong>' + escapeHtml(formName) + '</strong> and all its submissions.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#ef4444',
-                    confirmButtonText: 'Yes, delete',
-                    cancelButtonText: 'Cancel',
-                }).then(function (result) {
-                    if (result.isConfirmed) runDelete();
-                });
-            } else if (confirm('Delete "' + formName + '"? This cannot be undone.')) {
-                runDelete();
-            }
+            confirmDeleteForm(formName).then(function (confirmed) {
+                if (confirmed) runDelete();
+            });
         }
     });
 })();
