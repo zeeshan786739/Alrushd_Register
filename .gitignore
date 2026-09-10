@@ -3,11 +3,8 @@
 Thumbs.db
 
 # Environment & secrets
-.env
-.env.*
 !.env.example
 .env.backup
-.env.production
 auth.json
 
 # PHP / Composer
@@ -55,9 +52,9 @@ pnpm-debug.log*
 /.fleet
 /.idea
 /.nova
-/.vscode
 /.zed
 
 # Laravel Sail / Homestead
 Homestead.json
 Homestead.yaml
+config.bat
