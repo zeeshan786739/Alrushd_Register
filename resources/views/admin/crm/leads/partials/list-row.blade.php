@@ -4,7 +4,7 @@
     $canAssign = auth('admin')->user()?->can('assign leads');
     $canDelete = auth('admin')->user()?->can('delete leads');
 @endphp
-<article class="crm-list-row crm-lead-row crm-list-row--priority-{{ $lead->priority }}"
+<article class="crm-list-row crm-lead-row crm-list-row--priority-{{ $lead->priority }} crm-list-row--status-{{ $lead->lead_status }}"
          data-crm-list-row
          data-crm-lead-open
          data-lead-id="{{ $lead->id }}"

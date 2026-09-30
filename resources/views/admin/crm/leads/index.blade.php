@@ -33,7 +33,7 @@
             'icon' => 'solar:user-linear',
         ];
     }
-    $workflowStatuses = \App\Enums\LeadStatus::cases();
+    $workflowStatuses = $workflowStatuses ?? \App\Support\LeadPipeline::orderedStatuses();
     $activeFilters = collect(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','priority','assigned_to']))
         ->filter(fn ($value) => $value !== null && $value !== '')
         ->count();
@@ -56,9 +56,13 @@
      data-filtered-total="{{ $filteredTotal ?? 0 }}"
      data-reorder-url="{{ route('admin.crm.leads.reorder-list') }}"
      data-reorder-board-url="{{ route('admin.crm.leads.reorder-board') }}"
+     data-reorder-pipeline-url="{{ route('admin.crm.leads.reorder-pipeline-columns') }}"
      data-board-column-url="{{ route('admin.crm.leads.board-column') }}"
+     data-list-group-url="{{ route('admin.crm.leads.list-group') }}"
      data-board-batch-size="{{ $boardColumnBatch ?? 20 }}"
+     data-list-group-batch="{{ $listGroupBatch ?? 4 }}"
      data-board-total="{{ $filteredTotal ?? 0 }}"
+     data-list-loaded="{{ $listLoadedCount ?? 0 }}"
      data-smart-search-url="{{ route('admin.crm.leads.smart-search') }}"
      data-initial-view="{{ $viewMode ?? 'board' }}">
     <script>
@@ -122,8 +126,8 @@
                     @endif
                     @if(($viewMode ?? 'board') === 'board')
                         <span data-crm-toolbar-board-loaded>{{ $boardLoadedCount ?? 0 }} loaded on board</span>
-                    @elseif($leads->total() > 0)
-                        <span data-crm-toolbar-list-range>{{ $leads->firstItem() }}–{{ $leads->lastItem() }} of {{ number_format($leads->total()) }}</span>
+                    @else
+                        <span data-crm-toolbar-list-loaded>{{ number_format($listLoadedCount ?? 0) }} loaded · {{ number_format($filteredTotal ?? 0) }} matching</span>
                     @endif
                 </div>
             </div>
@@ -191,9 +195,19 @@
                 @endphp
                 <section class="crm-board-column"
                          data-crm-dropzone
+                         data-crm-board-column
                          data-status="{{ $status->value }}">
-                    <div class="crm-board-column__head">
+                    <div class="crm-board-column__head"
+                         @if(auth('admin')->user()?->can('update leads'))
+                         data-crm-column-handle
+                         title="Drag to reorder column"
+                         @endif>
                         <div class="crm-board-column__title-wrap">
+                            @can('update leads')
+                                <span class="crm-board-column__grip" aria-hidden="true">
+                                    <iconify-icon icon="solar:hamburger-menu-linear"></iconify-icon>
+                                </span>
+                            @endcan
                             <span class="crm-board-column__dot" aria-hidden="true"></span>
                             <div>
                                 <span class="crm-board-column__kicker">{{ $status->label() }}</span>
@@ -284,26 +298,83 @@
 
                 <div class="crm-leads-list" data-crm-leads-list>
                 @if(($pendingFormEntries ?? collect())->isNotEmpty())
-                    @foreach($pendingFormEntries as $entry)
-                        @include('admin.crm.leads.partials.list-submission-row', ['entry' => $entry])
-                    @endforeach
+                    <div class="crm-list-status-group" data-crm-list-status-group data-status="form_intake">
+                        <div class="crm-list-status-group__head" data-status="form_intake">
+                            <div class="crm-list-status-group__title">
+                                <span class="crm-list-status-group__label">Form intake</span>
+                                <span class="crm-list-status-group__count">{{ number_format(($pendingFormEntries ?? collect())->count()) }}</span>
+                            </div>
+                        </div>
+                        <div class="crm-list-status-group__rows" data-crm-list-status-rows>
+                            @foreach($pendingFormEntries as $entry)
+                                @include('admin.crm.leads.partials.list-submission-row', ['entry' => $entry])
+                            @endforeach
+                        </div>
+                    </div>
                 @endif
-                @forelse($leads as $lead)
-                    @include('admin.crm.leads.partials.list-row', [
-                        'lead' => $lead,
-                        'statusInlineOptions' => $statusInlineOptions,
-                        'priorityInlineOptions' => $priorityInlineOptions,
-                        'assigneeInlineOptions' => $assigneeInlineOptions,
-                    ])
-                @empty
-                    @if(($pendingFormEntries ?? collect())->isEmpty())
+                @foreach($workflowStatuses as $status)
+                    @php
+                        $group = ($listLeadsByStatus ?? [])[$status->value] ?? null;
+                        $statusLeads = collect($group['leads'] ?? []);
+                        $groupTotal = (int) ($group['total'] ?? ($workflowCounts[$status->value] ?? 0));
+                        $groupLoaded = (int) ($group['loaded'] ?? $statusLeads->count());
+                        $groupHasMore = (bool) ($group['has_more'] ?? false);
+                    @endphp
+                    @if($statusLeads->isNotEmpty())
+                        <div class="crm-list-status-group"
+                             data-crm-list-status-group
+                             data-status="{{ $status->value }}"
+                             data-offset="{{ $groupLoaded }}"
+                             data-total="{{ $groupTotal }}"
+                             data-has-more="{{ $groupHasMore ? '1' : '0' }}"
+                             data-expanded="0"
+                             data-preview-count="4">
+                            @include('admin.crm.leads.partials.list-status-group-head', [
+                                'status' => $status,
+                                'count' => $groupTotal,
+                            ])
+                            <div class="crm-list-status-group__rows" data-crm-list-status-rows>
+                                @foreach($statusLeads as $lead)
+                                    @include('admin.crm.leads.partials.list-row', [
+                                        'lead' => $lead,
+                                        'statusInlineOptions' => $statusInlineOptions,
+                                        'priorityInlineOptions' => $priorityInlineOptions,
+                                        'assigneeInlineOptions' => $assigneeInlineOptions,
+                                    ])
+                                @endforeach
+                            </div>
+                            <div class="crm-list-status-group__footer" data-crm-list-group-footer>
+                                <button type="button"
+                                        class="crm-list-status-group__more-btn"
+                                        data-crm-list-see-more
+                                        data-status="{{ $status->value }}"
+                                        @if(! $groupHasMore && $groupTotal <= $groupLoaded) hidden @endif>
+                                    <span class="crm-list-status-group__more-idle">
+                                        See more
+                                        <span class="crm-list-status-group__more-remaining" data-crm-list-group-remaining>
+                                            ({{ number_format(max(0, $groupTotal - 4)) }})
+                                        </span>
+                                    </span>
+                                    <span class="crm-list-status-group__more-busy" hidden>Loading…</span>
+                                </button>
+                                <button type="button"
+                                        class="crm-list-status-group__less-btn"
+                                        data-crm-list-show-less
+                                        data-status="{{ $status->value }}"
+                                        hidden>
+                                    Show less
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+                @if(empty($listLeadsByStatus) && ($pendingFormEntries ?? collect())->isEmpty())
                     <div class="crm-leads-list-empty">
                         <iconify-icon icon="solar:inbox-line-linear"></iconify-icon>
                         <strong>No leads found</strong>
                         <span>Adjust your filters or import a new spreadsheet to populate this list.</span>
                     </div>
-                    @endif
-                @endforelse
+                @endif
                 </div>
             </div>
         </div>
@@ -312,6 +383,7 @@
             'paginator' => $leads,
             'viewMode' => $viewMode ?? 'board',
             'boardLoadedCount' => $boardLoadedCount ?? 0,
+            'listLoadedCount' => $listLoadedCount ?? 0,
         ])
     </div>
 

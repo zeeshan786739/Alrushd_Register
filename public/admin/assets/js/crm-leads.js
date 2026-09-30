@@ -191,6 +191,12 @@
         });
     }
 
+    function clearColumnDropHighlights() {
+        page.querySelectorAll('[data-crm-board-column].is-column-drop-over').forEach(function (column) {
+            column.classList.remove('is-column-drop-over');
+        });
+    }
+
     function statusDropZone(fromTarget) {
         return fromTarget.closest('[data-crm-dropzone], [data-crm-list-dropzone], .crm-list-status-drop');
     }
@@ -201,6 +207,310 @@
 
     function boardColumnFromTarget(fromTarget) {
         return fromTarget.closest('[data-crm-dropzone]');
+    }
+
+    function boardPipelineColumnFromTarget(fromTarget) {
+        return fromTarget.closest('[data-crm-board-column]');
+    }
+
+    function persistPipelineColumnOrder() {
+        var reorderPipelineUrl = page.getAttribute('data-reorder-pipeline-url');
+        var board = page.querySelector('[data-crm-board]');
+        if (!reorderPipelineUrl || !board || !canUpdateLeads) {
+            return Promise.resolve({ ok: true });
+        }
+
+        var statuses = Array.from(board.querySelectorAll('[data-crm-board-column][data-status]'))
+            .map(function (column) { return column.getAttribute('data-status'); })
+            .filter(function (status) { return !!status; });
+
+        if (!statuses.length) {
+            return Promise.resolve({ ok: true });
+        }
+
+        return fetch(reorderPipelineUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ statuses: statuses }),
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+            }).catch(function () {
+                return { ok: response.ok, data: {} };
+            });
+        });
+    }
+
+    function syncListStatusRailOrder(statuses) {
+        var zones = page.querySelector('[data-crm-list-status-rail] .crm-list-status-rail__zones');
+        if (!zones || !Array.isArray(statuses) || !statuses.length) return;
+
+        statuses.forEach(function (status) {
+            var pill = zones.querySelector('[data-crm-list-dropzone][data-status="' + status + '"]');
+            if (pill) zones.appendChild(pill);
+        });
+    }
+
+    var columnPointer = null;
+    var columnAutoScroll = { raf: null, speed: 0 };
+    var COLUMN_DROP_PORTION = 0.48;
+
+    function columnOrderSnapshot(board) {
+        return Array.from((board || page).querySelectorAll('[data-crm-board-column][data-status]'))
+            .map(function (column) { return column.getAttribute('data-status'); });
+    }
+
+    function restoreColumnOrder(board, statuses) {
+        if (!board || !Array.isArray(statuses)) return;
+        statuses.forEach(function (status) {
+            var column = board.querySelector('[data-crm-board-column][data-status="' + status + '"]');
+            if (column) board.appendChild(column);
+        });
+    }
+
+    function adjacentColumn(column, direction) {
+        var sibling = direction < 0 ? column.previousElementSibling : column.nextElementSibling;
+        while (sibling && !sibling.hasAttribute('data-crm-board-column')) {
+            sibling = direction < 0 ? sibling.previousElementSibling : sibling.nextElementSibling;
+        }
+        return sibling;
+    }
+
+    function columnSlotWidth(column) {
+        var board = column && column.parentElement;
+        if (!board) return 352;
+        var columns = board.querySelectorAll('[data-crm-board-column]');
+        if (columns.length > 1) {
+            var distance = Math.abs(columns[1].offsetLeft - columns[0].offsetLeft);
+            if (distance > 40) return distance;
+        }
+        return (column.offsetWidth || 340) + 12;
+    }
+
+    function columnDropSteps(delta, slot) {
+        if (!slot) return 0;
+        var portion = delta / slot;
+        if (Math.abs(portion) < COLUMN_DROP_PORTION) return 0;
+        var steps = Math.round(portion);
+        if (steps === 0) steps = portion > 0 ? 1 : -1;
+        return steps;
+    }
+
+    function clearColumnDropPreview() {
+        page.querySelectorAll('[data-crm-board-column].is-column-drop-target').forEach(function (column) {
+            column.classList.remove('is-column-drop-target');
+        });
+    }
+
+    function previewColumnDrop(column, steps) {
+        clearColumnDropPreview();
+        if (!steps) return;
+        var target = column;
+        var direction = steps > 0 ? 1 : -1;
+        var remaining = Math.abs(steps);
+        while (remaining--) {
+            var sibling = adjacentColumn(target, direction);
+            if (!sibling) break;
+            target = sibling;
+        }
+        if (target && target !== column) target.classList.add('is-column-drop-target');
+    }
+
+    function moveColumnBySteps(column, steps) {
+        var moved = 0;
+        var direction = steps > 0 ? 1 : -1;
+        var remaining = Math.abs(steps);
+        while (remaining--) {
+            var sibling = adjacentColumn(column, direction);
+            if (!sibling) break;
+            if (direction > 0) sibling.after(column);
+            else sibling.before(column);
+            moved += direction;
+        }
+        return moved;
+    }
+
+    function settleDraggedColumn(column, fromX) {
+        if (!column) return;
+        column.style.transition = 'none';
+        column.style.transform = 'translate3d(' + (fromX || 0) + 'px, 0, 0)';
+        window.requestAnimationFrame(function () {
+            column.style.transition = 'transform 240ms ease';
+            column.style.transform = 'translate3d(0, 0, 0)';
+            window.setTimeout(function () {
+                column.style.transition = '';
+                column.style.transform = '';
+                column.classList.remove('is-column-dragging');
+            }, 260);
+        });
+    }
+
+    function syncColumnDragVisual() {
+        if (!columnPointer || !columnPointer.active || !columnPointer.column) return;
+        var delta = columnPointer.clientX - columnPointer.anchorX;
+        columnPointer.column.style.transform = 'translate3d(' + delta + 'px, 0, 0)';
+        previewColumnDrop(columnPointer.column, columnDropSteps(delta, columnPointer.slotWidth));
+    }
+
+    function stopColumnAutoScroll() {
+        columnAutoScroll.speed = 0;
+        if (columnAutoScroll.raf) {
+            cancelAnimationFrame(columnAutoScroll.raf);
+            columnAutoScroll.raf = null;
+        }
+    }
+
+    function tickColumnAutoScroll() {
+        if (!columnPointer || !columnPointer.active || !columnAutoScroll.speed) {
+            columnAutoScroll.raf = null;
+            return;
+        }
+
+        var board = page.querySelector('[data-crm-board]');
+        if (board) {
+            var before = board.scrollLeft;
+            var maxScroll = Math.max(0, board.scrollWidth - board.clientWidth);
+            var next = Math.max(0, Math.min(maxScroll, before + columnAutoScroll.speed));
+            var scrolled = next - before;
+            board.scrollLeft = next;
+            if (scrolled) {
+                // Keep the floating column under the pointer while the board pans.
+                columnPointer.anchorX -= scrolled;
+            }
+            syncColumnDragVisual();
+
+            if ((columnAutoScroll.speed > 0 && next >= maxScroll - 0.5)
+                || (columnAutoScroll.speed < 0 && next <= 0.5)) {
+                stopColumnAutoScroll();
+                return;
+            }
+        }
+
+        columnAutoScroll.raf = requestAnimationFrame(tickColumnAutoScroll);
+    }
+
+    function updateColumnAutoScroll(clientX) {
+        var board = page.querySelector('[data-crm-board]');
+        if (!board || !columnPointer || !columnPointer.active) {
+            stopColumnAutoScroll();
+            return;
+        }
+
+        var rect = board.getBoundingClientRect();
+        var edge = 72;
+        var maxSpeed = 18;
+        var maxScroll = Math.max(0, board.scrollWidth - board.clientWidth);
+        var speed = 0;
+
+        if (clientX > rect.right - edge && board.scrollLeft < maxScroll - 0.5) {
+            var rightRatio = Math.min(1, (clientX - (rect.right - edge)) / edge);
+            speed = Math.max(5, Math.round(maxSpeed * (0.35 + rightRatio * 0.65)));
+        } else if (clientX < rect.left + edge && board.scrollLeft > 0.5) {
+            var leftRatio = Math.min(1, ((rect.left + edge) - clientX) / edge);
+            speed = -Math.max(5, Math.round(maxSpeed * (0.35 + leftRatio * 0.65)));
+        }
+
+        columnAutoScroll.speed = speed;
+        if (speed && !columnAutoScroll.raf) {
+            columnAutoScroll.raf = requestAnimationFrame(tickColumnAutoScroll);
+        } else if (!speed) {
+            stopColumnAutoScroll();
+        }
+    }
+
+    function endColumnPointerDrag(commit) {
+        if (!columnPointer) return;
+
+        var state = columnPointer;
+        var column = state.column;
+        var delta = state.clientX - state.anchorX;
+        columnPointer = null;
+        draggedColumn = null;
+        stopColumnAutoScroll();
+        clearColumnDropPreview();
+        page.classList.remove('is-dragging-column');
+        document.body.classList.remove('crm-column-dragging');
+        setDragActive(false);
+
+        var board = page.querySelector('[data-crm-board]');
+        var steps = state.active ? columnDropSteps(delta, state.slotWidth) : 0;
+        var moved = 0;
+        if (commit && steps && column) {
+            moved = moveColumnBySteps(column, steps);
+        }
+
+        var remainder = delta - (moved * (state.slotWidth || 0));
+        if (column && state.active) settleDraggedColumn(column, remainder);
+        else if (column) {
+            column.style.transform = '';
+            column.classList.remove('is-column-dragging');
+        }
+
+        if (!commit || !state.active || !moved) return;
+
+        persistPipelineColumnOrder().then(function (result) {
+            if (!result.ok) {
+                restoreColumnOrder(board, state.originalOrder);
+                showToast((result.data && result.data.message) || 'Could not reorder columns.', true);
+                return;
+            }
+
+            syncListStatusRailOrder(
+                (result.data && result.data.statuses) || columnOrderSnapshot(board)
+            );
+        }).catch(function () {
+            restoreColumnOrder(board, state.originalOrder);
+            showToast('Could not reorder columns. Please try again.', true);
+        });
+    }
+
+    function beginColumnPointerDrag(column, event) {
+        var board = page.querySelector('[data-crm-board]');
+        if (!board || !column) return;
+
+        columnPointer = {
+            column: column,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            anchorX: event.clientX,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            slotWidth: columnSlotWidth(column),
+            active: false,
+            orderChanged: false,
+            originalOrder: columnOrderSnapshot(board)
+        };
+        draggedColumn = column;
+    }
+
+    function moveColumnPointerDrag(event) {
+        if (!columnPointer || event.pointerId !== columnPointer.pointerId) return;
+
+        columnPointer.clientX = event.clientX;
+        columnPointer.clientY = event.clientY;
+
+        if (!columnPointer.active) {
+            var travel = Math.abs(event.clientX - columnPointer.startX) + Math.abs(event.clientY - columnPointer.startY);
+            if (travel < 6) return;
+            columnPointer.active = true;
+            columnPointer.anchorX = event.clientX;
+            columnPointer.column.classList.add('is-column-dragging');
+            page.classList.add('is-dragging-column');
+            document.body.classList.add('crm-column-dragging');
+            setDragActive(true);
+            suppressOpenUntil = Date.now() + 500;
+        }
+
+        event.preventDefault();
+        syncColumnDragVisual();
+        updateColumnAutoScroll(event.clientX);
     }
 
     function clearBoardReorderHighlights() {
@@ -1537,6 +1847,227 @@
         });
     }
 
+    function setListRowStatusClass(row, status) {
+        if (!row) return;
+        Array.from(row.classList).forEach(function (cls) {
+            if (cls.indexOf('crm-list-row--status-') === 0) row.classList.remove(cls);
+        });
+        if (status) row.classList.add('crm-list-row--status-' + status);
+    }
+
+    function adjustListStatusGroupCount(status, delta) {
+        if (!status || !delta) return;
+        var group = page.querySelector('[data-crm-list-status-group][data-status="' + status + '"]');
+        if (!group) return;
+        var countEl = group.querySelector('[data-crm-list-group-count]');
+        var current = countEl
+            ? (parseInt(countEl.textContent.replace(/,/g, ''), 10) || 0)
+            : (parseInt(group.getAttribute('data-total') || '0', 10) || 0);
+        var next = Math.max(0, current + delta);
+        if (countEl) countEl.textContent = String(next);
+        group.setAttribute('data-total', String(next));
+        group.setAttribute('data-has-more', (group.querySelectorAll('[data-crm-list-status-rows] > [data-crm-list-row][data-lead-id]').length < next) ? '1' : '0');
+    }
+
+    function pruneEmptyListStatusGroups() {
+        page.querySelectorAll('[data-crm-list-status-group]').forEach(function (group) {
+            if (group.getAttribute('data-status') === 'form_intake') return;
+            var hasRows = !!group.querySelector('[data-crm-list-row][data-lead-id]');
+            var total = parseInt(group.getAttribute('data-total') || '0', 10) || 0;
+            // Keep the section when more leads still exist server-side so preview can refill.
+            if (!hasRows && total <= 0) {
+                group.remove();
+            }
+        });
+    }
+
+    function ensureListStatusGroup(status) {
+        var list = page.querySelector('[data-crm-leads-list]');
+        if (!list || !status) return null;
+
+        var existing = list.querySelector('[data-crm-list-status-group][data-status="' + status + '"]');
+        if (existing) return existing.querySelector('[data-crm-list-status-rows]') || existing;
+
+        var railPill = page.querySelector('[data-crm-list-dropzone][data-status="' + status + '"]');
+        var label = railPill ? (railPill.textContent || status).trim() : status.replace(/_/g, ' ');
+
+        var group = document.createElement('div');
+        group.className = 'crm-list-status-group';
+        group.setAttribute('data-crm-list-status-group', '');
+        group.setAttribute('data-status', status);
+        var groupPreview = parseInt(page.getAttribute('data-list-group-batch') || '4', 10) || 4;
+        group.setAttribute('data-offset', '0');
+        group.setAttribute('data-total', '0');
+        group.setAttribute('data-has-more', '0');
+        group.setAttribute('data-expanded', '0');
+        group.setAttribute('data-preview-count', String(groupPreview));
+        group.innerHTML =
+            '<div class="crm-list-status-group__head" data-status="' + status + '">' +
+                '<div class="crm-list-status-group__title">' +
+                    '<span class="crm-list-status-group__label"></span>' +
+                    '<span class="crm-list-status-group__count" data-crm-list-group-count>0</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="crm-list-status-group__rows" data-crm-list-status-rows></div>' +
+            '<div class="crm-list-status-group__footer" data-crm-list-group-footer>' +
+                '<button type="button" class="crm-list-status-group__more-btn" data-crm-list-see-more data-status="' + status + '" hidden>' +
+                    '<span class="crm-list-status-group__more-idle">See more <span class="crm-list-status-group__more-remaining" data-crm-list-group-remaining>(0)</span></span>' +
+                    '<span class="crm-list-status-group__more-busy" hidden>Loading…</span>' +
+                '</button>' +
+                '<button type="button" class="crm-list-status-group__less-btn" data-crm-list-show-less data-status="' + status + '" hidden>Show less</button>' +
+            '</div>';
+        group.querySelector('.crm-list-status-group__label').textContent = label;
+
+        var inserted = false;
+        var railOrder = Array.from(page.querySelectorAll('[data-crm-list-dropzone][data-status]'))
+            .map(function (el) { return el.getAttribute('data-status'); });
+        var targetIndex = railOrder.indexOf(status);
+        if (targetIndex >= 0) {
+            var groups = Array.from(list.querySelectorAll('[data-crm-list-status-group][data-status]'));
+            for (var i = 0; i < groups.length; i++) {
+                var groupStatus = groups[i].getAttribute('data-status');
+                if (groupStatus === 'form_intake') continue;
+                var groupIndex = railOrder.indexOf(groupStatus);
+                if (groupIndex > targetIndex) {
+                    list.insertBefore(group, groups[i]);
+                    inserted = true;
+                    break;
+                }
+            }
+        }
+        if (!inserted) list.appendChild(group);
+
+        return group.querySelector('[data-crm-list-status-rows]');
+    }
+
+    var listGroupUi = {
+        sync: function () {},
+        refillBusy: {}
+    };
+
+    function listStatusGroupRows(group) {
+        if (!group) return [];
+        return Array.from(group.querySelectorAll('[data-crm-list-status-rows] > [data-crm-list-row][data-lead-id]'));
+    }
+
+    function refillListStatusGroupPreview(status) {
+        if (!page.classList.contains('crm-list-view') || !status || status === 'form_intake') {
+            return Promise.resolve(false);
+        }
+
+        var listGroupUrl = page.getAttribute('data-list-group-url');
+        var previewCount = parseInt(page.getAttribute('data-list-group-batch') || '4', 10) || 4;
+        if (!listGroupUrl) return Promise.resolve(false);
+
+        var group = page.querySelector('[data-crm-list-status-group][data-status="' + status + '"]');
+        if (!group) return Promise.resolve(false);
+
+        var rowsWrap = group.querySelector('[data-crm-list-status-rows]');
+        var rows = listStatusGroupRows(group);
+        var loaded = rows.length;
+        var total = parseInt(group.getAttribute('data-total') || '0', 10) || 0;
+        var expanded = group.getAttribute('data-expanded') === '1';
+
+        listGroupUi.sync(group);
+
+        if (expanded || loaded >= previewCount || loaded >= total || listGroupUi.refillBusy[status]) {
+            return Promise.resolve(false);
+        }
+
+        var need = Math.min(previewCount - loaded, total - loaded);
+        if (need <= 0) return Promise.resolve(false);
+
+        var existingIds = {};
+        rows.forEach(function (row) {
+            existingIds[row.getAttribute('data-lead-id')] = true;
+        });
+
+        listGroupUi.refillBusy[status] = true;
+
+        var params = new URLSearchParams(window.location.search);
+        params.set('view', 'list');
+        params.set('lead_status', status);
+        params.set('offset', String(loaded));
+        params.set('limit', String(need));
+        params.delete('page');
+
+        return fetch(listGroupUrl + '?' + params.toString(), {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+            }).catch(function () {
+                return { ok: response.ok, data: {} };
+            });
+        }).then(function (result) {
+            if (!result.ok || !result.data || !result.data.html) {
+                return false;
+            }
+
+            var temp = document.createElement('div');
+            temp.innerHTML = result.data.html;
+            var added = 0;
+            Array.from(temp.querySelectorAll('[data-crm-list-row][data-lead-id]')).forEach(function (row) {
+                var id = row.getAttribute('data-lead-id');
+                if (!id || existingIds[id]) return;
+                if (rowsWrap) rowsWrap.appendChild(row);
+                existingIds[id] = true;
+                added += 1;
+            });
+
+            var nextTotal = parseInt(result.data.total, 10);
+            if (!isNaN(nextTotal)) {
+                group.setAttribute('data-total', String(nextTotal));
+                var countEl = group.querySelector('[data-crm-list-group-count]');
+                if (countEl) countEl.textContent = String(nextTotal);
+            }
+
+            if (added) updateListLoadedSummary(added);
+            listGroupUi.sync(group);
+            return added > 0;
+        }).catch(function () {
+            return false;
+        }).finally(function () {
+            listGroupUi.refillBusy[status] = false;
+        });
+    }
+
+    function placeListRowInStatusGroup(row, status, previousStatus) {
+        if (!row || !row.hasAttribute('data-crm-list-row') || !status) return;
+
+        var fromStatus = previousStatus != null ? previousStatus : (row.getAttribute('data-current-status') || '');
+        var previousGroup = row.closest('[data-crm-list-status-group]');
+        var statusChanged = !!(fromStatus && fromStatus !== status);
+        setListRowStatusClass(row, status);
+        row.classList.remove('is-group-collapsed');
+        var rows = ensureListStatusGroup(status);
+        if (rows) {
+            if (statusChanged) {
+                // Newly converted leads appear at the top of the category.
+                rows.insertBefore(row, rows.firstChild);
+            } else if (row.parentElement !== rows) {
+                rows.appendChild(row);
+            }
+        }
+        if (statusChanged) {
+            adjustListStatusGroupCount(fromStatus, -1);
+            adjustListStatusGroupCount(status, 1);
+            refillListStatusGroupPreview(fromStatus);
+            refillListStatusGroupPreview(status);
+        }
+        if (previousGroup && previousGroup !== row.closest('[data-crm-list-status-group]')) {
+            pruneEmptyListStatusGroups();
+        }
+        listGroupUi.sync(row.closest('[data-crm-list-status-group]'));
+        if (previousGroup && page.contains(previousGroup)) {
+            listGroupUi.sync(previousGroup);
+        }
+    }
+
     function updateLeadStatus(leadId, value) {
         return fetch(inlineUrl(leadId), {
             method: 'PATCH',
@@ -1634,6 +2165,8 @@
 
         if (isBoardCard && targetBody) {
             insertBoardCard(item, targetBody, insertBefore);
+        } else if (!isBoardCard && item.hasAttribute('data-crm-list-row') && statusChanged) {
+            placeListRowInStatusGroup(item, targetStatus, previousStatus);
         }
 
         if (statusChanged) {
@@ -1641,6 +2174,9 @@
         }
 
         item.setAttribute('data-current-status', targetStatus);
+        if (item.hasAttribute('data-crm-list-row')) {
+            setListRowStatusClass(item, targetStatus);
+        }
         item.classList.add('is-status-updated');
         window.setTimeout(function () {
             item.classList.remove('is-status-updated');
@@ -1650,6 +2186,9 @@
             if (!result.ok) {
                 item.setAttribute('data-current-status', previousStatus || '');
                 if (isBoardCard && origin) origin.insertBefore(item, nextSibling || null);
+                else if (!isBoardCard && item.hasAttribute('data-crm-list-row') && previousStatus) {
+                    placeListRowInStatusGroup(item, previousStatus, targetStatus);
+                }
                 if (statusChanged) {
                     transferColumnLeadTotals(targetStatus, previousStatus);
                 }
@@ -1666,10 +2205,16 @@
             if (isBoardCard && zone) {
                 persistBoardColumnOrder(zone);
             }
+            if (!isBoardCard && item.hasAttribute('data-crm-list-row')) {
+                persistListOrder();
+            }
             showToast((result.data && result.data.message) || 'Status updated.', false);
         }).catch(function () {
             item.setAttribute('data-current-status', previousStatus || '');
             if (isBoardCard && origin) origin.insertBefore(item, nextSibling || null);
+            else if (!isBoardCard && item.hasAttribute('data-crm-list-row') && previousStatus) {
+                placeListRowInStatusGroup(item, previousStatus, targetStatus);
+            }
             if (statusChanged) {
                 transferColumnLeadTotals(targetStatus, previousStatus);
             }
@@ -1789,6 +2334,28 @@
         return resolveListDropZone(target);
     }
 
+    function listStatusGroupAt(clientX, clientY) {
+        var hidden = [];
+
+        if (listDragArm && listDragArm.row) {
+            listDragArm.row.style.visibility = 'hidden';
+            hidden.push(listDragArm.row);
+        }
+
+        var target = document.elementFromPoint(clientX, clientY);
+
+        hidden.forEach(function (el) {
+            el.style.visibility = '';
+        });
+
+        var group = target && target.closest
+            ? target.closest('[data-crm-list-status-group][data-status]')
+            : null;
+        if (!group || !page.contains(group)) return null;
+        if (group.getAttribute('data-status') === 'form_intake') return null;
+        return group;
+    }
+
     function updateListDropHover(zone) {
         if (!listDragArm) return;
         if (zone === listDragArm.hoverZone) return;
@@ -1901,6 +2468,9 @@
 
         listDragArm.dragging = true;
         row.classList.add('is-dragging');
+        if (listDragArm.startX != null && listDragArm.startY != null) {
+            autoScrollListWhileDragging(listDragArm.startX, listDragArm.startY);
+        }
     }
 
     function endListRowDrag() {
@@ -1929,6 +2499,7 @@
             ignoreUntil: Date.now() + 180,
             dragging: false,
             reordered: false,
+            originStatus: row.getAttribute('data-current-status') || '',
             startX: event ? event.clientX : null,
             startY: event ? event.clientY : null
         };
@@ -1959,6 +2530,7 @@
     }
 
     var draggedItem = null;
+    var draggedColumn = null;
     var dragOrigin = null;
     var dragNextSibling = null;
     var dragMoved = false;
@@ -1969,6 +2541,7 @@
     var rowOpenTimer = null;
     var listAutoScroll = {
         active: false,
+        htmlDrag: false,
         clientX: 0,
         clientY: 0,
         rafId: null
@@ -1976,34 +2549,78 @@
 
     function stopListAutoScroll() {
         listAutoScroll.active = false;
+        listAutoScroll.htmlDrag = false;
         if (listAutoScroll.rafId) {
             cancelAnimationFrame(listAutoScroll.rafId);
             listAutoScroll.rafId = null;
         }
     }
 
+    function scrollListDragBy(delta) {
+        if (!delta) return false;
+
+        var nodes = [];
+        var el = page;
+        while (el) {
+            nodes.push(el);
+            el = el.parentElement;
+        }
+        nodes.push(document.scrollingElement || document.documentElement);
+        nodes.push(document.documentElement);
+        nodes.push(document.body);
+
+        var unique = [];
+        nodes.forEach(function (node) {
+            if (node && unique.indexOf(node) === -1) unique.push(node);
+        });
+
+        for (var i = 0; i < unique.length; i++) {
+            var node = unique[i];
+            try {
+                var before = node.scrollTop;
+                if (typeof before !== 'number' || isNaN(before)) continue;
+                node.scrollTop = before + delta;
+                if (Math.abs((node.scrollTop || 0) - before) > 0.5) {
+                    return true;
+                }
+            } catch (err) {}
+        }
+
+        var yBefore = window.pageYOffset || document.documentElement.scrollTop || 0;
+        try {
+            window.scrollBy(0, delta);
+        } catch (err2) {}
+        var yAfter = window.pageYOffset || document.documentElement.scrollTop || 0;
+        return Math.abs(yAfter - yBefore) > 0.5;
+    }
+
     function tickListAutoScroll() {
-        if (!listAutoScroll.active || !listDragArm || !listDragArm.dragging) {
+        var pointerDragging = !!(listDragArm && listDragArm.dragging);
+        var htmlDragging = !!(listAutoScroll.htmlDrag && draggedItem && draggedItem.hasAttribute('data-crm-list-row'));
+
+        if (!listAutoScroll.active || (!pointerDragging && !htmlDragging)) {
             stopListAutoScroll();
             return;
         }
 
-        var edge = 84;
-        var maxSpeed = 20;
+        var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        var edge = Math.max(140, Math.min(240, viewportHeight * 0.28));
+        var maxSpeed = 36;
         var clientY = listAutoScroll.clientY;
-        var viewportHeight = window.innerHeight;
         var delta = 0;
 
-        if (clientY < edge) {
-            delta = -maxSpeed * Math.pow((edge - clientY) / edge, 1.15);
-        } else if (clientY > viewportHeight - edge) {
-            delta = maxSpeed * Math.pow((clientY - (viewportHeight - edge)) / edge, 1.15);
+        if (clientY <= edge) {
+            delta = -maxSpeed * Math.max(0.35, (edge - Math.max(0, clientY)) / edge);
+        } else if (clientY >= viewportHeight - edge) {
+            delta = maxSpeed * Math.max(0.35, (clientY - (viewportHeight - edge)) / edge);
         }
 
         if (delta !== 0) {
-            window.scrollBy({ top: delta, left: 0, behavior: 'auto' });
-            updateListRowReorder(listAutoScroll.clientX, listAutoScroll.clientY);
-            updateListDropHover(listDropZoneAt(listAutoScroll.clientX, listAutoScroll.clientY));
+            scrollListDragBy(delta);
+            if (pointerDragging) {
+                updateListRowReorder(listAutoScroll.clientX, listAutoScroll.clientY);
+                updateListDropHover(listDropZoneAt(listAutoScroll.clientX, listAutoScroll.clientY));
+            }
         }
 
         listAutoScroll.rafId = requestAnimationFrame(tickListAutoScroll);
@@ -2020,10 +2637,26 @@
 
         if (!listAutoScroll.active) {
             listAutoScroll.active = true;
-            tickListAutoScroll();
+            listAutoScroll.rafId = requestAnimationFrame(tickListAutoScroll);
         }
     }
 
+    function autoScrollListHtmlDrag(clientX, clientY) {
+        if (!draggedItem || !draggedItem.hasAttribute('data-crm-list-row')) {
+            return;
+        }
+
+        listAutoScroll.clientX = clientX;
+        listAutoScroll.clientY = clientY;
+
+        // Reuse the RAF loop; tick checks listDragArm.dragging OR html-drag flag.
+        listAutoScroll.htmlDrag = true;
+
+        if (!listAutoScroll.active) {
+            listAutoScroll.active = true;
+            listAutoScroll.rafId = requestAnimationFrame(tickListAutoScroll);
+        }
+    }
     function cancelRowOpenTimer() {
         if (!rowOpenTimer) return;
         clearTimeout(rowOpenTimer);
@@ -2111,10 +2744,24 @@
         }
 
         if (listDragArm.dragging) {
+            var draggedRow = listDragArm.row;
+            var originStatus = listDragArm.originStatus || (draggedRow && draggedRow.getAttribute('data-current-status')) || '';
             var didReorder = !!listDragArm.reordered;
+            var groupAtPoint = listStatusGroupAt(event.clientX, event.clientY);
+            var groupFromRow = draggedRow ? draggedRow.closest('[data-crm-list-status-group][data-status]') : null;
+            var targetGroup = groupAtPoint || groupFromRow;
+            var targetStatus = targetGroup ? targetGroup.getAttribute('data-status') : '';
+
             endListRowDrag();
             clearDropzoneHighlights();
             clearListReorderHighlights();
+
+            if (draggedRow && targetStatus && targetStatus !== 'form_intake' && targetStatus !== originStatus) {
+                suppressOpenUntil = Date.now() + 300;
+                applyLeadStatusDrop(draggedRow, targetGroup);
+                disarmListDrag();
+                return;
+            }
 
             if (didReorder) {
                 suppressOpenUntil = Date.now() + 300;
@@ -2144,13 +2791,232 @@
         tryCompleteListDrop(zone);
     }, true);
 
+    var boardCardDrag = null;
+    var boardCardAutoScroll = { raf: null, speed: 0 };
+
+    function boardPointHit(clientX, clientY) {
+        var board = page.querySelector('[data-crm-board]');
+        if (!board) return null;
+
+        var hidden = draggedItem && draggedItem.hasAttribute('data-crm-board-card') ? draggedItem : null;
+        var previousPointer = hidden ? hidden.style.pointerEvents : '';
+        if (hidden) hidden.style.pointerEvents = 'none';
+        var el = document.elementFromPoint(clientX, clientY);
+        if (hidden) hidden.style.pointerEvents = previousPointer;
+
+        var column = el && el.closest ? boardPipelineColumnFromTarget(el) : null;
+        if (!column || !board.contains(column)) {
+            column = null;
+            board.querySelectorAll('[data-crm-board-column]').forEach(function (candidate) {
+                if (column) return;
+                var rect = candidate.getBoundingClientRect();
+                if (clientX >= rect.left - 10 && clientX <= rect.right + 10) column = candidate;
+            });
+        }
+
+        return column ? { column: column, card: el && el.closest ? boardCardFromTarget(el) : null } : null;
+    }
+
+    function boardCardInsertBefore(body, clientY) {
+        var cards = body.querySelectorAll('[data-crm-board-card]');
+        for (var i = 0; i < cards.length; i++) {
+            if (cards[i] === draggedItem) continue;
+            var rect = cards[i].getBoundingClientRect();
+            if (clientY < rect.top + (rect.height / 2)) return cards[i];
+        }
+        return body.querySelector('[data-crm-board-load-more]') || body.querySelector('.crm-board-empty');
+    }
+
+    function placeDraggedBoardCard(clientX, clientY) {
+        if (!draggedItem || !boardCardDrag || !draggedItem.hasAttribute('data-crm-board-card')) return;
+
+        var hit = boardPointHit(clientX, clientY);
+        if (!hit || !hit.column) return;
+
+        var currentColumn = boardColumnFromTarget(draggedItem);
+        if (hit.column !== currentColumn) {
+            var rect = hit.column.getBoundingClientRect();
+            if (clientX < rect.left + 12 || clientX > rect.right - 8) return;
+        }
+
+        var body = hit.column.querySelector('[data-crm-board-scroll]');
+        if (!body) return;
+
+        var insertBefore = boardCardInsertBefore(body, clientY);
+        if (draggedItem.parentElement === body && (insertBefore === draggedItem || insertBefore === draggedItem.nextElementSibling)) {
+            return;
+        }
+
+        insertBoardCard(draggedItem, body, insertBefore);
+        boardCardDrag.moved = true;
+        clearBoardReorderHighlights();
+        clearDropzoneHighlights();
+    }
+
+    function restoreBoardCardPosition(item, originBody, originNext, originStatus) {
+        if (!item || !originBody) return;
+        originBody.insertBefore(item, originNext);
+        if (originStatus) item.setAttribute('data-current-status', originStatus);
+        refreshBoardColumnCounts();
+    }
+
+    function restoreDraggedBoardCard() {
+        if (!boardCardDrag) return;
+        restoreBoardCardPosition(
+            boardCardDrag.item,
+            boardCardDrag.originBody,
+            boardCardDrag.originNext,
+            boardCardDrag.originStatus
+        );
+    }
+
+    function commitDraggedBoardCard() {
+        if (!boardCardDrag || boardCardDrag.committed) return;
+        boardCardDrag.committed = true;
+        if (!boardCardDrag.moved) return;
+
+        var item = boardCardDrag.item;
+        var zone = boardColumnFromTarget(item);
+        var originColumn = boardCardDrag.originColumn;
+        var originBody = boardCardDrag.originBody;
+        var originNext = boardCardDrag.originNext;
+        var previousStatus = boardCardDrag.originStatus;
+        if (!item || !zone) {
+            restoreBoardCardPosition(item, originBody, originNext, previousStatus);
+            return;
+        }
+
+        var targetStatus = zone.getAttribute('data-status');
+        var leadId = item.getAttribute('data-lead-id');
+        if (!targetStatus || !leadId || targetStatus === previousStatus) {
+            persistBoardColumnOrder(zone).then(function (result) {
+                if (!result.ok) {
+                    restoreBoardCardPosition(item, originBody, originNext, previousStatus);
+                    showToast((result.data && result.data.message) || 'Could not save column order.', true);
+                }
+            });
+            return;
+        }
+
+        item.setAttribute('data-current-status', targetStatus);
+        transferColumnLeadTotals(previousStatus, targetStatus);
+        item.classList.add('is-status-updated');
+        window.setTimeout(function () {
+            item.classList.remove('is-status-updated');
+        }, 900);
+
+        updateLeadStatus(leadId, targetStatus).then(function (result) {
+            if (!result.ok) {
+                restoreBoardCardPosition(item, originBody, originNext, previousStatus);
+                transferColumnLeadTotals(targetStatus, previousStatus);
+                refreshBoardColumnMetrics();
+                showToast((result.data && (result.data.message || result.data.error)) || 'Status update failed.', true);
+                return;
+            }
+
+            syncLeadStatusControls(leadId, targetStatus, result.data || {});
+            handleLeadStatusMetricsChange(leadId, previousStatus, targetStatus, { skipColumnTransfer: true });
+            if (originColumn && originColumn !== zone) persistBoardColumnOrder(originColumn);
+            persistBoardColumnOrder(zone);
+            showToast((result.data && result.data.message) || 'Status updated.', false);
+        }).catch(function () {
+            restoreBoardCardPosition(item, originBody, originNext, previousStatus);
+            transferColumnLeadTotals(targetStatus, previousStatus);
+            refreshBoardColumnMetrics();
+            showToast('Status update failed. Please try again.', true);
+        });
+    }
+
+    function tickBoardCardAutoScroll() {
+        if (!boardCardDrag || !draggedItem || !boardCardAutoScroll.speed) {
+            boardCardAutoScroll.raf = null;
+            return;
+        }
+
+        var board = page.querySelector('[data-crm-board]');
+        if (board) {
+            board.scrollLeft += boardCardAutoScroll.speed;
+            placeDraggedBoardCard(boardCardDrag.clientX, boardCardDrag.clientY);
+        }
+        boardCardAutoScroll.raf = requestAnimationFrame(tickBoardCardAutoScroll);
+    }
+
+    function stopBoardCardAutoScroll() {
+        boardCardAutoScroll.speed = 0;
+        if (boardCardAutoScroll.raf) {
+            cancelAnimationFrame(boardCardAutoScroll.raf);
+            boardCardAutoScroll.raf = null;
+        }
+    }
+
+    function updateBoardCardAutoScroll(clientX, clientY) {
+        if (!boardCardDrag) return;
+        boardCardDrag.clientX = clientX;
+        boardCardDrag.clientY = clientY;
+
+        var board = page.querySelector('[data-crm-board]');
+        if (!board) return;
+
+        var rect = board.getBoundingClientRect();
+        var edge = 36;
+        var speed = 0;
+        if (clientX > rect.right - edge && board.scrollLeft + board.clientWidth < board.scrollWidth - 2) {
+            speed = 12;
+        } else if (clientX < rect.left + edge && board.scrollLeft > 0) {
+            speed = -12;
+        }
+
+        boardCardAutoScroll.speed = speed;
+        if (speed && !boardCardAutoScroll.raf) {
+            boardCardAutoScroll.raf = requestAnimationFrame(tickBoardCardAutoScroll);
+        }
+    }
+
+    document.addEventListener('pointerdown', function (event) {
+        if (event.button !== 0 || !canUpdateLeads || !page.classList.contains('crm-board-view')) return;
+        if (!event.target.closest) return;
+        var handle = event.target.closest('[data-crm-column-handle]');
+        if (!handle || !page.contains(handle)) return;
+        if (event.target.closest('a, button, input, select, textarea')) return;
+
+        var column = boardPipelineColumnFromTarget(handle);
+        if (!column) return;
+
+        event.preventDefault();
+        beginColumnPointerDrag(column, event);
+    }, true);
+
+    document.addEventListener('pointermove', function (event) {
+        if (!columnPointer) return;
+        moveColumnPointerDrag(event);
+    }, true);
+
+    document.addEventListener('pointerup', function (event) {
+        if (!columnPointer || event.pointerId !== columnPointer.pointerId) return;
+        endColumnPointerDrag(true);
+    }, true);
+
+    document.addEventListener('pointercancel', function (event) {
+        if (!columnPointer || event.pointerId !== columnPointer.pointerId) return;
+        endColumnPointerDrag(false);
+    }, true);
+
     document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && columnPointer) {
+            event.preventDefault();
+            endColumnPointerDrag(false);
+        }
         if (event.key === 'Escape' && listDragArm) {
             disarmListDrag();
         }
     });
 
     page.addEventListener('dragstart', function (event) {
+        if (columnPointer) {
+            event.preventDefault();
+            return;
+        }
+
         if (event.target.closest('[data-crm-inline], .crm-board-card__quick-action')) {
             event.preventDefault();
             return;
@@ -2177,6 +3043,7 @@
                 event.dataTransfer.effectAllowed = 'move';
                 event.dataTransfer.setData('text/plain', listRow.getAttribute('data-lead-id') || 'lead');
             }
+            autoScrollListHtmlDrag(event.clientX || 0, event.clientY || 0);
             return;
         }
 
@@ -2187,22 +3054,45 @@
         }
 
         draggedItem = item;
+        draggedColumn = null;
         dragOrigin = item.parentElement;
         dragNextSibling = item.nextElementSibling;
         dragMoved = false;
+        boardCardDrag = {
+            item: item,
+            originBody: item.parentElement,
+            originNext: item.nextElementSibling,
+            originColumn: boardColumnFromTarget(item),
+            originStatus: item.getAttribute('data-current-status'),
+            clientX: 0,
+            clientY: 0,
+            moved: false,
+            committed: false,
+            dropped: false
+        };
         item.classList.add('is-dragging');
+        page.classList.add('is-dragging-board-card');
+        setDragActive(true);
         if (event.dataTransfer) {
             event.dataTransfer.effectAllowed = 'move';
             event.dataTransfer.setData('text/plain', item.getAttribute('data-lead-id') || 'lead');
         }
     });
 
-    page.addEventListener('drag', function () {
+    page.addEventListener('drag', function (event) {
         dragMoved = true;
+        if (boardCardDrag && draggedItem && draggedItem.hasAttribute('data-crm-board-card') && event.clientX) {
+            placeDraggedBoardCard(event.clientX, event.clientY);
+            updateBoardCardAutoScroll(event.clientX, event.clientY);
+        }
     });
 
     page.addEventListener('dragenter', function (event) {
         if (!draggedItem) return;
+        if (draggedItem.hasAttribute('data-crm-board-card')) {
+            event.preventDefault();
+            return;
+        }
         var zone = statusDropZone(event.target) || resolveListDropZone(event.target);
         if (!zone || !page.contains(zone)) return;
         event.preventDefault();
@@ -2212,18 +3102,27 @@
         if (!draggedItem) return;
 
         if (draggedItem.hasAttribute('data-crm-list-row')) {
+            // Keep page scrolling while the pointer is near the viewport edges.
+            event.preventDefault();
+            autoScrollListHtmlDrag(event.clientX, event.clientY);
+
             var targetRow = listRowFromTarget(event.target);
             if (targetRow && targetRow !== draggedItem) {
-                event.preventDefault();
                 clearListReorderHighlights();
                 targetRow.classList.add('is-reorder-over');
                 if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
                 return;
             }
 
+            var groupAtPoint = event.target.closest
+                ? event.target.closest('[data-crm-list-status-group][data-status]')
+                : null;
+            if (groupAtPoint && page.contains(groupAtPoint) && groupAtPoint.getAttribute('data-status') !== 'form_intake') {
+                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+            }
+
             var listZone = resolveListDropZone(event.target);
             if (listZone && page.contains(listZone)) {
-                event.preventDefault();
                 clearListReorderHighlights();
                 clearDropzoneHighlights();
                 listZone.classList.add('is-drag-over');
@@ -2234,27 +3133,13 @@
 
         if (!draggedItem.hasAttribute('data-crm-board-card')) return;
 
-        var card = boardCardFromTarget(event.target);
-        var zone = statusDropZone(event.target);
+        var board = page.querySelector('[data-crm-board]');
+        if (!board || !board.contains(event.target) && !boardPointHit(event.clientX, event.clientY)) return;
 
-        if (card && card !== draggedItem) {
-            var sourceColumn = boardColumnFromTarget(draggedItem);
-            var targetColumn = boardColumnFromTarget(card);
-            if (sourceColumn && targetColumn) {
-                event.preventDefault();
-                clearBoardReorderHighlights();
-                card.classList.add('is-reorder-over');
-                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-                return;
-            }
-        }
-
-        if (!zone || !page.contains(zone)) return;
         event.preventDefault();
-        clearBoardReorderHighlights();
-        clearDropzoneHighlights();
-        zone.classList.add('is-drag-over');
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        placeDraggedBoardCard(event.clientX, event.clientY);
+        updateBoardCardAutoScroll(event.clientX, event.clientY);
     });
 
     page.addEventListener('dragleave', function (event) {
@@ -2269,9 +3154,49 @@
         if (!draggedItem) return;
 
         if (draggedItem.hasAttribute('data-crm-list-row')) {
+            stopListAutoScroll();
+
             var dropRow = listRowFromTarget(event.target);
-            if (dropRow && handleListRowDrop(draggedItem, dropRow, event)) {
-                return;
+            if (dropRow && dropRow !== draggedItem) {
+                var targetGroup = dropRow.closest('[data-crm-list-status-group][data-status]');
+                var targetStatus = targetGroup ? targetGroup.getAttribute('data-status') : '';
+                var originStatus = draggedItem.getAttribute('data-current-status') || '';
+
+                if (targetStatus && targetStatus !== 'form_intake' && targetStatus !== originStatus) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    clearListReorderHighlights();
+                    clearDropzoneHighlights();
+                    // Place relative to the hovered row, then convert status.
+                    var rect = dropRow.getBoundingClientRect();
+                    if (event.clientY >= rect.top + (rect.height / 2)) {
+                        dropRow.after(draggedItem);
+                    } else {
+                        dropRow.before(draggedItem);
+                    }
+                    applyLeadStatusDrop(draggedItem, targetGroup);
+                    return;
+                }
+
+                if (handleListRowDrop(draggedItem, dropRow, event)) {
+                    return;
+                }
+            }
+
+            var dropGroup = event.target.closest
+                ? event.target.closest('[data-crm-list-status-group][data-status]')
+                : null;
+            if (dropGroup && page.contains(dropGroup) && dropGroup.getAttribute('data-status') !== 'form_intake') {
+                var groupStatus = dropGroup.getAttribute('data-status');
+                var fromStatus = draggedItem.getAttribute('data-current-status') || '';
+                if (groupStatus && groupStatus !== fromStatus) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    clearListReorderHighlights();
+                    clearDropzoneHighlights();
+                    applyLeadStatusDrop(draggedItem, dropGroup);
+                    return;
+                }
             }
 
             var listZone = resolveListDropZone(event.target);
@@ -2287,33 +3212,49 @@
 
         if (!draggedItem.hasAttribute('data-crm-board-card')) return;
 
-        var card = boardCardFromTarget(event.target);
-        if (card && handleBoardCardDrop(draggedItem, card, event)) {
-            return;
-        }
-
-        var zone = statusDropZone(event.target);
-        if (!zone || !page.contains(zone)) return;
         event.preventDefault();
         event.stopPropagation();
-
-        var item = draggedItem;
+        if (boardCardDrag) boardCardDrag.dropped = true;
+        placeDraggedBoardCard(event.clientX, event.clientY);
         clearBoardReorderHighlights();
         clearDropzoneHighlights();
-        applyLeadStatusDrop(item, zone);
     });
 
-    page.addEventListener('dragend', function () {
+    document.addEventListener('dragover', function (event) {
+        if (!draggedItem || !draggedItem.hasAttribute('data-crm-list-row')) return;
+        // Allows auto-scroll + drops when the pointer is over empty page chrome near edges.
+        event.preventDefault();
+        autoScrollListHtmlDrag(event.clientX, event.clientY);
+    }, true);
+
+    page.addEventListener('dragend', function (event) {
+        stopListAutoScroll();
+
+        var finishingCard = boardCardDrag && draggedItem && draggedItem.hasAttribute('data-crm-board-card');
+        var cancelled = !finishingCard
+            ? false
+            : (!boardCardDrag.dropped && event.dataTransfer && event.dataTransfer.dropEffect === 'none');
+
+        stopBoardCardAutoScroll();
+
+        if (finishingCard) {
+            if (cancelled) restoreDraggedBoardCard();
+            else commitDraggedBoardCard();
+        }
+
         if (draggedItem) {
             draggedItem.classList.remove('is-dragging', 'is-drag-armed');
         }
         clearBoardReorderHighlights();
         clearListReorderHighlights();
         clearDropzoneHighlights();
-        page.classList.remove('crm-list-drop-mode');
+        clearColumnDropHighlights();
+        page.classList.remove('crm-list-drop-mode', 'is-dragging-column', 'is-dragging-board-card');
         setDragActive(false);
         dragStartBlocked = false;
         draggedItem = null;
+        draggedColumn = null;
+        boardCardDrag = null;
         dragOrigin = null;
         dragNextSibling = null;
         if (dragMoved) {
@@ -2421,6 +3362,200 @@
 
     refreshBoardColumnCounts();
     initBoardInfiniteScroll();
+    initListGroupSeeMore();
+
+    function updateListLoadedSummary(delta) {
+        if (!delta) return;
+        var loadedEls = page.querySelectorAll('[data-crm-list-loaded-count]');
+        loadedEls.forEach(function (el) {
+            var current = parseInt((el.textContent || '0').replace(/,/g, ''), 10) || 0;
+            el.textContent = String(Math.max(0, current + delta));
+        });
+        var toolbar = page.querySelector('[data-crm-toolbar-list-loaded]');
+        if (toolbar) {
+            var total = parseInt(page.getAttribute('data-filtered-total') || '0', 10) || 0;
+            var loaded = 0;
+            page.querySelectorAll('[data-crm-list-status-group][data-status]').forEach(function (group) {
+                if (group.getAttribute('data-status') === 'form_intake') return;
+                loaded += group.querySelectorAll('[data-crm-list-row][data-lead-id]').length;
+            });
+            toolbar.textContent = loaded + ' loaded · ' + total.toLocaleString() + ' matching';
+        }
+    }
+
+    function initListGroupSeeMore() {
+        if (!page.classList.contains('crm-list-view')) return;
+
+        var listGroupUrl = page.getAttribute('data-list-group-url');
+        var previewCount = parseInt(page.getAttribute('data-list-group-batch') || '4', 10) || 4;
+        if (!listGroupUrl) return;
+
+        var loadingGroups = {};
+
+        function groupRows(group) {
+            return group ? Array.from(group.querySelectorAll('[data-crm-list-status-rows] > [data-crm-list-row][data-lead-id]')) : [];
+        }
+
+        function setGroupExpanded(group, expanded) {
+            var rows = groupRows(group);
+            var seeMore = group.querySelector('[data-crm-list-see-more]');
+            var showLess = group.querySelector('[data-crm-list-show-less]');
+            var remainingEl = group.querySelector('[data-crm-list-group-remaining]');
+            var total = parseInt(group.getAttribute('data-total') || '0', 10) || 0;
+            var loaded = rows.length;
+            var preview = parseInt(group.getAttribute('data-preview-count') || String(previewCount), 10) || previewCount;
+
+            group.setAttribute('data-expanded', expanded ? '1' : '0');
+            group.setAttribute('data-offset', String(loaded));
+            group.setAttribute('data-has-more', loaded < total ? '1' : '0');
+
+            rows.forEach(function (row, index) {
+                if (expanded || index < preview) {
+                    row.classList.remove('is-group-collapsed');
+                } else {
+                    row.classList.add('is-group-collapsed');
+                }
+            });
+
+            if (seeMore) {
+                // Collapsed + more than preview → See more under the 4 rows.
+                // Expanded → hide See more (Show less takes over at the bottom).
+                seeMore.hidden = expanded || total <= preview;
+                if (remainingEl) {
+                    remainingEl.textContent = '(' + Math.max(0, total - preview).toLocaleString() + ')';
+                }
+            }
+            if (showLess) {
+                showLess.hidden = !expanded || total <= preview;
+            }
+        }
+
+        function expandGroupFully(group) {
+            setGroupExpanded(group, true);
+        }
+
+        function collapseGroup(group) {
+            setGroupExpanded(group, false);
+        }
+
+        listGroupUi.sync = function (group) {
+            if (!group || !page.contains(group) || group.getAttribute('data-status') === 'form_intake') return;
+            setGroupExpanded(group, group.getAttribute('data-expanded') === '1');
+        };
+
+        function loadAllRemaining(group, button) {
+            var status = group.getAttribute('data-status');
+            if (!status || loadingGroups[status]) return Promise.resolve(false);
+
+            var rowsWrap = group.querySelector('[data-crm-list-status-rows]');
+            var idle = button.querySelector('.crm-list-status-group__more-idle');
+            var busy = button.querySelector('.crm-list-status-group__more-busy');
+            var offset = parseInt(group.getAttribute('data-offset') || '0', 10) || 0;
+            var total = parseInt(group.getAttribute('data-total') || '0', 10) || 0;
+            var remaining = Math.max(0, total - offset);
+            if (!remaining) {
+                expandGroupFully(group);
+                return Promise.resolve(true);
+            }
+
+            loadingGroups[status] = true;
+            button.classList.add('is-busy');
+            button.disabled = true;
+            if (idle) idle.hidden = true;
+            if (busy) busy.hidden = false;
+
+            var params = new URLSearchParams(window.location.search);
+            params.set('view', 'list');
+            params.set('lead_status', status);
+            params.set('offset', String(offset));
+            params.set('limit', String(Math.min(500, remaining)));
+            params.delete('page');
+
+            return fetch(listGroupUrl + '?' + params.toString(), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                }).catch(function () {
+                    return { ok: response.ok, data: {} };
+                });
+            }).then(function (result) {
+                if (!result.ok || !result.data || !result.data.html) {
+                    showToast((result.data && result.data.message) || 'Could not load more leads.', true);
+                    return false;
+                }
+
+                var beforeCount = groupRows(group).length;
+                if (rowsWrap) {
+                    rowsWrap.insertAdjacentHTML('beforeend', result.data.html);
+                }
+                var afterCount = groupRows(group).length;
+                var added = Math.max(0, afterCount - beforeCount);
+
+                var loaded = parseInt(result.data.loaded, 10);
+                if (isNaN(loaded)) loaded = afterCount;
+                var nextTotal = parseInt(result.data.total, 10);
+                if (!isNaN(nextTotal)) total = nextTotal;
+
+                group.setAttribute('data-offset', String(loaded));
+                group.setAttribute('data-total', String(total));
+                group.setAttribute('data-has-more', loaded < total ? '1' : '0');
+
+                var countEl = group.querySelector('[data-crm-list-group-count]');
+                if (countEl) countEl.textContent = String(total);
+
+                updateListLoadedSummary(added);
+                expandGroupFully(group);
+                return true;
+            }).catch(function () {
+                showToast('Could not load more leads. Please try again.', true);
+                return false;
+            }).finally(function () {
+                loadingGroups[status] = false;
+                button.classList.remove('is-busy');
+                button.disabled = false;
+                if (idle) idle.hidden = false;
+                if (busy) busy.hidden = true;
+            });
+        }
+
+        page.querySelectorAll('[data-crm-list-status-group]').forEach(function (group) {
+            if (group.getAttribute('data-status') === 'form_intake') return;
+            setGroupExpanded(group, false);
+        });
+
+        page.addEventListener('click', function (event) {
+            var seeMore = event.target.closest('[data-crm-list-see-more]');
+            if (seeMore && page.contains(seeMore)) {
+                event.preventDefault();
+                var group = seeMore.closest('[data-crm-list-status-group]');
+                if (!group) return;
+
+                var loaded = groupRows(group).length;
+                var total = parseInt(group.getAttribute('data-total') || '0', 10) || 0;
+                if (loaded >= total) {
+                    expandGroupFully(group);
+                    return;
+                }
+
+                loadAllRemaining(group, seeMore);
+                return;
+            }
+
+            var showLess = event.target.closest('[data-crm-list-show-less]');
+            if (showLess && page.contains(showLess)) {
+                event.preventDefault();
+                var collapseGroupEl = showLess.closest('[data-crm-list-status-group]');
+                if (!collapseGroupEl) return;
+                collapseGroup(collapseGroupEl);
+                collapseGroupEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+    }
 
     page.addEventListener('click', function (event) {
         var createBtn = event.target.closest('[data-crm-lead-create-open]');
@@ -2592,6 +3727,10 @@
                     var card = page.querySelector('[data-crm-board-card][data-lead-id="' + leadId + '"]');
                     if (targetBody && card) {
                         targetBody.appendChild(card);
+                    }
+                    var listRow = page.querySelector('[data-crm-list-row][data-lead-id="' + leadId + '"]');
+                    if (listRow) {
+                        placeListRowInStatusGroup(listRow, value, previousStatus);
                     }
                     handleLeadStatusMetricsChange(leadId, previousStatus, value);
                 }

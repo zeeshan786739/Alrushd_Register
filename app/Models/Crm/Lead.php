@@ -51,6 +51,23 @@ class Lead extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Lead $lead) {
+            if ($lead->list_position !== null || ! $lead->organization_id) {
+                return;
+            }
+
+            // Keep brand-new leads at the top of list/board order.
+            $min = static::query()
+                ->where('organization_id', $lead->organization_id)
+                ->whereNotNull('list_position')
+                ->min('list_position');
+
+            $lead->list_position = $min === null ? 1 : ((int) $min - 1);
+        });
+    }
+
     public function assignedAdmin(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'assigned_to');

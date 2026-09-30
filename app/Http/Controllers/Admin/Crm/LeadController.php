@@ -14,10 +14,11 @@ use App\Http\Requests\Crm\UpdateLeadRequest;
 use App\Models\Admin;
 use App\Models\Crm\Lead;
 use App\Models\Crm\LeadActivity;
-use App\Models\Form;
-use App\Models\FormEntry;
 use App\Models\Crm\LeadCategory;
 use App\Models\Crm\SavedFilter;
+use App\Models\Form;
+use App\Models\FormEntry;
+use App\Models\Organization;
 use App\Services\Crm\CrmTransactionalMailService;
 use App\Services\Crm\FormEntryLeadConverter;
 use App\Services\Crm\LeadConversionException;
@@ -28,6 +29,7 @@ use App\Support\FormEntryContact;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
+use App\Support\LeadPipeline;
 use App\Support\LeadSmartSearch;
 use App\Support\LeadSourceOptions;
 use App\Support\OrganizationContext;
@@ -43,14 +45,16 @@ class LeadController extends Controller
 {
     private const BOARD_COLUMN_BATCH = 20;
 
+    private const LIST_GROUP_BATCH = 4;
+
     public function __construct(
         private LeadConversionService $conversionService,
         private CrmTransactionalMailService $crmMail,
     ) {
-        $this->middleware('permission:view leads')->only(['index', 'show', 'panel', 'boardColumn']);
+        $this->middleware('permission:view leads')->only(['index', 'show', 'panel', 'boardColumn', 'listGroup']);
         $this->middleware('permission:create leads')->only(['create', 'store', 'createPanel']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard',
+            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard', 'reorderPipelineColumns',
         ]);
         $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate', 'bulkUpdateFiltered']);
         $this->middleware('permission:delete leads')->only(['destroy']);
@@ -63,16 +67,21 @@ class LeadController extends Controller
     {
         $viewMode = $request->query('view') === 'list' ? 'list' : 'board';
         $perPage = $viewMode === 'list'
-            ? min(50, max(10, (int) $request->query('per_page', 15)))
+            ? self::LIST_GROUP_BATCH
             : min(100, max(20, (int) $request->query('per_page', 50)));
+        $listGroupBatch = self::LIST_GROUP_BATCH;
 
         $filteredBase = $this->filteredQuery($request);
         $filteredTotal = (int) (clone $filteredBase)->count();
         $boardLeadsByStatus = [];
         $boardLoadedCount = 0;
+        $listLeadsByStatus = [];
+        $listLoadedCount = 0;
+
+        $workflowStatuses = LeadPipeline::orderedStatuses();
 
         if ($viewMode === 'board') {
-            foreach (LeadStatus::cases() as $status) {
+            foreach ($workflowStatuses as $status) {
                 $boardLeadsByStatus[$status->value] = $this->boardColumnLeads(
                     $request,
                     $status->value,
@@ -89,7 +98,35 @@ class LeadController extends Controller
                 ['path' => $request->url(), 'query' => $request->query()]
             );
         } else {
-            $leads = $filteredBase->paginate($perPage)->withQueryString();
+            $statusFilter = $request->filled('lead_status') ? (string) $request->query('lead_status') : null;
+
+            foreach ($workflowStatuses as $status) {
+                if ($statusFilter !== null && $statusFilter !== $status->value) {
+                    continue;
+                }
+
+                $statusTotal = (int) (clone $filteredBase)->where('lead_status', $status->value)->count();
+                if ($statusTotal === 0) {
+                    continue;
+                }
+
+                $chunk = $this->listGroupLeads($request, $status->value, $listGroupBatch, 0);
+                $listLeadsByStatus[$status->value] = [
+                    'leads' => $chunk,
+                    'total' => $statusTotal,
+                    'loaded' => $chunk->count(),
+                    'has_more' => $chunk->count() < $statusTotal,
+                ];
+                $listLoadedCount += $chunk->count();
+            }
+
+            $leads = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(),
+                $filteredTotal,
+                max(1, $listGroupBatch),
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
         }
 
         $orgScope = Lead::forCurrentOrganization();
@@ -151,7 +188,7 @@ class LeadController extends Controller
             app(FormEntryLeadConverter::class)->syncPendingForOrganization(OrganizationContext::idOrFail());
 
             $pendingFormEntries = $this->pendingFormEntriesQuery($request)
-                ->limit($viewMode === 'list' ? $perPage : 50)
+                ->limit($viewMode === 'list' ? $listGroupBatch : 50)
                 ->get()
                 ->map(function (FormEntry $entry) {
                     $entry->setAttribute('contact', FormEntryContact::fromEntry($entry));
@@ -196,8 +233,29 @@ class LeadController extends Controller
             ];
         }
 
-        return view('admin.crm.leads.index', compact('leads', 'stats', 'admins', 'savedFilters', 'categories', 'segments', 'workflowCounts', 'viewMode', 'filteredTotal', 'formStats', 'forms', 'formLeadCounts', 'pendingFormEntries', 'sourceCounts', 'boardLeadsByStatus', 'boardLoadedCount'))
+        return view('admin.crm.leads.index', compact(
+            'leads',
+            'stats',
+            'admins',
+            'savedFilters',
+            'categories',
+            'segments',
+            'workflowCounts',
+            'workflowStatuses',
+            'viewMode',
+            'filteredTotal',
+            'formStats',
+            'forms',
+            'formLeadCounts',
+            'pendingFormEntries',
+            'sourceCounts',
+            'boardLeadsByStatus',
+            'boardLoadedCount',
+            'listLeadsByStatus',
+            'listLoadedCount',
+        ))
             ->with('boardColumnBatch', self::BOARD_COLUMN_BATCH)
+            ->with('listGroupBatch', self::LIST_GROUP_BATCH)
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
                 $forms,
@@ -984,14 +1042,25 @@ class LeadController extends Controller
                 });
             })
             ->when(
-                $request->query('view') !== 'list' || ! $request->filled('sort_by'),
-                fn ($q) => $q->orderByRaw('list_position IS NULL')
-                    ->orderBy('list_position')
-                    ->orderBy('created_at', 'desc'),
+                $request->filled('sort_by') && $request->query('view') === 'list',
                 fn ($q) => $q->orderBy(
                     $request->get('sort_by', 'created_at'),
                     $request->get('sort_order', 'desc')
-                )
+                ),
+                function ($q) use ($request) {
+                    if ($request->query('view') === 'list') {
+                        // Group by pipeline status, newest leads first within each group.
+                        $q->orderByRaw(LeadPipeline::statusOrderSql('lead_status'))
+                            ->orderByDesc('created_at')
+                            ->orderByDesc('id');
+
+                        return;
+                    }
+
+                    $q->orderByRaw('list_position IS NULL')
+                        ->orderBy('list_position')
+                        ->orderBy('created_at', 'desc');
+                }
             );
     }
 
@@ -1016,6 +1085,43 @@ class LeadController extends Controller
 
         $html = view('admin.crm.leads.partials.board-column-cards', [
             'leads' => $leads,
+            'priorityInlineOptions' => $inlineOptions['priorityInlineOptions'],
+            'assigneeInlineOptions' => $inlineOptions['assigneeInlineOptions'],
+        ])->render();
+
+        $loaded = $offset + $leads->count();
+
+        return response()->json([
+            'ok' => true,
+            'html' => $html,
+            'loaded' => $loaded,
+            'total' => $total,
+            'has_more' => $loaded < $total,
+        ]);
+    }
+
+    public function listGroup(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lead_status' => ['required', 'string'],
+            'offset' => ['nullable', 'integer', 'min:0'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+        ]);
+
+        $status = LeadStatus::tryFrom($validated['lead_status']);
+        if (! $status) {
+            return response()->json(['ok' => false, 'message' => 'Invalid pipeline group.'], 422);
+        }
+
+        $offset = (int) ($validated['offset'] ?? 0);
+        $limit = (int) ($validated['limit'] ?? self::LIST_GROUP_BATCH);
+        $total = (int) $this->filteredQuery($request)->where('lead_status', $status->value)->count();
+        $leads = $this->listGroupLeads($request, $status->value, $limit, $offset);
+        $inlineOptions = $this->listRowInlineOptions();
+
+        $html = view('admin.crm.leads.partials.list-group-rows', [
+            'leads' => $leads,
+            'statusInlineOptions' => $inlineOptions['statusInlineOptions'],
             'priorityInlineOptions' => $inlineOptions['priorityInlineOptions'],
             'assigneeInlineOptions' => $inlineOptions['assigneeInlineOptions'],
         ])->render();
@@ -1065,6 +1171,25 @@ class LeadController extends Controller
         ]);
     }
 
+    public function reorderPipelineColumns(Request $request): JsonResponse
+    {
+        $allowed = array_column(LeadStatus::cases(), 'value');
+
+        $validated = $request->validate([
+            'statuses' => ['required', 'array', 'size:'.count($allowed)],
+            'statuses.*' => ['required', 'string', 'distinct', 'in:'.implode(',', $allowed)],
+        ]);
+
+        $organization = Organization::query()->findOrFail(OrganizationContext::idOrFail());
+        $ordered = LeadPipeline::saveOrder($organization, $validated['statuses']);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Pipeline columns reordered.',
+            'statuses' => array_map(static fn (LeadStatus $status) => $status->value, $ordered),
+        ]);
+    }
+
     public function reorderList(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -1106,6 +1231,44 @@ class LeadController extends Controller
             ->offset($offset)
             ->limit($limit)
             ->get();
+    }
+
+    private function listGroupLeads(Request $request, string $status, int $limit, int $offset)
+    {
+        $request->merge(['view' => 'list']);
+
+        return $this->filteredQuery($request)
+            ->where('lead_status', $status)
+            ->offset($offset)
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * @return array{
+     *     statusInlineOptions: array<string, array{label: string, tone: string, icon: string}>,
+     *     priorityInlineOptions: array<string, array{label: string, tone: string, icon: string}>,
+     *     assigneeInlineOptions: array<string, array{label: string, tone: string, icon: string}>
+     * }
+     */
+    private function listRowInlineOptions(): array
+    {
+        $statusInlineOptions = [];
+        foreach (LeadStatus::cases() as $status) {
+            $statusInlineOptions[$status->value] = [
+                'label' => $status->label(),
+                'tone' => CrmStatusTone::for($status->value),
+                'icon' => CrmStatusTone::icon($status->value),
+            ];
+        }
+
+        $cardOptions = $this->boardCardInlineOptions();
+
+        return [
+            'statusInlineOptions' => $statusInlineOptions,
+            'priorityInlineOptions' => $cardOptions['priorityInlineOptions'],
+            'assigneeInlineOptions' => $cardOptions['assigneeInlineOptions'],
+        ];
     }
 
     /** @return array{priorityInlineOptions: array<string, array{label: string, tone: string, icon: string}>, assigneeInlineOptions: array<string, array{label: string, tone: string, icon: string}>} */
