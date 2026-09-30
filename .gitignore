@@ -7,6 +7,10 @@ Thumbs.db
 .env.backup
 auth.json
 
+.env
+.env.*
+!.env.example
+
 # PHP / Composer
 /vendor
 .phpactor.json
@@ -58,3 +62,7 @@ pnpm-debug.log*
 Homestead.json
 Homestead.yaml
 config.bat
+
+.env
+.env.*
+!.env.example
