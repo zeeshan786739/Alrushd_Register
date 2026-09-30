@@ -2468,9 +2468,6 @@
 
         listDragArm.dragging = true;
         row.classList.add('is-dragging');
-        if (listDragArm.startX != null && listDragArm.startY != null) {
-            autoScrollListWhileDragging(listDragArm.startX, listDragArm.startY);
-        }
     }
 
     function endListRowDrag() {
@@ -2541,7 +2538,6 @@
     var rowOpenTimer = null;
     var listAutoScroll = {
         active: false,
-        htmlDrag: false,
         clientX: 0,
         clientY: 0,
         rafId: null
@@ -2549,78 +2545,80 @@
 
     function stopListAutoScroll() {
         listAutoScroll.active = false;
-        listAutoScroll.htmlDrag = false;
         if (listAutoScroll.rafId) {
             cancelAnimationFrame(listAutoScroll.rafId);
             listAutoScroll.rafId = null;
         }
     }
 
+    function listDragScrollParents() {
+        var parents = [];
+        var seen = {};
+        var el = page;
+
+        while (el && el !== document.documentElement) {
+            if (el.nodeType === 1) {
+                var style = window.getComputedStyle(el);
+                var overflowY = style.overflowY;
+                var canScroll = (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+                    && el.scrollHeight > el.clientHeight + 1;
+                if (canScroll && !seen[el]) {
+                    parents.push(el);
+                    seen[el] = true;
+                }
+            }
+            el = el.parentElement;
+        }
+
+        var root = document.scrollingElement || document.documentElement;
+        if (root && !seen[root]) parents.push(root);
+        if (document.body && !seen[document.body]) parents.push(document.body);
+        return parents;
+    }
+
     function scrollListDragBy(delta) {
         if (!delta) return false;
 
-        var nodes = [];
-        var el = page;
-        while (el) {
-            nodes.push(el);
-            el = el.parentElement;
-        }
-        nodes.push(document.scrollingElement || document.documentElement);
-        nodes.push(document.documentElement);
-        nodes.push(document.body);
-
-        var unique = [];
-        nodes.forEach(function (node) {
-            if (node && unique.indexOf(node) === -1) unique.push(node);
-        });
-
-        for (var i = 0; i < unique.length; i++) {
-            var node = unique[i];
-            try {
-                var before = node.scrollTop;
-                if (typeof before !== 'number' || isNaN(before)) continue;
-                node.scrollTop = before + delta;
-                if (Math.abs((node.scrollTop || 0) - before) > 0.5) {
-                    return true;
-                }
-            } catch (err) {}
+        var parents = listDragScrollParents();
+        for (var i = 0; i < parents.length; i++) {
+            var el = parents[i];
+            var before = el.scrollTop;
+            var max = Math.max(0, el.scrollHeight - el.clientHeight);
+            var next = Math.max(0, Math.min(max, before + delta));
+            if (next !== before) {
+                el.scrollTop = next;
+                if (el.scrollTop !== before) return true;
+            }
         }
 
         var yBefore = window.pageYOffset || document.documentElement.scrollTop || 0;
-        try {
-            window.scrollBy(0, delta);
-        } catch (err2) {}
+        window.scrollBy(0, delta);
         var yAfter = window.pageYOffset || document.documentElement.scrollTop || 0;
-        return Math.abs(yAfter - yBefore) > 0.5;
+        return yAfter !== yBefore;
     }
 
     function tickListAutoScroll() {
-        var pointerDragging = !!(listDragArm && listDragArm.dragging);
-        var htmlDragging = !!(listAutoScroll.htmlDrag && draggedItem && draggedItem.hasAttribute('data-crm-list-row'));
-
-        if (!listAutoScroll.active || (!pointerDragging && !htmlDragging)) {
+        if (!listAutoScroll.active || !listDragArm || !listDragArm.dragging) {
             stopListAutoScroll();
             return;
         }
 
-        var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-        var edge = Math.max(140, Math.min(240, viewportHeight * 0.28));
-        var maxSpeed = 36;
+        var edge = 120;
+        var maxSpeed = 32;
         var clientY = listAutoScroll.clientY;
+        var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
         var delta = 0;
 
         if (clientY <= edge) {
-            delta = -maxSpeed * Math.max(0.35, (edge - Math.max(0, clientY)) / edge);
+            delta = -maxSpeed * Math.max(0.25, Math.pow((edge - Math.max(0, clientY)) / edge, 1.05));
         } else if (clientY >= viewportHeight - edge) {
-            delta = maxSpeed * Math.max(0.35, (clientY - (viewportHeight - edge)) / edge);
+            delta = maxSpeed * Math.max(0.25, Math.pow((clientY - (viewportHeight - edge)) / edge, 1.05));
         }
 
         if (delta !== 0) {
             scrollListDragBy(delta);
-            if (pointerDragging) {
-                updateListRowReorder(listAutoScroll.clientX, listAutoScroll.clientY);
-                updateListDropHover(listDropZoneAt(listAutoScroll.clientX, listAutoScroll.clientY));
-            }
+            updateListRowReorder(listAutoScroll.clientX, listAutoScroll.clientY);
+            updateListDropHover(listDropZoneAt(listAutoScroll.clientX, listAutoScroll.clientY));
         }
 
         listAutoScroll.rafId = requestAnimationFrame(tickListAutoScroll);
@@ -2641,22 +2639,6 @@
         }
     }
 
-    function autoScrollListHtmlDrag(clientX, clientY) {
-        if (!draggedItem || !draggedItem.hasAttribute('data-crm-list-row')) {
-            return;
-        }
-
-        listAutoScroll.clientX = clientX;
-        listAutoScroll.clientY = clientY;
-
-        // Reuse the RAF loop; tick checks listDragArm.dragging OR html-drag flag.
-        listAutoScroll.htmlDrag = true;
-
-        if (!listAutoScroll.active) {
-            listAutoScroll.active = true;
-            listAutoScroll.rafId = requestAnimationFrame(tickListAutoScroll);
-        }
-    }
     function cancelRowOpenTimer() {
         if (!rowOpenTimer) return;
         clearTimeout(rowOpenTimer);
@@ -3043,7 +3025,6 @@
                 event.dataTransfer.effectAllowed = 'move';
                 event.dataTransfer.setData('text/plain', listRow.getAttribute('data-lead-id') || 'lead');
             }
-            autoScrollListHtmlDrag(event.clientX || 0, event.clientY || 0);
             return;
         }
 
@@ -3102,27 +3083,18 @@
         if (!draggedItem) return;
 
         if (draggedItem.hasAttribute('data-crm-list-row')) {
-            // Keep page scrolling while the pointer is near the viewport edges.
-            event.preventDefault();
-            autoScrollListHtmlDrag(event.clientX, event.clientY);
-
             var targetRow = listRowFromTarget(event.target);
             if (targetRow && targetRow !== draggedItem) {
+                event.preventDefault();
                 clearListReorderHighlights();
                 targetRow.classList.add('is-reorder-over');
                 if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
                 return;
             }
 
-            var groupAtPoint = event.target.closest
-                ? event.target.closest('[data-crm-list-status-group][data-status]')
-                : null;
-            if (groupAtPoint && page.contains(groupAtPoint) && groupAtPoint.getAttribute('data-status') !== 'form_intake') {
-                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-            }
-
             var listZone = resolveListDropZone(event.target);
             if (listZone && page.contains(listZone)) {
+                event.preventDefault();
                 clearListReorderHighlights();
                 clearDropzoneHighlights();
                 listZone.classList.add('is-drag-over');
@@ -3154,49 +3126,9 @@
         if (!draggedItem) return;
 
         if (draggedItem.hasAttribute('data-crm-list-row')) {
-            stopListAutoScroll();
-
             var dropRow = listRowFromTarget(event.target);
-            if (dropRow && dropRow !== draggedItem) {
-                var targetGroup = dropRow.closest('[data-crm-list-status-group][data-status]');
-                var targetStatus = targetGroup ? targetGroup.getAttribute('data-status') : '';
-                var originStatus = draggedItem.getAttribute('data-current-status') || '';
-
-                if (targetStatus && targetStatus !== 'form_intake' && targetStatus !== originStatus) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    clearListReorderHighlights();
-                    clearDropzoneHighlights();
-                    // Place relative to the hovered row, then convert status.
-                    var rect = dropRow.getBoundingClientRect();
-                    if (event.clientY >= rect.top + (rect.height / 2)) {
-                        dropRow.after(draggedItem);
-                    } else {
-                        dropRow.before(draggedItem);
-                    }
-                    applyLeadStatusDrop(draggedItem, targetGroup);
-                    return;
-                }
-
-                if (handleListRowDrop(draggedItem, dropRow, event)) {
-                    return;
-                }
-            }
-
-            var dropGroup = event.target.closest
-                ? event.target.closest('[data-crm-list-status-group][data-status]')
-                : null;
-            if (dropGroup && page.contains(dropGroup) && dropGroup.getAttribute('data-status') !== 'form_intake') {
-                var groupStatus = dropGroup.getAttribute('data-status');
-                var fromStatus = draggedItem.getAttribute('data-current-status') || '';
-                if (groupStatus && groupStatus !== fromStatus) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    clearListReorderHighlights();
-                    clearDropzoneHighlights();
-                    applyLeadStatusDrop(draggedItem, dropGroup);
-                    return;
-                }
+            if (dropRow && handleListRowDrop(draggedItem, dropRow, event)) {
+                return;
             }
 
             var listZone = resolveListDropZone(event.target);
@@ -3220,16 +3152,7 @@
         clearDropzoneHighlights();
     });
 
-    document.addEventListener('dragover', function (event) {
-        if (!draggedItem || !draggedItem.hasAttribute('data-crm-list-row')) return;
-        // Allows auto-scroll + drops when the pointer is over empty page chrome near edges.
-        event.preventDefault();
-        autoScrollListHtmlDrag(event.clientX, event.clientY);
-    }, true);
-
     page.addEventListener('dragend', function (event) {
-        stopListAutoScroll();
-
         var finishingCard = boardCardDrag && draggedItem && draggedItem.hasAttribute('data-crm-board-card');
         var cancelled = !finishingCard
             ? false
