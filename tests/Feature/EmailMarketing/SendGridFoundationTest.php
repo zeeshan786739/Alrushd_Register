@@ -8,6 +8,9 @@ use App\Models\EmailMarketing\ProviderEvent;
 use App\Services\EmailMarketing\Delivery\EmailDeliveryService;
 use App\Services\EmailMarketing\Delivery\OutboundEmail;
 use App\Services\EmailMarketing\Delivery\SendGridMailProvider;
+use App\Support\EmailMarketingDashboard;
+use Illuminate\Encryption\Encrypter;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -102,6 +105,29 @@ class SendGridFoundationTest extends EmailMarketingTestCase
         $this->assertSame($webhookKey, $settings->sendgrid_event_webhook_public_key);
         $this->assertNotSame($apiKey, $settings->getRawOriginal('sendgrid_api_key'));
         $this->assertNotSame($webhookKey, $settings->getRawOriginal('sendgrid_event_webhook_public_key'));
+    }
+
+    public function test_dashboard_survives_sendgrid_key_encrypted_with_another_app_key(): void
+    {
+        config(['sendgrid.api_key' => null]);
+
+        $this->enableMailbox();
+
+        $foreign = new Encrypter(random_bytes(32), config('app.cipher'));
+        DB::table('em_mailbox_settings')
+            ->where('organization_id', $this->organizationA->id)
+            ->update(['sendgrid_api_key' => $foreign->encrypt('SG.foreign-key', false)]);
+
+        $settings = MailboxSetting::query()
+            ->where('organization_id', $this->organizationA->id)
+            ->firstOrFail();
+
+        $this->assertNull($settings->sendgrid_api_key);
+
+        $stats = EmailMarketingDashboard::stats($this->organizationA->id);
+
+        $this->assertFalse($stats['sendgrid_ready']);
+        $this->assertTrue($stats['mailbox_connected']);
     }
 
     public function test_sendgrid_provider_prefers_the_tenant_api_key(): void

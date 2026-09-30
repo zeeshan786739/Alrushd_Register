@@ -2,6 +2,7 @@
 
 namespace App\Models\EmailMarketing;
 
+use App\Casts\SafeEncrypted;
 use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,10 +31,10 @@ class MailboxSetting extends Model
     protected function casts(): array
     {
         return [
-            'sendgrid_api_key' => 'encrypted',
-            'sendgrid_event_webhook_public_key' => 'encrypted',
-            'smtp_password' => 'encrypted',
-            'imap_password' => 'encrypted',
+            'sendgrid_api_key' => SafeEncrypted::class,
+            'sendgrid_event_webhook_public_key' => SafeEncrypted::class,
+            'smtp_password' => SafeEncrypted::class,
+            'imap_password' => SafeEncrypted::class,
             'validate_cert' => 'boolean',
             'tracking_enabled' => 'boolean',
             'open_tracking' => 'boolean',

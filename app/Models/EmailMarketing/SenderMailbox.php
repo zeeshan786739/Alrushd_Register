@@ -2,6 +2,7 @@
 
 namespace App\Models\EmailMarketing;
 
+use App\Casts\SafeEncrypted;
 use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +25,7 @@ class SenderMailbox extends Model
     protected function casts(): array
     {
         return [
-            'imap_password' => 'encrypted',
+            'imap_password' => SafeEncrypted::class,
             'is_verified' => 'boolean',
             'is_default' => 'boolean',
             'is_active' => 'boolean',

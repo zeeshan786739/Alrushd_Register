@@ -2,6 +2,7 @@
 
 namespace App\Models\Integrations;
 
+use App\Casts\SafeEncrypted;
 use App\Enums\IntegrationConnectionStatus;
 use App\Enums\IntegrationPlatform;
 use App\Models\Admin;
@@ -35,7 +36,7 @@ class IntegrationConnection extends Model
         return [
             'platform' => IntegrationPlatform::class,
             'status' => IntegrationConnectionStatus::class,
-            'access_token' => 'encrypted',
+            'access_token' => SafeEncrypted::class,
             'token_expires_at' => 'datetime',
             'webhook_subscribed_at' => 'datetime',
             'last_webhook_at' => 'datetime',

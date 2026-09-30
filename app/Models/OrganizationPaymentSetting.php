@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\SafeEncrypted;
 use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,8 +33,8 @@ class OrganizationPaymentSetting extends Model
         return [
             'is_enabled' => 'boolean',
             'test_mode' => 'boolean',
-            'stripe_secret' => 'encrypted',
-            'stripe_webhook_secret' => 'encrypted',
+            'stripe_secret' => SafeEncrypted::class,
+            'stripe_webhook_secret' => SafeEncrypted::class,
             'last_verified_at' => 'datetime',
         ];
     }
