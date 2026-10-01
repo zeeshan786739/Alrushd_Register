@@ -11,23 +11,62 @@ class LeadPipeline
 
     /**
      * Ordered pipeline statuses for the current (or given) organization.
-     * Saved order is merged with any new enum cases so deploys never drop columns.
+     * Built-in enum statuses stay first (with saved reorder), then org custom statuses.
      *
-     * @return list<LeadStatus>
+     * @return list<LeadStatusOption>
      */
     public static function orderedStatuses(?Organization $organization = null): array
+    {
+        $organization ??= self::currentOrganization();
+        $system = self::orderedSystemStatuses($organization);
+        $custom = LeadStatusCatalog::customOptions($organization);
+
+        $byValue = [];
+        foreach (array_merge($system, $custom) as $status) {
+            $byValue[$status->value] = $status;
+        }
+
+        $saved = self::savedOrder($organization);
+        if ($saved === []) {
+            return array_values($byValue);
+        }
+
+        $ordered = [];
+        foreach ($saved as $value) {
+            if (isset($byValue[$value])) {
+                $ordered[] = $byValue[$value];
+                unset($byValue[$value]);
+            }
+        }
+
+        foreach ($byValue as $status) {
+            $ordered[] = $status;
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * @return list<LeadStatusOption>
+     */
+    public static function orderedSystemStatuses(?Organization $organization = null): array
     {
         $organization ??= self::currentOrganization();
         $defaults = LeadStatus::cases();
         $saved = self::savedOrder($organization);
 
-        if ($saved === []) {
-            return $defaults;
-        }
-
         $byValue = [];
         foreach ($defaults as $status) {
-            $byValue[$status->value] = $status;
+            $byValue[$status->value] = new LeadStatusOption(
+                value: $status->value,
+                labelText: $status->label(),
+                tone: CrmStatusTone::for($status->value),
+                isCustom: false,
+            );
+        }
+
+        if ($saved === []) {
+            return array_values($byValue);
         }
 
         $ordered = [];
@@ -52,9 +91,13 @@ class LeadPipeline
     public static function statusOrderSql(string $column = 'lead_status'): string
     {
         $values = array_map(
-            static fn (LeadStatus $status): string => "'".str_replace("'", "''", $status->value)."'",
+            static fn (LeadStatusOption $status): string => "'".str_replace("'", "''", $status->value)."'",
             self::orderedStatuses()
         );
+
+        if ($values === []) {
+            return '0';
+        }
 
         return 'FIELD('.$column.', '.implode(', ', $values).')';
     }
@@ -63,11 +106,11 @@ class LeadPipeline
      * Persist a full pipeline column order for an organization.
      *
      * @param  list<string>  $statuses
-     * @return list<LeadStatus>
+     * @return list<LeadStatusOption>
      */
     public static function saveOrder(Organization $organization, array $statuses): array
     {
-        $allowed = array_column(LeadStatus::cases(), 'value');
+        $allowed = LeadStatusCatalog::values($organization);
         $normalized = [];
 
         foreach ($statuses as $value) {
@@ -93,10 +136,7 @@ class LeadPipeline
         $organization->metadata = $metadata;
         $organization->save();
 
-        return array_map(
-            static fn (string $value): LeadStatus => LeadStatus::from($value),
-            $normalized
-        );
+        return self::orderedStatuses($organization);
     }
 
     /**

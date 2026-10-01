@@ -10,7 +10,7 @@
                 <span>Status</span>
                 <select class="form-select form-select-sm" data-crm-bulk-status>
                     <option value="">Choose…</option>
-                    @foreach(\App\Enums\LeadStatus::cases() as $status)
+                    @foreach(\App\Support\LeadStatusCatalog::ordered() as $status)
                         <option value="{{ $status->value }}">{{ $status->label() }}</option>
                     @endforeach
                 </select>

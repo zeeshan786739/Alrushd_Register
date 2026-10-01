@@ -81,6 +81,10 @@ final class LeadCategoryUi
     {
         $tone = trim((string) $tone);
 
+        if (CrmColorPalette::isHex($tone)) {
+            return strtoupper($tone);
+        }
+
         return isset(self::colors()[$tone]) || in_array($tone, ['caution'], true)
             ? $tone
             : self::DEFAULT_TONE;

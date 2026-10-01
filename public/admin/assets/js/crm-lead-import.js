@@ -1,6 +1,5 @@
 /**
- * Lead import wizard: category selection unlocks premium drag-and-drop upload.
- * Category create/delete run over AJAX — no page reload.
+ * Lead import: category select + add category, drag-and-drop upload.
  */
 (function () {
     'use strict';
@@ -13,25 +12,27 @@
     var dropZone = page.querySelector('[data-crm-import-dropzone]');
     var fileInput = page.querySelector('[data-crm-import-file-input]');
     var hiddenCategory = page.querySelector('[data-crm-import-category-hidden]');
+    var categorySelect = page.querySelector('[data-crm-import-category-select]');
     var submitBtn = page.querySelector('[data-crm-import-submit]');
     var filePreview = page.querySelector('[data-crm-import-file-preview]');
+    var dropzoneEmpty = page.querySelector('[data-crm-import-dropzone-empty]');
     var fileNameEl = page.querySelector('[data-crm-import-file-name]');
     var fileSizeEl = page.querySelector('[data-crm-import-file-size]');
     var clearFileBtn = page.querySelector('[data-crm-import-clear-file]');
-    var uploadLock = page.querySelector('[data-crm-import-upload-lock]');
     var toastSlot = page.querySelector('[data-crm-toast-slot]');
-    var categoryList = page.querySelector('[data-crm-category-list]');
-    var categoryEmpty = page.querySelector('[data-crm-import-category-empty]');
-    var categoryToolbar = page.querySelector('[data-crm-import-category-toolbar]');
-    var createPanel = page.querySelector('[data-crm-import-category-create-panel]');
+    var addPanel = page.querySelector('[data-crm-import-category-add-panel]');
+    var addToggle = page.querySelector('[data-crm-import-add-category-toggle]');
+    var addCancel = page.querySelector('[data-crm-import-add-category-cancel]');
     var csrf = page.getAttribute('data-csrf') || '';
 
     function selectedCategoryId() {
+        if (categorySelect) {
+            return categorySelect.value || '';
+        }
         if (hiddenCategory && hiddenCategory.value) {
             return hiddenCategory.value;
         }
-        var checked = page.querySelector('[data-crm-import-category-input]:checked');
-        return checked ? checked.value : '';
+        return '';
     }
 
     function formatBytes(bytes) {
@@ -69,136 +70,53 @@
             hiddenCategory.value = selectedCategoryId();
         }
 
-        if (uploadLock) {
-            uploadLock.classList.toggle('is-hidden', hasCategory);
-        }
         if (dropZone) {
             dropZone.classList.toggle('is-locked', !hasCategory);
         }
         if (submitBtn) {
             submitBtn.disabled = !hasCategory || !hasFile;
         }
-
-        page.querySelectorAll('[data-crm-import-step]').forEach(function (step) {
-            var n = step.getAttribute('data-crm-import-step');
-            step.classList.toggle('is-complete', n === '1' && hasCategory);
-            step.classList.toggle('is-active', (n === '1' && !hasCategory) || (n === '2' && hasCategory && !hasFile) || (n === '2' && hasCategory && hasFile));
-        });
     }
 
     function selectCategory(id) {
-        page.querySelectorAll('[data-crm-import-category-input]').forEach(function (input) {
-            input.checked = input.value === String(id);
-        });
-        page.querySelectorAll('[data-crm-import-category-card]').forEach(function (card) {
-            card.classList.toggle('is-selected', card.getAttribute('data-category-id') === String(id));
-        });
-        page.querySelectorAll('.crm-category-choice').forEach(function (choice) {
-            var inner = choice.querySelector('[data-crm-import-category-input]');
-            choice.classList.toggle('is-selected', inner && inner.checked);
-        });
+        if (categorySelect) {
+            categorySelect.value = String(id);
+            if (categorySelect.disabled && id) {
+                categorySelect.disabled = false;
+            }
+            var placeholder = categorySelect.querySelector('option[value=""]');
+            if (placeholder && id) {
+                placeholder.textContent = 'Select a category…';
+            }
+        }
         syncUploadState();
     }
 
-    function clearCategorySelection() {
-        page.querySelectorAll('[data-crm-import-category-input]').forEach(function (input) {
-            input.checked = false;
-        });
-        page.querySelectorAll('[data-crm-import-category-card], .crm-category-choice').forEach(function (el) {
-            el.classList.remove('is-selected');
-        });
-        if (hiddenCategory) hiddenCategory.value = '';
-        syncUploadState();
+    function leadsCountLabel(count) {
+        var n = parseInt(count, 10) || 0;
+        return n === 1 ? '1 lead' : n.toLocaleString() + ' leads';
     }
 
-    function ensureCategoryListVisible() {
-        if (categoryEmpty) categoryEmpty.classList.add('d-none');
-        if (categoryToolbar) categoryToolbar.classList.remove('d-none');
-        if (categoryList) categoryList.classList.remove('d-none');
+    function addCategoryOption(category, selected) {
+        if (!categorySelect) return;
+        var opt = document.createElement('option');
+        opt.value = String(category.id);
+        opt.setAttribute('data-leads-count', String(category.leads_count || 0));
+        opt.textContent = category.name + ' · ' + leadsCountLabel(category.leads_count);
+        if (selected) opt.selected = true;
+        categorySelect.appendChild(opt);
+        categorySelect.disabled = false;
     }
 
-    function updateEmptyState() {
-        var count = categoryList ? categoryList.querySelectorAll('[data-crm-import-category-card]').length : 0;
-        if (count === 0) {
-            if (categoryEmpty) categoryEmpty.classList.remove('d-none');
-            if (categoryToolbar) categoryToolbar.classList.add('d-none');
-            if (categoryList) categoryList.classList.add('d-none');
-            clearCategorySelection();
+    function setAddPanelOpen(open) {
+        if (!addPanel) return;
+        addPanel.classList.toggle('d-none', !open);
+        if (addToggle) {
+            addToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         }
-    }
-
-    function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function buildCategoryCard(category, selected) {
-        var leadsLabel = category.leads_count === 1 ? 'lead' : 'leads';
-        var deleteForm = category.leads_count === 0
-            ? '<form method="POST" action="' + escapeHtml(category.destroy_url) + '" class="crm-import-category-delete" data-crm-category-delete-form data-crm-category-delete-ajax="1">'
-                + '<input type="hidden" name="_token" value="' + escapeHtml(csrf) + '">'
-                + '<input type="hidden" name="_method" value="DELETE">'
-                + '<button type="submit" class="crm-import-category-delete__btn" title="Delete empty category">'
-                + '<iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon></button></form>'
-            : '';
-
-        var html = ''
-            + '<div class="crm-import-category-card crm-import-category-card--enter' + (selected ? ' is-selected' : '') + '"'
-            + ' data-crm-category-item data-crm-import-category-card'
-            + ' data-category-id="' + category.id + '"'
-            + ' data-name="' + escapeHtml((category.name || '').toLowerCase()) + '"'
-            + ' data-tone="' + escapeHtml(category.tone) + '">'
-            + '<label class="crm-category-choice' + (selected ? ' is-selected' : '') + '" data-tone="' + escapeHtml(category.tone) + '">'
-            + '<input type="radio" name="lead_category_id" value="' + category.id + '" class="crm-category-choice__input" data-crm-import-category-input' + (selected ? ' checked' : '') + '>'
-            + '<span class="crm-category-choice__icon"><iconify-icon icon="' + escapeHtml(category.icon) + '"></iconify-icon></span>'
-            + '<span class="crm-category-choice__body">'
-            + '<span class="crm-category-choice__name">' + escapeHtml(category.name) + '</span>'
-            + '<span class="crm-category-choice__meta">' + category.leads_count + ' ' + leadsLabel + '</span>'
-            + '</span>'
-            + '<span class="crm-category-choice__check" aria-hidden="true"><iconify-icon icon="solar:check-circle-bold"></iconify-icon></span>'
-            + '</label>'
-            + deleteForm
-            + '</div>';
-
-        var wrap = document.createElement('div');
-        wrap.innerHTML = html;
-        return wrap.firstElementChild;
-    }
-
-    function bindCategoryCard(card) {
-        if (!card || card.getAttribute('data-bound') === '1') return;
-        card.setAttribute('data-bound', '1');
-
-        var input = card.querySelector('[data-crm-import-category-input]');
-        if (input) {
-            input.addEventListener('change', function () {
-                selectCategory(input.value);
-            });
-        }
-
-        var deleteForm = card.querySelector('[data-crm-category-delete-form]');
-        if (deleteForm) {
-            deleteForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                var nameEl = card.querySelector('.crm-category-choice__name');
-                var label = nameEl ? nameEl.textContent : 'this category';
-                if (!window.confirm('Delete category “' + label + '”? This cannot be undone.')) {
-                    return;
-                }
-                deleteCategory(deleteForm, card);
-            });
-        }
-    }
-
-    function bindCategoryCards(root) {
-        (root || page).querySelectorAll('[data-crm-import-category-card]').forEach(bindCategoryCard);
-    }
-
-    function scrollToUpload() {
-        var panel = page.querySelector('[data-crm-import-upload-panel]');
-        if (panel) {
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (open) {
+            var nameInput = addPanel.querySelector('[data-crm-preview-name]');
+            if (nameInput) nameInput.focus();
         }
     }
 
@@ -231,7 +149,7 @@
         fetchJson(form.action, {
             method: 'POST',
             headers: {
-                'Accept': 'application/json',
+                Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
             },
             body: new FormData(form),
@@ -256,73 +174,25 @@
             }
 
             var category = result.data.category;
-            if (!category || !categoryList) return;
+            if (!category) return;
 
-            ensureCategoryListVisible();
-            var card = buildCategoryCard(category, true);
-            categoryList.prepend(card);
-            bindCategoryCard(card);
+            var exists = categorySelect && categorySelect.querySelector('option[value="' + category.id + '"]');
+            if (!exists) {
+                addCategoryOption(category, true);
+            } else {
+                selectCategory(category.id);
+            }
             selectCategory(category.id);
 
             form.reset();
-            var iconInput = form.querySelector('[data-crm-preview-icon-input]');
-            var toneInput = form.querySelector('[data-crm-preview-tone-input]');
-            if (iconInput) iconInput.value = 'solar:folder-with-files-linear';
-            if (toneInput) toneInput.value = 'info';
-            form.querySelectorAll('[data-crm-icon-option]').forEach(function (btn, i) {
-                btn.classList.toggle('is-selected', i === 0);
-            });
-            form.querySelectorAll('[data-crm-color-option]').forEach(function (btn, i) {
-                btn.classList.toggle('is-selected', i === 0);
-            });
-            var previewName = form.querySelector('[data-crm-preview-name-label]');
-            if (previewName) previewName.textContent = 'Category name';
-
-            if (createPanel) createPanel.open = false;
-
+            setAddPanelOpen(false);
             showToast(result.data.message || 'Category created.');
-            scrollToUpload();
         }).catch(function () {
             if (submit) {
                 submit.disabled = false;
                 submit.classList.remove('is-busy');
             }
             showToast('Could not create category. Please try again.', true);
-        });
-    }
-
-    function deleteCategory(form, card) {
-        var btn = form.querySelector('button');
-        if (btn) btn.disabled = true;
-
-        fetchJson(form.action, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(new FormData(form)).toString(),
-        }).then(function (result) {
-            if (btn) btn.disabled = false;
-
-            if (!result.ok) {
-                showToast((result.data && result.data.message) || 'Could not delete category.', true);
-                return;
-            }
-
-            var wasSelected = card.classList.contains('is-selected');
-            card.classList.add('crm-import-category-card--leave');
-            setTimeout(function () {
-                card.remove();
-                if (wasSelected) clearCategorySelection();
-                updateEmptyState();
-            }, 180);
-
-            showToast(result.data.message || 'Category deleted.');
-        }).catch(function () {
-            if (btn) btn.disabled = false;
-            showToast('Could not delete category. Please try again.', true);
         });
     }
 
@@ -343,12 +213,14 @@
         var icon = filePreview.querySelector('[data-crm-import-file-icon]');
         if (icon) icon.setAttribute('icon', extensionIcon(file.name));
         filePreview.classList.remove('d-none');
+        if (dropzoneEmpty) dropzoneEmpty.classList.add('d-none');
         if (dropZone) dropZone.classList.add('has-file');
     }
 
     function clearFile() {
         if (fileInput) fileInput.value = '';
         if (filePreview) filePreview.classList.add('d-none');
+        if (dropzoneEmpty) dropzoneEmpty.classList.remove('d-none');
         if (dropZone) dropZone.classList.remove('has-file');
         syncUploadState();
     }
@@ -411,6 +283,23 @@
         }
     }
 
+    if (categorySelect) {
+        categorySelect.addEventListener('change', syncUploadState);
+    }
+
+    if (addToggle) {
+        addToggle.addEventListener('click', function () {
+            var open = addPanel && addPanel.classList.contains('d-none');
+            setAddPanelOpen(!!open);
+        });
+    }
+
+    if (addCancel) {
+        addCancel.addEventListener('click', function () {
+            setAddPanelOpen(false);
+        });
+    }
+
     if (uploadForm) {
         uploadForm.addEventListener('submit', function () {
             if (submitBtn) {
@@ -420,7 +309,6 @@
         });
     }
 
-    bindCategoryCards(page);
     bindCreateForm();
     bindDropzone();
     syncUploadState();

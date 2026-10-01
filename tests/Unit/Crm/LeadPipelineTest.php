@@ -5,6 +5,7 @@ namespace Tests\Unit\Crm;
 use App\Enums\LeadStatus;
 use App\Models\Organization;
 use App\Support\LeadPipeline;
+use App\Support\LeadStatusOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,10 +21,12 @@ class LeadPipelineTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->assertSame(
-            LeadStatus::cases(),
+        $values = array_map(
+            static fn (LeadStatusOption $status) => $status->value,
             LeadPipeline::orderedStatuses($organization)
         );
+
+        $this->assertSame(array_column(LeadStatus::cases(), 'value'), $values);
     }
 
     public function test_save_order_persists_and_appends_missing_statuses(): void
@@ -36,7 +39,7 @@ class LeadPipelineTest extends TestCase
 
         $partial = ['qualified', 'new', 'contacted'];
         $ordered = LeadPipeline::saveOrder($organization, $partial);
-        $values = array_map(static fn (LeadStatus $status) => $status->value, $ordered);
+        $values = array_map(static fn (LeadStatusOption $status) => $status->value, $ordered);
 
         $this->assertSame('qualified', $values[0]);
         $this->assertSame('new', $values[1]);

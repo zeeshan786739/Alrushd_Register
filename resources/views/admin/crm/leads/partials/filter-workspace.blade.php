@@ -12,11 +12,10 @@
     $activeFormId = request('form_id');
     $activePlatform = request('advertising_platform');
 
-    $filterUrl = fn (array $merge = [], array $except = []) => route('admin.crm.leads.index', array_merge(
-        request()->except(array_merge(['page'], $except)),
-        $merge,
-        ['view' => $viewMode]
-    ));
+    $filterUrl = fn (array $merge = [], array $except = []) => \App\Support\CrmLeadFilterUrl::for(
+        array_merge($merge, ['view' => $viewMode]),
+        $except
+    );
 
     $totalLeads = (int) ($segments['all']['total'] ?? array_sum($sourceCounts));
 
@@ -302,7 +301,7 @@
                     <label for="lead_status">Status</label>
                     <select name="lead_status" id="lead_status" class="form-select" data-crm-filter-auto-submit>
                         <option value="">Any status</option>
-                        @foreach(\App\Enums\LeadStatus::options() as $optValue => $optLabel)
+                        @foreach(\App\Support\LeadStatusCatalog::options() as $optValue => $optLabel)
                             <option value="{{ $optValue }}" @selected(request('lead_status') == $optValue)>{{ $optLabel }}</option>
                         @endforeach
                     </select>

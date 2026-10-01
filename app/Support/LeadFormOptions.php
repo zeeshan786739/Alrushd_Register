@@ -21,10 +21,10 @@ final class LeadFormOptions
     public static function for(Collection $admins, Collection $categories): array
     {
         $statusFormOptions = [];
-        foreach (LeadStatus::cases() as $status) {
+        foreach (\App\Support\LeadStatusCatalog::ordered() as $status) {
             $statusFormOptions[$status->value] = [
                 'label' => $status->label(),
-                'tone' => CrmStatusTone::for($status->value),
+                'tone' => $status->tone,
                 'icon' => CrmStatusTone::icon($status->value),
             ];
         }

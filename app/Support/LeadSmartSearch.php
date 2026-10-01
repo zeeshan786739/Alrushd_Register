@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
+use App\Support\LeadStatusCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -61,7 +62,7 @@ final class LeadSmartSearch
             }
         }
 
-        foreach (LeadStatus::cases() as $status) {
+        foreach (LeadStatusCatalog::ordered() as $status) {
             $label = Str::lower($status->label());
             $value = $status->value;
             if (Str::contains($normalized, $label) || Str::contains($normalized, str_replace('_', ' ', $value))) {
@@ -173,7 +174,7 @@ final class LeadSmartSearch
         }
 
         if (isset($filters['lead_status'])) {
-            $parts[] = LeadStatus::tryFrom($filters['lead_status'])?->label() ?? 'Status';
+            $parts[] = LeadStatusCatalog::label($filters['lead_status']) ?: 'Status';
         }
 
         if (isset($filters['priority'])) {
