@@ -13,14 +13,16 @@
     $tone = $current['tone'] ?? \App\Support\CrmStatusTone::for((string) $value);
     $icon = $current['icon'] ?? ($owner ? 'solar:user-linear' : \App\Support\CrmStatusTone::icon((string) $value));
     $label = $current['label'] ?? ($value === '' || $value === null ? 'Unassigned' : (string) $value);
+    $isHex = \App\Support\CrmColorPalette::isHex($tone);
 @endphp
-<div class="crm-inline-control {{ $owner ? 'crm-inline-control--owner' : '' }}"
+<div class="crm-inline-control {{ $owner ? 'crm-inline-control--owner' : '' }} {{ $isHex ? 'is-custom-tone' : '' }}"
      data-crm-inline
      data-field="{{ $field }}"
      {{ $idAttr }}="{{ $recordId }}"
      data-previous="{{ $value }}"
      data-tone="{{ $tone }}"
-     data-icon="{{ $icon }}">
+     data-icon="{{ $icon }}"
+     @if($isHex) style="{{ \App\Support\CrmColorPalette::cssVars($tone) }}" @endif>
     <button type="button"
             class="crm-inline-trigger"
             aria-haspopup="listbox"
@@ -37,6 +39,7 @@
                 $optIcon = $opt['icon'] ?? ($owner ? 'solar:user-linear' : \App\Support\CrmStatusTone::icon((string) $optValue));
                 $optLabel = $opt['label'] ?? (string) $optValue;
                 $selected = (string) $optValue === (string) $value;
+                $optHex = \App\Support\CrmColorPalette::isHex($optTone);
             @endphp
             <button type="button"
                     class="crm-inline-option {{ $selected ? 'is-selected' : '' }}"
@@ -45,6 +48,7 @@
                     data-tone="{{ $optTone }}"
                     data-icon="{{ $optIcon }}"
                     data-label="{{ $optLabel }}"
+                    @if($optHex) style="{{ \App\Support\CrmColorPalette::cssVars($optTone) }}" @endif
                     aria-selected="{{ $selected ? 'true' : 'false' }}">
                 <iconify-icon icon="{{ $optIcon }}"></iconify-icon>
                 <span class="crm-inline-option__label">{{ $optLabel }}</span>

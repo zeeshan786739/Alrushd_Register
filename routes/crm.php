@@ -37,6 +37,8 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::delete('leads/filters/clear', [LeadController::class, 'clearFilters'])->name('leads.filters.clear');
     Route::delete('leads/filters/{savedFilter}', [LeadController::class, 'destroyFilter'])->name('leads.filters.destroy');
     Route::post('leads/{lead}/notes', [LeadController::class, 'addNote'])->name('leads.notes.store');
+    Route::post('leads/statuses', [LeadController::class, 'storeStatus'])->name('leads.statuses.store');
+    Route::delete('leads/statuses/{statusSlug}', [LeadController::class, 'destroyStatus'])->name('leads.statuses.destroy');
     Route::patch('leads/{lead}/status', [LeadController::class, 'updateStatus'])->name('leads.status.update');
     Route::patch('leads/{lead}/inline', [LeadController::class, 'inlineUpdate'])->name('leads.inline');
     Route::patch('leads/{lead}/follow-up', [LeadController::class, 'setFollowUp'])->name('leads.follow-up');

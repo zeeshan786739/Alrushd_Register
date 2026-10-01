@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -58,14 +59,42 @@ class Lead extends Model
                 return;
             }
 
-            // Keep brand-new leads at the top of list/board order.
-            $min = static::query()
-                ->where('organization_id', $lead->organization_id)
-                ->whereNotNull('list_position')
-                ->min('list_position');
-
-            $lead->list_position = $min === null ? 1 : ((int) $min - 1);
+            // Keep new leads at the top using positive 1-based positions
+            // (unsigned list_position cannot safely use min-1 forever).
+            DB::transaction(function () use ($lead) {
+                $lead->list_position = static::allocateTopListPosition((int) $lead->organization_id);
+            });
         });
+    }
+
+    /**
+     * Reserve position 1 for a new lead and shift existing ordered leads to 2..n.
+     * Uses a row lock so concurrent creates cannot collide or go negative.
+     */
+    protected static function allocateTopListPosition(int $organizationId): int
+    {
+        $orderedIds = static::query()
+            ->where('organization_id', $organizationId)
+            ->whereNotNull('list_position')
+            ->orderBy('list_position')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->pluck('id');
+
+        if ($orderedIds->isEmpty()) {
+            return 1;
+        }
+
+        static::withoutTimestamps(function () use ($orderedIds) {
+            foreach ($orderedIds as $index => $id) {
+                static::query()->whereKey($id)->update([
+                    'list_position' => $index + 2,
+                ]);
+            }
+        });
+
+        return 1;
     }
 
     public function assignedAdmin(): BelongsTo
@@ -168,7 +197,7 @@ class Lead extends Model
 
     public static function statusOptions(): array
     {
-        return LeadStatus::options();
+        return \App\Support\LeadStatusCatalog::options();
     }
 
     public static function priorityOptions(): array

@@ -61,6 +61,13 @@
         --crm-tone-bg:#eef2ff;--crm-tone-border:#a5b4fc;--crm-tone-text:#4338ca;--crm-tone-ring:rgba(67,56,202,.2);
     }
 
+    .crm-status-pill--custom,.crm-inline-control.is-custom-tone{
+        /* vars supplied via inline style from CrmColorPalette */
+    }
+    .crm-inline-control.is-custom-tone .crm-inline-trigger{
+        background:var(--crm-tone-bg);border-color:var(--crm-tone-border);color:var(--crm-tone-text);
+    }
+
     .crm-status-pill{
         display:inline-flex;align-items:center;justify-content:center;
         min-height:28px;padding:4px 12px;border-radius:999px;

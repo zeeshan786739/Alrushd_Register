@@ -35,7 +35,7 @@
                         </select>
                     </div>
                     @endif
-                    <div class="col-md-4"><label class="form-label">Status</label><select name="lead_status" class="form-select radius-8">@foreach(\App\Enums\LeadStatus::cases() as $status)<option value="{{ $status->value }}" @selected(old('lead_status',$lead->lead_status)==$status->value)>{{ str_replace('_',' ',$status->value) }}</option>@endforeach</select></div>
+                    <div class="col-md-4"><label class="form-label">Status</label><select name="lead_status" class="form-select radius-8">@foreach(\App\Support\LeadStatusCatalog::ordered() as $status)<option value="{{ $status->value }}" @selected(old('lead_status',$lead->lead_status)==$status->value)>{{ $status->label() }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Priority</label><select name="priority" class="form-select radius-8">@foreach(\App\Enums\LeadPriority::cases() as $priority)<option value="{{ $priority->value }}" @selected(old('priority',$lead->priority)==$priority->value)>{{ ucfirst($priority->value) }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Assigned To</label><select name="assigned_to" class="form-select radius-8"><option value="">Unassigned</option>@foreach($admins as $admin)<option value="{{ $admin->id }}" @selected(old('assigned_to',$lead->assigned_to)==$admin->id)>{{ $admin->name }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Estimated Value</label><input type="number" step="0.01" name="estimated_value" class="form-control radius-8" value="{{ old('estimated_value', $lead->estimated_value) }}"></div>

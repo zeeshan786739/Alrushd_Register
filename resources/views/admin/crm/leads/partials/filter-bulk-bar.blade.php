@@ -33,7 +33,7 @@
                 <span>Move all to</span>
                 <select class="form-select form-select-sm" data-crm-filter-bulk-status>
                     <option value="">Choose status…</option>
-                    @foreach(\App\Enums\LeadStatus::cases() as $status)
+                    @foreach(\App\Support\LeadStatusCatalog::ordered() as $status)
                         <option value="{{ $status->value }}">{{ $status->label() }}</option>
                     @endforeach
                 </select>

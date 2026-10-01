@@ -45,7 +45,7 @@ class BulkUpdateLeadsRequest extends FormRequest
             $value = $this->input('value');
 
             if ($field === 'lead_status') {
-                if (! in_array($value, array_column(LeadStatus::cases(), 'value'), true)) {
+                if (! \App\Support\LeadStatusCatalog::isValid(is_string($value) ? $value : null)) {
                     $validator->errors()->add('value', 'Invalid lead status.');
                 }
             }

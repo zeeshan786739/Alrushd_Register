@@ -652,13 +652,39 @@
         window.removeEventListener('resize', onMenuViewportChange);
     }
 
-    function applyControlVisual(control, tone, icon, label) {
+    function isHexTone(tone) {
+        return typeof tone === 'string' && /^#[0-9A-Fa-f]{6}$/.test(tone);
+    }
+
+    function softCssVarsFromHex(hex) {
+        var h = String(hex || '').replace('#', '');
+        if (h.length !== 6) return '';
+        var r = parseInt(h.slice(0, 2), 16);
+        var g = parseInt(h.slice(2, 4), 16);
+        var b = parseInt(h.slice(4, 6), 16);
+        function mix(c, t) { return Math.round(c + (255 - c) * t); }
+        function mixDark(c, t) { return Math.round(c * (1 - t)); }
+        function toHex(n) { return n.toString(16).padStart(2, '0'); }
+        var bg = '#' + toHex(mix(r, 0.86)) + toHex(mix(g, 0.86)) + toHex(mix(b, 0.86));
+        var border = '#' + toHex(mix(r, 0.35)) + toHex(mix(g, 0.35)) + toHex(mix(b, 0.35));
+        var text = '#' + toHex(mixDark(r, 0.4)) + toHex(mixDark(g, 0.4)) + toHex(mixDark(b, 0.4));
+        return '--crm-tone-bg:' + bg + ';--crm-tone-border:' + border + ';--crm-tone-text:' + text + ';--crm-tone-ring:rgba(' + r + ',' + g + ',' + b + ',.22);--crm-tone-solid:#' + h.toUpperCase();
+    }
+
+    function applyControlVisual(control, tone, icon, label, cssVars) {
         if (tone) control.setAttribute('data-tone', tone);
         if (icon) control.setAttribute('data-icon', icon);
         var iconEl = control.querySelector('.crm-inline-trigger__icon');
         var labelEl = control.querySelector('.crm-inline-trigger__label');
         if (iconEl && icon) iconEl.setAttribute('icon', icon);
         if (labelEl && label != null) labelEl.textContent = label;
+        if (cssVars || isHexTone(tone)) {
+            control.classList.add('is-custom-tone');
+            control.setAttribute('style', cssVars || softCssVarsFromHex(tone));
+        } else {
+            control.classList.remove('is-custom-tone');
+            control.removeAttribute('style');
+        }
     }
 
     function markSelected(control, value) {
@@ -1826,9 +1852,12 @@
 
         var statusFilter = getLeadQueryFilter('lead_status');
         if (statusFilter && statusFilter !== newStatus) {
-            adjustFilteredTotal(-1);
             var row = page.querySelector('[data-crm-list-row][data-lead-id="' + leadId + '"]');
-            if (row) row.remove();
+            if (row) {
+                adjustFilteredTotal(-1);
+                row.remove();
+                pruneEmptyListStatusGroups();
+            }
         }
 
         refreshListViewMetrics();
@@ -1870,8 +1899,15 @@
     }
 
     function pruneEmptyListStatusGroups() {
+        var statusFilter = getLeadQueryFilter('lead_status');
         page.querySelectorAll('[data-crm-list-status-group]').forEach(function (group) {
             if (group.getAttribute('data-status') === 'form_intake') return;
+            var groupStatus = group.getAttribute('data-status') || '';
+            // Active status filter: hide any group that is outside the filter.
+            if (statusFilter && groupStatus && groupStatus !== statusFilter) {
+                group.remove();
+                return;
+            }
             var hasRows = !!group.querySelector('[data-crm-list-row][data-lead-id]');
             var total = parseInt(group.getAttribute('data-total') || '0', 10) || 0;
             // Keep the section when more leads still exist server-side so preview can refill.
@@ -1884,6 +1920,11 @@
     function ensureListStatusGroup(status) {
         var list = page.querySelector('[data-crm-leads-list]');
         if (!list || !status) return null;
+
+        var statusFilter = getLeadQueryFilter('lead_status');
+        if (statusFilter && statusFilter !== status) {
+            return null;
+        }
 
         var existing = list.querySelector('[data-crm-list-status-group][data-status="' + status + '"]');
         if (existing) return existing.querySelector('[data-crm-list-status-rows]') || existing;
@@ -2042,6 +2083,27 @@
         var fromStatus = previousStatus != null ? previousStatus : (row.getAttribute('data-current-status') || '');
         var previousGroup = row.closest('[data-crm-list-status-group]');
         var statusChanged = !!(fromStatus && fromStatus !== status);
+        var statusFilter = getLeadQueryFilter('lead_status');
+
+        // When a status filter is active (e.g. New), do not create/show other
+        // status groups (e.g. Won) just because a lead was moved there.
+        if (statusFilter && statusFilter !== status) {
+            setListRowStatusClass(row, status);
+            row.setAttribute('data-current-status', status);
+            if (statusChanged && fromStatus) {
+                adjustListStatusGroupCount(fromStatus, -1);
+                refillListStatusGroupPreview(fromStatus);
+            }
+            adjustFilteredTotal(-1);
+            row.remove();
+            pruneEmptyListStatusGroups();
+            if (previousGroup && page.contains(previousGroup)) {
+                listGroupUi.sync(previousGroup);
+            }
+            refreshListViewMetrics();
+            return;
+        }
+
         setListRowStatusClass(row, status);
         row.classList.remove('is-group-collapsed');
         var rows = ensureListStatusGroup(status);
@@ -3629,13 +3691,14 @@
                     dropdown,
                     (result.data && result.data.tone) || tone,
                     (result.data && result.data.icon) || icon,
-                    (result.data && result.data.label) || label
+                    (result.data && result.data.label) || label,
+                    (result.data && result.data.css_vars) || null
                 );
                 markSelected(dropdown, value);
                 // Keep the board and list representations of the same lead in sync.
                 page.querySelectorAll('[data-crm-inline][data-lead-id="' + leadId + '"][data-field="' + field + '"]').forEach(function (peer) {
                     peer.setAttribute('data-previous', value);
-                    applyControlVisual(peer, result.data.tone || tone, result.data.icon || icon, result.data.label || label);
+                    applyControlVisual(peer, result.data.tone || tone, result.data.icon || icon, result.data.label || label, (result.data && result.data.css_vars) || null);
                     markSelected(peer, value);
                 });
                 if (field === 'lead_status') {
@@ -4342,6 +4405,7 @@
                 openCreateLeadPanel();
                 bootUrl.searchParams.delete('open_create');
                 window.history.replaceState({}, '', bootUrl.toString());
+                scrubEphemeralLeadQueryFromLinks();
                 return;
             }
             var openLeadId = bootUrl.searchParams.get('open_lead');
@@ -4349,10 +4413,28 @@
                 openLeadPanel(openLeadId);
                 bootUrl.searchParams.delete('open_lead');
                 window.history.replaceState({}, '', bootUrl.toString());
+                scrubEphemeralLeadQueryFromLinks();
             }
         } catch (e) {
             /* ignore malformed URLs */
         }
+    }
+
+    /** Remove open_lead / open_create from in-page filter links rendered with those query params. */
+    function scrubEphemeralLeadQueryFromLinks() {
+        page.querySelectorAll('a[href]').forEach(function (anchor) {
+            try {
+                var href = anchor.getAttribute('href');
+                if (!href || href.indexOf('open_lead') < 0 && href.indexOf('open_create') < 0) return;
+                var url = new URL(href, window.location.origin);
+                if (!url.searchParams.has('open_lead') && !url.searchParams.has('open_create')) return;
+                url.searchParams.delete('open_lead');
+                url.searchParams.delete('open_create');
+                anchor.setAttribute('href', url.pathname + url.search + url.hash);
+            } catch (err) {
+                /* ignore bad hrefs */
+            }
+        });
     }
 
     function confirmLeadRemove(form) {
@@ -4441,4 +4523,210 @@
             });
         });
     }
+
+        // Custom lead status create (+) + color picker + delete
+        (function initLeadStatusCreate() {
+            var page = document.getElementById('crm-leads-page');
+            if (!page) return;
+            var openBtn = page.querySelector('[data-crm-add-status]');
+            var modal = page.querySelector('[data-crm-status-modal]');
+            var form = page.querySelector('[data-crm-status-create-form]');
+
+            function csrf() {
+                return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            }
+
+            function selectColor(picker, hex) {
+                if (!picker || !hex) return;
+                hex = String(hex).toUpperCase();
+                if (hex.charAt(0) !== '#') hex = '#' + hex;
+                var input = picker.closest('form')?.querySelector('[data-crm-status-color]') || page.querySelector('[data-crm-status-color]');
+                var preview = picker.querySelector('[data-crm-color-preview]');
+                var hexLabel = picker.querySelector('[data-crm-color-hex]');
+                var wheel = picker.querySelector('[data-crm-color-wheel]');
+                if (input) input.value = hex;
+                if (preview) preview.style.background = hex;
+                if (hexLabel) hexLabel.textContent = hex;
+                if (wheel) wheel.value = hex;
+                picker.querySelectorAll('[data-crm-color-swatch]').forEach(function (btn) {
+                    btn.classList.toggle('is-selected', String(btn.getAttribute('data-color') || '').toUpperCase() === hex);
+                });
+            }
+
+            if (modal && form) {
+                var picker = modal.querySelector('[data-crm-color-picker]');
+                if (picker) {
+                    picker.addEventListener('click', function (e) {
+                        var swatch = e.target.closest('[data-crm-color-swatch]');
+                        if (!swatch || !picker.contains(swatch)) return;
+                        e.preventDefault();
+                        selectColor(picker, swatch.getAttribute('data-color'));
+                    });
+                    var wheel = picker.querySelector('[data-crm-color-wheel]');
+                    if (wheel) {
+                        wheel.addEventListener('input', function () {
+                            selectColor(picker, wheel.value);
+                        });
+                        wheel.addEventListener('change', function () {
+                            selectColor(picker, wheel.value);
+                        });
+                    }
+                }
+
+                var errorEl = modal.querySelector('[data-crm-status-create-error]');
+                var submitBtn = modal.querySelector('[data-crm-status-create-submit]');
+                var nameInput = form.querySelector('[name="name"]');
+
+                function openModal() {
+                    modal.hidden = false;
+                    if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
+                    if (nameInput) { nameInput.value = ''; nameInput.focus(); }
+                    if (picker) selectColor(picker, '#0080FF');
+                }
+                function closeModal() {
+                    modal.hidden = true;
+                }
+
+                if (openBtn) {
+                    openBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        openModal();
+                    });
+                }
+                modal.querySelectorAll('[data-crm-status-modal-close]').forEach(function (el) {
+                    el.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        closeModal();
+                    });
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && !modal.hidden) closeModal();
+                });
+
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    if (submitBtn) submitBtn.disabled = true;
+                    if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
+
+                    var body = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrf(),
+                        },
+                        body: body,
+                        credentials: 'same-origin',
+                    }).then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, data: data };
+                        });
+                    }).then(function (result) {
+                        if (submitBtn) submitBtn.disabled = false;
+                        if (!result.ok) {
+                            var msg = (result.data && (result.data.message || (result.data.errors && result.data.errors.name && result.data.errors.name[0]))) || 'Could not create status.';
+                            if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; }
+                            if (typeof showToast === 'function') showToast(msg, true);
+                            return;
+                        }
+                        closeModal();
+                        if (typeof showToast === 'function') showToast(result.data.message || 'Status created.');
+                        window.location.reload();
+                    }).catch(function () {
+                        if (submitBtn) submitBtn.disabled = false;
+                        var msg = 'Could not create status. Please try again.';
+                        if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; }
+                        if (typeof showToast === 'function') showToast(msg, true);
+                    });
+                });
+            }
+
+            function confirmStatusDelete(label, leadCount) {
+                var note = leadCount > 0
+                    ? (leadCount === 1
+                        ? '1 lead currently uses this status. Move that lead first, then try again.'
+                        : (leadCount + ' leads currently use this status. Move those leads first, then try again.'))
+                    : 'This only works when no leads are using the status.';
+
+                if (window.CrmUI && typeof window.CrmUI.confirm === 'function') {
+                    return window.CrmUI.confirm({
+                        title: 'Delete status?',
+                        message: '“' + label + '” will be removed from the pipeline.',
+                        note: note,
+                        label: 'Delete status',
+                        tone: 'danger',
+                        icon: 'solar:trash-bin-minimalistic-linear',
+                    });
+                }
+
+                return Promise.resolve(window.confirm('Delete status “' + label + '”?\n\n' + note));
+            }
+
+            // Delete custom status (hover ×) — professional confirm modal
+            page.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-crm-delete-status]');
+                if (!btn || !page.contains(btn)) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                var label = btn.getAttribute('data-status-label') || 'this status';
+                var url = btn.getAttribute('data-delete-url');
+                var leadCount = parseInt(btn.getAttribute('data-lead-count') || '0', 10) || 0;
+                var isCustom = btn.getAttribute('data-is-custom') === '1';
+
+                var chip = btn.closest('[data-crm-status-chip]');
+                if (chip) chip.classList.add('is-delete-open');
+
+                if (!isCustom || !url) {
+                    confirmStatusDelete(label, leadCount).then(function (confirmed) {
+                        if (chip) chip.classList.remove('is-delete-open');
+                        if (!confirmed) return;
+                        var msg = '“' + label + '” is a built-in status and can’t be deleted.';
+                        if (typeof showToast === 'function') showToast(msg, true);
+                        else window.alert(msg);
+                    });
+                    return;
+                }
+
+                confirmStatusDelete(label, leadCount).then(function (confirmed) {
+                    if (chip) chip.classList.remove('is-delete-open');
+                    if (!confirmed) return;
+
+                    btn.disabled = true;
+                    fetch(url, {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrf(),
+                        },
+                        credentials: 'same-origin',
+                    }).then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, data: data };
+                        }).catch(function () {
+                            return { ok: response.ok, data: {} };
+                        });
+                    }).then(function (result) {
+                        btn.disabled = false;
+                        if (!result.ok) {
+                            var msg = (result.data && result.data.message) || ('Cannot delete “' + label + '” while leads still use it.');
+                            if (typeof showToast === 'function') showToast(msg, true);
+                            else window.alert(msg);
+                            return;
+                        }
+                        if (chip) chip.remove();
+                        if (typeof showToast === 'function') showToast(result.data.message || 'Status deleted.');
+                        window.location.reload();
+                    }).catch(function () {
+                        btn.disabled = false;
+                        var msg = 'Could not delete status. Please try again.';
+                        if (typeof showToast === 'function') showToast(msg, true);
+                        else window.alert(msg);
+                    });
+                });
+            });
+        })();
+
 })();

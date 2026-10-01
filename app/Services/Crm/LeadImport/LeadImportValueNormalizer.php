@@ -3,6 +3,7 @@
 namespace App\Services\Crm\LeadImport;
 
 use App\Enums\LeadStatus;
+use App\Support\LeadStatusCatalog;
 use App\Support\LeadImportFields;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -170,8 +171,9 @@ class LeadImportValueNormalizer
             return [$default, []];
         }
 
-        foreach (LeadStatus::cases() as $case) {
-            if ($value === $case->value || $value === mb_strtolower($case->label())) {
+        foreach (LeadStatusCatalog::ordered() as $case) {
+            $label = mb_strtolower($case->label());
+            if ($value === $case->value || $value === $label) {
                 return [$case->value, []];
             }
         }

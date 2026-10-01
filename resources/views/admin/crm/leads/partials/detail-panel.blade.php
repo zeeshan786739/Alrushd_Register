@@ -1,10 +1,10 @@
 @php
     $followUp = \App\Support\LeadFollowUpState::forLead($lead);
     $statusInlineOptions = [];
-    foreach (\App\Enums\LeadStatus::cases() as $status) {
+    foreach (\App\Support\LeadStatusCatalog::ordered() as $status) {
         $statusInlineOptions[$status->value] = [
             'label' => $status->label(),
-            'tone' => \App\Support\CrmStatusTone::for($status->value),
+            'tone' => $status->tone,
             'icon' => \App\Support\CrmStatusTone::icon($status->value),
         ];
     }

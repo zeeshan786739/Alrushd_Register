@@ -1,6 +1,7 @@
 @php
     $normalized = str_replace('-', '_', $status ?? 'draft');
-    $tone = \App\Support\CrmStatusTone::for($normalized);
+    $tone = $tone ?? \App\Support\LeadStatusCatalog::tone($normalized);
+    $label = $label ?? \App\Support\LeadStatusCatalog::label($normalized);
     $class = 'crm-status-pill crm-status-pill--tone-'.$tone.' crm-status-pill--'.$normalized;
 @endphp
-<span class="{{ $class }}">{{ str_replace('_', ' ', $normalized) }}</span>
+<span class="{{ $class }}">{{ $label }}</span>

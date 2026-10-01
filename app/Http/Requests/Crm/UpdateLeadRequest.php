@@ -37,7 +37,7 @@ class UpdateLeadRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:30'],
             'company' => ['nullable', 'string', 'max:255'],
             'lead_source' => ['nullable', 'string', 'max:100'],
-            'lead_status' => ['required', Rule::enum(LeadStatus::class)],
+            'lead_status' => ['required', \App\Support\LeadStatusCatalog::validationRule()],
             'priority' => ['required', Rule::enum(LeadPriority::class)],
             'assigned_to' => ['nullable', 'integer', CrmOrgRules::adminId()],
             'lead_description' => ['nullable', 'string'],
