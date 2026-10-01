@@ -32,7 +32,10 @@ use App\Support\LeadFollowUpState;
 use App\Support\LeadPipeline;
 use App\Support\LeadSmartSearch;
 use App\Support\LeadSourceOptions;
+use App\Support\LeadStatusCatalog;
 use App\Support\OrganizationContext;
+use App\Http\Requests\Crm\StoreLeadStatusRequest;
+use App\Models\Crm\LeadStatusDefinition;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -54,7 +57,7 @@ class LeadController extends Controller
         $this->middleware('permission:view leads')->only(['index', 'show', 'panel', 'boardColumn', 'listGroup']);
         $this->middleware('permission:create leads')->only(['create', 'store', 'createPanel']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard', 'reorderPipelineColumns',
+            'edit', 'update', 'updateStatus', 'storeStatus', 'destroyStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard', 'reorderPipelineColumns',
         ]);
         $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate', 'bulkUpdateFiltered']);
         $this->middleware('permission:delete leads')->only(['destroy']);
@@ -490,13 +493,118 @@ class LeadController extends Controller
     {
         $this->authorize('update', $lead);
         $validated = $request->validate([
-            'lead_status' => 'required|in:'.implode(',', array_column(LeadStatus::cases(), 'value')),
+            'lead_status' => ['required', LeadStatusCatalog::validationRule()],
         ]);
 
         $lead->update(['lead_status' => $validated['lead_status']]);
         $lead->logActivity('status_changed', 'Status updated to '.$validated['lead_status']);
 
         return back()->with('success', 'Lead status updated.');
+    }
+
+    public function storeStatus(StoreLeadStatusRequest $request): JsonResponse|RedirectResponse
+    {
+        if (! LeadStatusCatalog::ready()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Custom lead statuses are not available yet. Run migrations first.'], 422);
+            }
+
+            return back()->withErrors(['name' => 'Custom lead statuses are not available yet.']);
+        }
+
+        $orgId = OrganizationContext::idOrFail();
+        $name = trim((string) $request->validated('name'));
+        $tone = $request->validated('color')
+            ?: $request->validated('tone')
+            ?: '#0080FF';
+
+        $maxSort = (int) LeadStatusDefinition::query()
+            ->where('organization_id', $orgId)
+            ->max('sort_order');
+
+        $status = LeadStatusDefinition::create([
+            'organization_id' => $orgId,
+            'name' => $name,
+            'slug' => LeadStatusCatalog::makeSlug($name, $orgId),
+            'tone' => $tone,
+            'is_active' => true,
+            'sort_order' => $maxSort + 1,
+        ]);
+
+        $payload = [
+            'value' => $status->slug,
+            'label' => $status->name,
+            'tone' => $status->displayTone(),
+            'is_custom' => true,
+            'css_vars' => \App\Support\CrmColorPalette::isHex($status->displayTone())
+                ? \App\Support\CrmColorPalette::cssVars($status->displayTone())
+                : null,
+        ];
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Status “'.$status->name.'” created.',
+                'status' => $payload,
+            ]);
+        }
+
+        return back()->with('success', 'Status “'.$status->name.'” created.');
+    }
+
+    public function destroyStatus(Request $request, string $statusSlug): JsonResponse|RedirectResponse
+    {
+        if (! LeadStatusCatalog::ready()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Custom lead statuses are not available yet.'], 422);
+            }
+
+            return back()->withErrors(['status' => 'Custom lead statuses are not available yet.']);
+        }
+
+        $orgId = OrganizationContext::idOrFail();
+        $status = LeadStatusDefinition::query()
+            ->where('organization_id', $orgId)
+            ->where('slug', $statusSlug)
+            ->first();
+
+        if (! $status) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'That custom status was not found.'], 404);
+            }
+
+            return back()->withErrors(['status' => 'That custom status was not found.']);
+        }
+
+        $leadCount = Lead::query()
+            ->where('organization_id', $orgId)
+            ->where('lead_status', $status->slug)
+            ->count();
+
+        if ($leadCount > 0) {
+            $message = $leadCount === 1
+                ? 'Cannot delete “'.$status->name.'” — 1 lead is still using this status. Move or reassign that lead first.'
+                : 'Cannot delete “'.$status->name.'” — '.$leadCount.' leads are still using this status. Move or reassign those leads first.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message, 'lead_count' => $leadCount], 422);
+            }
+
+            return back()->withErrors(['status' => $message]);
+        }
+
+        $label = $status->name;
+        $status->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Status “'.$label.'” deleted.',
+                'value' => $statusSlug,
+            ]);
+        }
+
+        return back()->with('success', 'Status “'.$label.'” deleted.');
     }
 
     public function inlineUpdate(InlineUpdateLeadRequest $request, Lead $lead): JsonResponse
@@ -513,8 +621,11 @@ class LeadController extends Controller
                 'ok' => true,
                 'field' => $field,
                 'value' => $value,
-                'label' => LeadStatus::tryFrom((string) $value)?->label() ?? $value,
-                'tone' => CrmStatusTone::for((string) $value),
+                'label' => LeadStatusCatalog::label((string) $value),
+                'tone' => LeadStatusCatalog::tone((string) $value),
+                'css_vars' => \App\Support\CrmColorPalette::isHex(LeadStatusCatalog::tone((string) $value))
+                    ? \App\Support\CrmColorPalette::cssVars(LeadStatusCatalog::tone((string) $value))
+                    : null,
                 'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Status updated.',
             ], $this->activityJsonFragment($lead, $activity)));
@@ -646,8 +757,8 @@ class LeadController extends Controller
                 $results[] = [
                     'id' => $lead->id,
                     'value' => $value,
-                    'label' => LeadStatus::tryFrom((string) $value)?->label() ?? $value,
-                    'tone' => CrmStatusTone::for((string) $value),
+                    'label' => LeadStatusCatalog::label((string) $value),
+                    'tone' => LeadStatusCatalog::tone((string) $value),
                     'icon' => CrmStatusTone::icon((string) $value),
                     'current_status' => $value,
                 ];
@@ -668,7 +779,7 @@ class LeadController extends Controller
         }
 
         $message = match ($field) {
-            'lead_status' => $updated.' lead'.($updated === 1 ? '' : 's').' moved to '.(LeadStatus::tryFrom((string) $value)?->label() ?? $value).'.',
+            'lead_status' => $updated.' lead'.($updated === 1 ? '' : 's').' moved to '.LeadStatusCatalog::label((string) $value).'.',
             'priority' => $updated.' lead'.($updated === 1 ? '' : 's').' set to '.(LeadPriority::tryFrom((string) $value)?->label() ?? $value).' priority.',
             default => $updated.' lead'.($updated === 1 ? '' : 's').' reassigned.',
         };
@@ -730,7 +841,7 @@ class LeadController extends Controller
         }
 
         $message = $field === 'lead_status'
-            ? $updated.' matching lead'.($updated === 1 ? '' : 's').' moved to '.(LeadStatus::tryFrom((string) $value)?->label() ?? $value).'.'
+            ? $updated.' matching lead'.($updated === 1 ? '' : 's').' moved to '.LeadStatusCatalog::label((string) $value).'.'
             : $updated.' matching lead'.($updated === 1 ? '' : 's').' reassigned.';
 
         return response()->json([
@@ -1072,15 +1183,15 @@ class LeadController extends Controller
             'limit' => ['nullable', 'integer', 'min:5', 'max:30'],
         ]);
 
-        $status = LeadStatus::tryFrom($validated['lead_status']);
-        if (! $status) {
+        $statusValue = (string) $validated['lead_status'];
+        if (! LeadStatusCatalog::isValid($statusValue)) {
             return response()->json(['ok' => false, 'message' => 'Invalid pipeline column.'], 422);
         }
 
         $offset = (int) ($validated['offset'] ?? 0);
         $limit = (int) ($validated['limit'] ?? self::BOARD_COLUMN_BATCH);
-        $total = (int) $this->filteredQuery($request)->where('lead_status', $status->value)->count();
-        $leads = $this->boardColumnLeads($request, $status->value, $limit, $offset);
+        $total = (int) $this->filteredQuery($request)->where('lead_status', $statusValue)->count();
+        $leads = $this->boardColumnLeads($request, $statusValue, $limit, $offset);
         $inlineOptions = $this->boardCardInlineOptions();
 
         $html = view('admin.crm.leads.partials.board-column-cards', [
@@ -1108,15 +1219,15 @@ class LeadController extends Controller
             'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
-        $status = LeadStatus::tryFrom($validated['lead_status']);
-        if (! $status) {
+        $statusValue = (string) $validated['lead_status'];
+        if (! LeadStatusCatalog::isValid($statusValue)) {
             return response()->json(['ok' => false, 'message' => 'Invalid pipeline group.'], 422);
         }
 
         $offset = (int) ($validated['offset'] ?? 0);
         $limit = (int) ($validated['limit'] ?? self::LIST_GROUP_BATCH);
-        $total = (int) $this->filteredQuery($request)->where('lead_status', $status->value)->count();
-        $leads = $this->listGroupLeads($request, $status->value, $limit, $offset);
+        $total = (int) $this->filteredQuery($request)->where('lead_status', $statusValue)->count();
+        $leads = $this->listGroupLeads($request, $statusValue, $limit, $offset);
         $inlineOptions = $this->listRowInlineOptions();
 
         $html = view('admin.crm.leads.partials.list-group-rows', [
@@ -1173,7 +1284,7 @@ class LeadController extends Controller
 
     public function reorderPipelineColumns(Request $request): JsonResponse
     {
-        $allowed = array_column(LeadStatus::cases(), 'value');
+        $allowed = LeadStatusCatalog::values();
 
         $validated = $request->validate([
             'statuses' => ['required', 'array', 'size:'.count($allowed)],
@@ -1186,7 +1297,7 @@ class LeadController extends Controller
         return response()->json([
             'ok' => true,
             'message' => 'Pipeline columns reordered.',
-            'statuses' => array_map(static fn (LeadStatus $status) => $status->value, $ordered),
+            'statuses' => array_map(static fn ($status) => $status->value, $ordered),
         ]);
     }
 
@@ -1254,10 +1365,10 @@ class LeadController extends Controller
     private function listRowInlineOptions(): array
     {
         $statusInlineOptions = [];
-        foreach (LeadStatus::cases() as $status) {
+        foreach (LeadStatusCatalog::ordered() as $status) {
             $statusInlineOptions[$status->value] = [
                 'label' => $status->label(),
-                'tone' => CrmStatusTone::for($status->value),
+                'tone' => $status->tone,
                 'icon' => CrmStatusTone::icon($status->value),
             ];
         }

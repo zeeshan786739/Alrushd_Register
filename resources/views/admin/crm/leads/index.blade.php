@@ -10,10 +10,10 @@
         $categoryFilterOptions = ['uncategorized' => 'Uncategorized'] + $categoryFilterOptions;
     }
     $statusInlineOptions = [];
-    foreach (\App\Enums\LeadStatus::cases() as $status) {
+    foreach (\App\Support\LeadStatusCatalog::ordered() as $status) {
         $statusInlineOptions[$status->value] = [
             'label' => $status->label(),
-            'tone' => \App\Support\CrmStatusTone::for($status->value),
+            'tone' => $status->tone,
             'icon' => \App\Support\CrmStatusTone::icon($status->value),
         ];
     }
@@ -255,21 +255,122 @@
                 <div class="crm-list-status-rail" data-crm-list-status-rail>
                     <div class="crm-list-status-rail__hint">
                         <iconify-icon icon="solar:transfer-horizontal-linear" aria-hidden="true"></iconify-icon>
-                        Click a status to filter. Drag any row to reorder, or drop on a status pill to move it.
+                        Click a status to filter. Drag any row to reorder, or drop on a status pill to move it. Hover any status to delete it (custom statuses only).
                     </div>
                     <div class="crm-list-status-rail__zones">
                         @foreach($workflowStatuses as $status)
-                            <a href="{{ \App\Support\CrmLeadFilterUrl::toggle('lead_status', $status->value) }}"
-                               class="crm-list-status-drop @if(request('lead_status') === $status->value) is-filter-active @endif"
-                               data-crm-list-dropzone
-                               data-crm-status-filter
-                               data-status="{{ $status->value }}"
-                               title="Filter {{ $status->label() }} leads — drop here to move">
-                                {{ $status->label() }}
-                            </a>
+                            @php
+                                $isHexTone = \App\Support\CrmColorPalette::isHex($status->tone);
+                                $dropClass = $isHexTone
+                                    ? 'crm-list-status-drop crm-list-status-drop--custom'
+                                    : 'crm-list-status-drop crm-list-status-drop--tone-'.$status->tone;
+                                $statusLeadCount = (int) (($workflowCounts[$status->value] ?? 0));
+                            @endphp
+                            <div class="crm-list-status-chip {{ $status->isCustom ? 'is-custom' : 'is-system' }}"
+                                 data-crm-status-chip
+                                 data-status="{{ $status->value }}"
+                                 @if($status->isCustom) data-custom-status="1" @endif>
+                                <a href="{{ \App\Support\CrmLeadFilterUrl::toggle('lead_status', $status->value) }}"
+                                   class="{{ $dropClass }} @if(request('lead_status') === $status->value) is-filter-active @endif"
+                                   @if($isHexTone) style="{{ \App\Support\CrmColorPalette::cssVars($status->tone) }}" @endif
+                                   data-crm-list-dropzone
+                                   data-crm-status-filter
+                                   data-status="{{ $status->value }}"
+                                   data-status-label="{{ $status->label() }}"
+                                   data-status-tone="{{ $status->tone }}"
+                                   aria-label="Filter {{ $status->label() }} leads">
+                                    {{ $status->label() }}
+                                </a>
+                                <button type="button"
+                                        class="crm-list-status-chip__delete"
+                                        data-crm-delete-status
+                                        data-status="{{ $status->value }}"
+                                        data-status-label="{{ $status->label() }}"
+                                        data-lead-count="{{ $statusLeadCount }}"
+                                        data-is-custom="{{ $status->isCustom ? '1' : '0' }}"
+                                        @if($status->isCustom)
+                                            data-delete-url="{{ route('admin.crm.leads.statuses.destroy', $status->value) }}"
+                                        @endif
+                                        aria-label="Delete {{ $status->label() }}">
+                                    <iconify-icon icon="solar:close-circle-bold" aria-hidden="true"></iconify-icon>
+                                </button>
+                            </div>
                         @endforeach
+                        @if(\App\Support\LeadStatusCatalog::ready())
+                            <button type="button"
+                                    class="crm-list-status-add"
+                                    data-crm-add-status
+                                    aria-label="Add status">
+                                <iconify-icon icon="solar:add-circle-linear" aria-hidden="true"></iconify-icon>
+                                <span>Add</span>
+                            </button>
+                        @endif
                     </div>
                 </div>
+
+                @if(\App\Support\LeadStatusCatalog::ready())
+                    <div class="crm-status-create-modal" data-crm-status-modal hidden>
+                        <div class="crm-status-create-modal__backdrop" data-crm-status-modal-close></div>
+                        <div class="crm-status-create-modal__panel" role="dialog" aria-modal="true" aria-labelledby="crm-status-create-title">
+                            <div class="crm-status-create-modal__head">
+                                <div class="crm-status-create-modal__title-wrap">
+                                    <span class="crm-status-create-modal__badge" aria-hidden="true">
+                                        <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
+                                    </span>
+                                    <div>
+                                        <h3 id="crm-status-create-title">Add status</h3>
+                                        <p class="crm-status-create-modal__sub">Create a custom pipeline stage for your team.</p>
+                                    </div>
+                                </div>
+                                <button type="button" class="crm-status-create-modal__close" data-crm-status-modal-close aria-label="Close">
+                                    <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+                                </button>
+                            </div>
+                            <form data-crm-status-create-form action="{{ route('admin.crm.leads.statuses.store') }}" method="POST">
+                                @csrf
+                                <label class="crm-status-create-modal__label" for="crm-status-name">Name</label>
+                                <input id="crm-status-name" name="name" type="text" class="form-control radius-8" maxlength="100" placeholder="e.g. Waiting on docs" required autocomplete="off">
+
+                                <span class="crm-status-create-modal__label">Color</span>
+                                <input type="hidden" name="color" value="#0080FF" data-crm-status-color>
+
+                                <div class="crm-color-picker" data-crm-color-picker>
+                                    <div class="crm-color-picker__wheel-row">
+                                        <label class="crm-color-picker__wheel" title="Pick any color">
+                                            <input type="color" value="#0080FF" data-crm-color-wheel aria-label="Pick a color">
+                                            <span class="crm-color-picker__wheel-face" data-crm-color-preview style="background:#0080FF"></span>
+                                        </label>
+                                        <div class="crm-color-picker__meta">
+                                            <strong data-crm-color-hex>#0080FF</strong>
+                                            <span>Click the circle to pick any color</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="crm-color-picker__section">
+                                        <span class="crm-color-picker__section-label">Quick colors</span>
+                                        <div class="crm-color-picker__circles" role="listbox" aria-label="Quick colors">
+                                            @foreach(\App\Support\CrmColorPalette::circles() as $hex)
+                                                @php $hex = strtoupper($hex); @endphp
+                                                <button type="button"
+                                                        class="crm-color-picker__circle {{ $hex === '#FFFFFF' ? 'is-light' : '' }} {{ $hex === '#0080FF' ? 'is-selected' : '' }}"
+                                                        data-crm-color-swatch
+                                                        data-color="{{ $hex }}"
+                                                        style="background:{{ $hex }}"
+                                                        aria-label="Color {{ $hex }}"></button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p class="crm-status-create-modal__error" data-crm-status-create-error hidden></p>
+                                <div class="crm-status-create-modal__actions">
+                                    <button type="button" class="btn btn-outline-secondary radius-8" data-crm-status-modal-close>Cancel</button>
+                                    <button type="submit" class="btn btn-primary-600 radius-8" data-crm-status-create-submit>Create status</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                @endif
             @endcan
 
             @include('admin.crm.leads.partials.list-bulk-bar', ['admins' => $admins])

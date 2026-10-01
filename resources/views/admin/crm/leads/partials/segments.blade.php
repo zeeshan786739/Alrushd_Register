@@ -2,7 +2,7 @@
     $categories = $categories ?? collect();
     $segments = $segments ?? ['all' => ['total' => 0, 'new' => 0], 'uncategorized' => ['total' => 0, 'new' => 0], 'by_id' => []];
     $activeCategory = request('lead_category_id');
-    $queryBase = request()->except(['lead_category_id', 'page']);
+    $queryBase = request()->except(array_merge(['lead_category_id', 'page'], \App\Support\CrmLeadFilterUrl::EPHEMERAL_QUERY));
     $uncategorizedTotal = (int) ($segments['uncategorized']['total'] ?? 0);
 @endphp
 @if(\App\Support\LeadCategorySchema::ready())

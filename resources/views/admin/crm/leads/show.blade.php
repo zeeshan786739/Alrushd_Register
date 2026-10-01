@@ -215,7 +215,7 @@
                         <div class="crm-quick-group__label">Lead workflow</div>
                         <form method="POST" action="{{ route('admin.crm.leads.status.update', $lead) }}" class="mb-12">@csrf @method('PATCH')
                             <label class="form-label text-sm">Status</label>
-                            <select name="lead_status" class="form-select radius-8 mb-8">@foreach(\App\Enums\LeadStatus::cases() as $status)<option value="{{ $status->value }}" @selected($lead->lead_status==$status->value)>{{ $status->label() }}</option>@endforeach</select>
+                            <select name="lead_status" class="form-select radius-8 mb-8">@foreach(\App\Support\LeadStatusCatalog::ordered() as $status)<option value="{{ $status->value }}" @selected($lead->lead_status==$status->value)>{{ $status->label() }}</option>@endforeach</select>
                             <button class="btn btn-outline-primary-600 btn-sm radius-8 w-100">Update Status</button>
                         </form>
                         @can('assign leads')
