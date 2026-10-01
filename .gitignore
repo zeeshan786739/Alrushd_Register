@@ -7,8 +7,6 @@ Thumbs.db
 .env.backup
 auth.json
 
-.env
-.env.*
 !.env.example
 
 # PHP / Composer
@@ -63,6 +61,4 @@ Homestead.json
 Homestead.yaml
 config.bat
 
-.env
-.env.*
 !.env.example
