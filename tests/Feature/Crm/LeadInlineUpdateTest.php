@@ -30,33 +30,25 @@ class LeadInlineUpdateTest extends CrmTestCase
         $this->actingAsCrmAdmin()
             ->patchJson(route('admin.crm.leads.inline', $lead), [
                 'field' => 'lead_status',
-                'value' => 'contacted',
+                'value' => 'pending',
             ])
             ->assertForbidden();
     }
 
-    public function test_inline_status_and_priority_update(): void
+    public function test_inline_status_update(): void
     {
         $lead = $this->makeLead();
 
         $this->actingAsCrmAdmin()
             ->patchJson(route('admin.crm.leads.inline', $lead), [
                 'field' => 'lead_status',
-                'value' => 'contacted',
+                'value' => 'pending',
             ])
             ->assertOk()
             ->assertJsonPath('ok', true);
 
-        $this->actingAsCrmAdmin()
-            ->patchJson(route('admin.crm.leads.inline', $lead), [
-                'field' => 'priority',
-                'value' => 'high',
-            ])
-            ->assertOk();
-
         $lead->refresh();
-        $this->assertSame('contacted', $lead->lead_status);
-        $this->assertSame('high', $lead->priority);
+        $this->assertSame('pending', $lead->lead_status);
         $this->assertSame('manual', $lead->source);
     }
 

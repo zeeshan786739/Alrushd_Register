@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin\Crm;
 
-use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Exports\Crm\LeadsExport;
 use App\Http\Controllers\Controller;
@@ -25,7 +24,9 @@ use App\Services\Crm\LeadConversionException;
 use App\Services\Crm\LeadConversionService;
 use App\Support\CrmFormStats;
 use App\Support\CrmEmailDeliverySummary;
+use App\Support\FormEntryBrowse;
 use App\Support\FormEntryContact;
+use App\Support\LeadFormOptions;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
@@ -34,8 +35,7 @@ use App\Support\LeadSmartSearch;
 use App\Support\LeadSourceOptions;
 use App\Support\LeadStatusCatalog;
 use App\Support\OrganizationContext;
-use App\Http\Requests\Crm\StoreLeadStatusRequest;
-use App\Models\Crm\LeadStatusDefinition;
+use App\Support\ScalarQuery;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -50,6 +50,8 @@ class LeadController extends Controller
 
     private const LIST_GROUP_BATCH = 4;
 
+    private const SORTABLE_COLUMNS = ['first_name', 'last_name', 'email', 'lead_status', 'year_group', 'next_follow_up_date', 'created_at'];
+
     public function __construct(
         private LeadConversionService $conversionService,
         private CrmTransactionalMailService $crmMail,
@@ -57,7 +59,7 @@ class LeadController extends Controller
         $this->middleware('permission:view leads')->only(['index', 'show', 'panel', 'boardColumn', 'listGroup']);
         $this->middleware('permission:create leads')->only(['create', 'store', 'createPanel']);
         $this->middleware('permission:update leads')->only([
-            'edit', 'update', 'updateStatus', 'storeStatus', 'destroyStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard', 'reorderPipelineColumns',
+            'edit', 'update', 'updateStatus', 'setFollowUp', 'completeFollowUp', 'setAppointment', 'emailForm', 'sendEmail', 'panelEdit', 'reorderList', 'reorderBoard', 'reorderPipelineColumns',
         ]);
         $this->middleware('permission:update leads|assign leads')->only(['inlineUpdate', 'bulkUpdate', 'bulkUpdateFiltered']);
         $this->middleware('permission:delete leads')->only(['destroy']);
@@ -68,6 +70,8 @@ class LeadController extends Controller
 
     public function index(Request $request): View
     {
+        ScalarQuery::strip($request);
+
         $viewMode = $request->query('view') === 'list' ? 'list' : 'board';
         $perPage = $viewMode === 'list'
             ? self::LIST_GROUP_BATCH
@@ -101,7 +105,7 @@ class LeadController extends Controller
                 ['path' => $request->url(), 'query' => $request->query()]
             );
         } else {
-            $statusFilter = $request->filled('lead_status') ? (string) $request->query('lead_status') : null;
+            $statusFilter = $request->filled('lead_status') ? LeadStatus::canonicalize((string) $request->query('lead_status')) : null;
 
             foreach ($workflowStatuses as $status) {
                 if ($statusFilter !== null && $statusFilter !== $status->value) {
@@ -140,7 +144,7 @@ class LeadController extends Controller
         $stats = [
             'total' => (clone $orgScope)->count(),
             'new' => (clone $orgScope)->where('lead_status', 'new')->count(),
-            'won' => (clone $orgScope)->where('lead_status', 'won')->count(),
+            'enrolled' => (clone $orgScope)->where('lead_status', LeadStatus::Enrolled->value)->count(),
             'follow_up_today' => (clone $orgScope)->followUpToday()->count(),
             'monthly_change' => round($percentageChange, 1),
             'facebook_this_week' => (clone $orgScope)
@@ -190,6 +194,7 @@ class LeadController extends Controller
         if ($this->shouldShowFormIntake($request)) {
             app(FormEntryLeadConverter::class)->syncPendingForOrganization(OrganizationContext::idOrFail());
 
+            $filteredTotal += (clone $this->pendingFormEntriesQuery($request))->reorder()->count();
             $pendingFormEntries = $this->pendingFormEntriesQuery($request)
                 ->limit($viewMode === 'list' ? $listGroupBatch : 50)
                 ->get()
@@ -198,7 +203,6 @@ class LeadController extends Controller
 
                     return $entry;
                 });
-            $filteredTotal += $pendingFormEntries->count();
         }
 
         $categories = collect();
@@ -260,6 +264,8 @@ class LeadController extends Controller
             ->with('boardColumnBatch', self::BOARD_COLUMN_BATCH)
             ->with('listGroupBatch', self::LIST_GROUP_BATCH)
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
+            ->with('yearGroupFilterOptions', $this->usedValuesWithDefaults('year_group', LeadFormOptions::yearGroups()))
+            ->with('contactMethodFilterOptions', $this->usedValuesWithDefaults('contact_method', LeadFormOptions::contactMethods()))
             ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
                 $forms,
                 LeadCategorySchema::ready()
@@ -289,7 +295,7 @@ class LeadController extends Controller
 
         return view('admin.crm.leads.partials.create-panel', array_merge(
             compact('admins', 'categories'),
-            \App\Support\LeadFormOptions::for($admins, $categories),
+            LeadFormOptions::for($admins, $categories),
         ));
     }
 
@@ -312,7 +318,6 @@ class LeadController extends Controller
                     'email' => $lead->email,
                     'phone' => $lead->phone,
                     'lead_status' => $lead->lead_status,
-                    'priority' => $lead->priority,
                 ],
             ], 201);
         }
@@ -349,7 +354,7 @@ class LeadController extends Controller
                 'admins' => $admins,
                 'categories' => $categories,
             ],
-            \App\Support\LeadFormOptions::for($admins, $categories),
+            LeadFormOptions::for($admins, $categories),
         ));
     }
 
@@ -401,12 +406,12 @@ class LeadController extends Controller
         return view('admin.crm.leads.edit', compact('lead', 'admins', 'categories'));
     }
 
-    public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse
+    public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $lead);
 
         if ($lead->lead_status !== $request->validated('lead_status')) {
-            $lead->logActivity('status_changed', 'Status changed to '.$request->validated('lead_status'));
+            $lead->logActivity('status_changed', 'Status changed to '.LeadStatusCatalog::label($request->validated('lead_status')));
         }
 
         $lead->update($request->validated());
@@ -421,7 +426,6 @@ class LeadController extends Controller
                     'email' => $lead->email,
                     'phone' => $lead->phone,
                     'lead_status' => $lead->lead_status,
-                    'priority' => $lead->priority,
                 ],
             ]);
         }
@@ -497,114 +501,9 @@ class LeadController extends Controller
         ]);
 
         $lead->update(['lead_status' => $validated['lead_status']]);
-        $lead->logActivity('status_changed', 'Status updated to '.$validated['lead_status']);
+        $lead->logActivity('status_changed', 'Status updated to '.LeadStatusCatalog::label($validated['lead_status']));
 
         return back()->with('success', 'Lead status updated.');
-    }
-
-    public function storeStatus(StoreLeadStatusRequest $request): JsonResponse|RedirectResponse
-    {
-        if (! LeadStatusCatalog::ready()) {
-            if ($request->expectsJson()) {
-                return response()->json(['message' => 'Custom lead statuses are not available yet. Run migrations first.'], 422);
-            }
-
-            return back()->withErrors(['name' => 'Custom lead statuses are not available yet.']);
-        }
-
-        $orgId = OrganizationContext::idOrFail();
-        $name = trim((string) $request->validated('name'));
-        $tone = $request->validated('color')
-            ?: $request->validated('tone')
-            ?: '#0080FF';
-
-        $maxSort = (int) LeadStatusDefinition::query()
-            ->where('organization_id', $orgId)
-            ->max('sort_order');
-
-        $status = LeadStatusDefinition::create([
-            'organization_id' => $orgId,
-            'name' => $name,
-            'slug' => LeadStatusCatalog::makeSlug($name, $orgId),
-            'tone' => $tone,
-            'is_active' => true,
-            'sort_order' => $maxSort + 1,
-        ]);
-
-        $payload = [
-            'value' => $status->slug,
-            'label' => $status->name,
-            'tone' => $status->displayTone(),
-            'is_custom' => true,
-            'css_vars' => \App\Support\CrmColorPalette::isHex($status->displayTone())
-                ? \App\Support\CrmColorPalette::cssVars($status->displayTone())
-                : null,
-        ];
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'ok' => true,
-                'message' => 'Status “'.$status->name.'” created.',
-                'status' => $payload,
-            ]);
-        }
-
-        return back()->with('success', 'Status “'.$status->name.'” created.');
-    }
-
-    public function destroyStatus(Request $request, string $statusSlug): JsonResponse|RedirectResponse
-    {
-        if (! LeadStatusCatalog::ready()) {
-            if ($request->expectsJson()) {
-                return response()->json(['message' => 'Custom lead statuses are not available yet.'], 422);
-            }
-
-            return back()->withErrors(['status' => 'Custom lead statuses are not available yet.']);
-        }
-
-        $orgId = OrganizationContext::idOrFail();
-        $status = LeadStatusDefinition::query()
-            ->where('organization_id', $orgId)
-            ->where('slug', $statusSlug)
-            ->first();
-
-        if (! $status) {
-            if ($request->expectsJson()) {
-                return response()->json(['message' => 'That custom status was not found.'], 404);
-            }
-
-            return back()->withErrors(['status' => 'That custom status was not found.']);
-        }
-
-        $leadCount = Lead::query()
-            ->where('organization_id', $orgId)
-            ->where('lead_status', $status->slug)
-            ->count();
-
-        if ($leadCount > 0) {
-            $message = $leadCount === 1
-                ? 'Cannot delete “'.$status->name.'” — 1 lead is still using this status. Move or reassign that lead first.'
-                : 'Cannot delete “'.$status->name.'” — '.$leadCount.' leads are still using this status. Move or reassign those leads first.';
-
-            if ($request->expectsJson()) {
-                return response()->json(['message' => $message, 'lead_count' => $leadCount], 422);
-            }
-
-            return back()->withErrors(['status' => $message]);
-        }
-
-        $label = $status->name;
-        $status->delete();
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'ok' => true,
-                'message' => 'Status “'.$label.'” deleted.',
-                'value' => $statusSlug,
-            ]);
-        }
-
-        return back()->with('success', 'Status “'.$label.'” deleted.');
     }
 
     public function inlineUpdate(InlineUpdateLeadRequest $request, Lead $lead): JsonResponse
@@ -615,7 +514,7 @@ class LeadController extends Controller
         if ($field === 'lead_status') {
             $this->authorize('update', $lead);
             $lead->update(['lead_status' => $value]);
-            $activity = $lead->logActivity('status_changed', 'Status updated to '.$value);
+            $activity = $lead->logActivity('status_changed', 'Status updated to '.LeadStatusCatalog::label((string) $value));
 
             return response()->json(array_merge([
                 'ok' => true,
@@ -628,22 +527,6 @@ class LeadController extends Controller
                     : null,
                 'icon' => CrmStatusTone::icon((string) $value),
                 'message' => 'Status updated.',
-            ], $this->activityJsonFragment($lead, $activity)));
-        }
-
-        if ($field === 'priority') {
-            $this->authorize('update', $lead);
-            $lead->update(['priority' => $value]);
-            $activity = $lead->logActivity('priority_changed', 'Priority updated to '.$value);
-
-            return response()->json(array_merge([
-                'ok' => true,
-                'field' => $field,
-                'value' => $value,
-                'label' => LeadPriority::tryFrom((string) $value)?->label() ?? $value,
-                'tone' => CrmStatusTone::for((string) $value),
-                'icon' => CrmStatusTone::icon((string) $value),
-                'message' => 'Priority updated.',
             ], $this->activityJsonFragment($lead, $activity)));
         }
 
@@ -669,7 +552,6 @@ class LeadController extends Controller
                     'email' => $lead->email,
                     'phone' => $lead->phone,
                     'lead_status' => $lead->lead_status,
-                    'priority' => $lead->priority,
                 ],
                 'message' => 'Lead renamed.',
             ], $this->activityJsonFragment($lead, $activity)));
@@ -750,10 +632,10 @@ class LeadController extends Controller
                         'icon' => 'solar:user-linear',
                     ];
                 }
-            } elseif ($field === 'lead_status') {
+            } else {
                 $this->authorize('update', $lead);
                 $lead->update(['lead_status' => $value]);
-                $lead->logActivity('status_changed', 'Status updated to '.$value.' (bulk update)');
+                $lead->logActivity('status_changed', 'Status updated to '.LeadStatusCatalog::label((string) $value).' (bulk update)');
                 $results[] = [
                     'id' => $lead->id,
                     'value' => $value,
@@ -762,17 +644,6 @@ class LeadController extends Controller
                     'icon' => CrmStatusTone::icon((string) $value),
                     'current_status' => $value,
                 ];
-            } else {
-                $this->authorize('update', $lead);
-                $lead->update(['priority' => $value]);
-                $lead->logActivity('priority_changed', 'Priority updated to '.$value.' (bulk update)');
-                $results[] = [
-                    'id' => $lead->id,
-                    'value' => $value,
-                    'label' => LeadPriority::tryFrom((string) $value)?->label() ?? $value,
-                    'tone' => CrmStatusTone::for((string) $value),
-                    'icon' => CrmStatusTone::icon((string) $value),
-                ];
             }
 
             $updated++;
@@ -780,7 +651,6 @@ class LeadController extends Controller
 
         $message = match ($field) {
             'lead_status' => $updated.' lead'.($updated === 1 ? '' : 's').' moved to '.LeadStatusCatalog::label((string) $value).'.',
-            'priority' => $updated.' lead'.($updated === 1 ? '' : 's').' set to '.(LeadPriority::tryFrom((string) $value)?->label() ?? $value).' priority.',
             default => $updated.' lead'.($updated === 1 ? '' : 's').' reassigned.',
         };
 
@@ -834,7 +704,7 @@ class LeadController extends Controller
             } else {
                 $this->authorize('update', $lead);
                 $lead->update(['lead_status' => $value]);
-                $lead->logActivity('status_changed', 'Status updated to '.$value.' (filtered bulk update)');
+                $lead->logActivity('status_changed', 'Status updated to '.LeadStatusCatalog::label((string) $value).' (filtered bulk update)');
             }
 
             $updated++;
@@ -1099,16 +969,19 @@ class LeadController extends Controller
                 'advertising_platform',
                 'campaign_name',
                 'lead_status',
-                'priority',
+                'year_group',
+                'contact_method',
                 'assigned_to',
                 'view',
             ])
-            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->filter(fn ($value) => is_scalar($value) && $value !== '')
             ->all();
     }
 
     private function filteredQuery(Request $request)
     {
+        ScalarQuery::strip($request);
+
         return Lead::forCurrentOrganization()
             ->with(array_filter([
                 'assignedAdmin',
@@ -1123,12 +996,9 @@ class LeadController extends Controller
                     $q->where('lead_category_id', (int) $request->lead_category_id);
                 }
             })
-            ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', $status))
-            ->when($request->priority === 'high_urgent', fn ($q) => $q->whereIn('priority', [
-                LeadPriority::High->value,
-                LeadPriority::Urgent->value,
-            ]))
-            ->when($request->priority && $request->priority !== 'high_urgent', fn ($q, $priority) => $q->where('priority', $priority))
+            ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', LeadStatus::canonicalize((string) $status)))
+            ->when($request->year_group, fn ($q, $yearGroup) => $q->where('year_group', $yearGroup))
+            ->when($request->contact_method, fn ($q, $method) => $q->where('contact_method', $method))
             ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
             ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
             ->when(
@@ -1144,19 +1014,12 @@ class LeadController extends Controller
             ))
             ->when($request->advertising_platform, fn ($q, $platform) => $q->where('advertising_platform', $platform))
             ->when($request->campaign_name, fn ($q, $campaign) => $q->where('campaign_name', 'like', '%'.$campaign.'%'))
-            ->when($request->search, function ($q, $search) {
-                $q->where(function ($inner) use ($search) {
-                    $inner->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
-                });
-            })
+            ->when($request->search, fn ($q, $search) => $this->applyLeadSearch($q, (string) $search))
             ->when(
-                $request->filled('sort_by') && $request->query('view') === 'list',
+                $request->query('view') === 'list' && in_array($request->query('sort_by'), self::SORTABLE_COLUMNS, true),
                 fn ($q) => $q->orderBy(
-                    $request->get('sort_by', 'created_at'),
-                    $request->get('sort_order', 'desc')
+                    $request->query('sort_by'),
+                    $request->query('sort_order') === 'asc' ? 'asc' : 'desc'
                 ),
                 function ($q) use ($request) {
                     if ($request->query('view') === 'list') {
@@ -1173,6 +1036,45 @@ class LeadController extends Controller
                         ->orderBy('created_at', 'desc');
                 }
             );
+    }
+
+    private function applyLeadSearch($query, string $search): void
+    {
+        $search = mb_substr(trim($search), 0, 200);
+        $needle = '%'.addcslashes($search, '\\%_').'%';
+        $digits = preg_replace('/\D+/', '', $search) ?? '';
+
+        $query->where(function ($inner) use ($needle, $digits) {
+            // Matching the joined name makes "Mohammad Rasool" find a lead stored in two columns.
+            $inner->whereRaw("CONCAT_WS(' ', first_name, last_name) LIKE ?", [$needle])
+                ->orWhere('email', 'like', $needle)
+                ->orWhere('phone', 'like', $needle)
+                ->orWhere('year_group', 'like', $needle);
+
+            if (strlen($digits) >= 4) {
+                $inner->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?", ['%'.$digits.'%']);
+            }
+        });
+    }
+
+    /**
+     * Filter choices: the standard list plus anything already on a lead (older spreadsheet values).
+     *
+     * @param  list<string>  $defaults
+     * @return list<string>
+     */
+    private function usedValuesWithDefaults(string $column, array $defaults): array
+    {
+        $used = Lead::forCurrentOrganization()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->limit(100)
+            ->pluck($column)
+            ->all();
+
+        return array_values(array_unique(array_merge($defaults, $used)));
     }
 
     public function boardColumn(Request $request): JsonResponse
@@ -1196,7 +1098,6 @@ class LeadController extends Controller
 
         $html = view('admin.crm.leads.partials.board-column-cards', [
             'leads' => $leads,
-            'priorityInlineOptions' => $inlineOptions['priorityInlineOptions'],
             'assigneeInlineOptions' => $inlineOptions['assigneeInlineOptions'],
         ])->render();
 
@@ -1233,7 +1134,6 @@ class LeadController extends Controller
         $html = view('admin.crm.leads.partials.list-group-rows', [
             'leads' => $leads,
             'statusInlineOptions' => $inlineOptions['statusInlineOptions'],
-            'priorityInlineOptions' => $inlineOptions['priorityInlineOptions'],
             'assigneeInlineOptions' => $inlineOptions['assigneeInlineOptions'],
         ])->render();
 
@@ -1358,7 +1258,6 @@ class LeadController extends Controller
     /**
      * @return array{
      *     statusInlineOptions: array<string, array{label: string, tone: string, icon: string}>,
-     *     priorityInlineOptions: array<string, array{label: string, tone: string, icon: string}>,
      *     assigneeInlineOptions: array<string, array{label: string, tone: string, icon: string}>
      * }
      */
@@ -1377,23 +1276,13 @@ class LeadController extends Controller
 
         return [
             'statusInlineOptions' => $statusInlineOptions,
-            'priorityInlineOptions' => $cardOptions['priorityInlineOptions'],
             'assigneeInlineOptions' => $cardOptions['assigneeInlineOptions'],
         ];
     }
 
-    /** @return array{priorityInlineOptions: array<string, array{label: string, tone: string, icon: string}>, assigneeInlineOptions: array<string, array{label: string, tone: string, icon: string}>} */
+    /** @return array{assigneeInlineOptions: array<string, array{label: string, tone: string, icon: string}>} */
     private function boardCardInlineOptions(): array
     {
-        $priorityInlineOptions = [];
-        foreach (LeadPriority::cases() as $priority) {
-            $priorityInlineOptions[$priority->value] = [
-                'label' => $priority->label(),
-                'tone' => CrmStatusTone::for($priority->value),
-                'icon' => CrmStatusTone::icon($priority->value),
-            ];
-        }
-
         $assigneeInlineOptions = ['' => ['label' => 'Unassigned', 'tone' => 'neutral', 'icon' => 'solar:user-linear']];
         foreach ($this->assignableAdmins() as $admin) {
             $assigneeInlineOptions[(string) $admin->id] = [
@@ -1403,7 +1292,7 @@ class LeadController extends Controller
             ];
         }
 
-        return compact('priorityInlineOptions', 'assigneeInlineOptions');
+        return compact('assigneeInlineOptions');
     }
 
     /** @return \Illuminate\Support\Collection<int, Admin> */
@@ -1422,11 +1311,11 @@ class LeadController extends Controller
             return false;
         }
 
-        if ($request->filled('lead_status') && $request->lead_status !== 'new') {
+        if ($request->filled('lead_status') && $request->lead_status !== LeadStatus::New->value) {
             return false;
         }
 
-        if ($request->filled('priority')) {
+        if ($request->filled('year_group') || $request->filled('contact_method')) {
             return false;
         }
 
@@ -1456,12 +1345,7 @@ class LeadController extends Controller
             ->where('status', 'pending')
             ->whereDoesntHave('lead')
             ->when($request->form_id, fn ($q, $formId) => $q->where('form_id', (int) $formId))
-            ->when($request->search, function ($q, $search) {
-                $q->where(function ($inner) use ($search) {
-                    $inner->where('data', 'like', "%{$search}%")
-                        ->orWhereHas('form', fn ($formQuery) => $formQuery->where('name', 'like', "%{$search}%"));
-                });
-            })
+            ->when($request->search, fn ($q, $search) => FormEntryBrowse::applySearch($q, (string) $search))
             ->orderByDesc('submitted_at');
     }
 }

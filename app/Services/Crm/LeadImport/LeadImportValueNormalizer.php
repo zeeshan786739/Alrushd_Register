@@ -179,20 +179,18 @@ class LeadImportValueNormalizer
         }
 
         $aliases = [
-            'yes' => LeadStatus::Won->value,
-            'no' => LeadStatus::Lost->value,
-            'pending' => LeadStatus::New->value,
-            'pending_admission' => LeadStatus::New->value,
-            'in_progress' => LeadStatus::Contacted->value,
-            'successful' => LeadStatus::Won->value,
-            'succesful' => LeadStatus::Won->value,
-            'confirmed_admission' => LeadStatus::Won->value,
-            'unsuccessful' => LeadStatus::Lost->value,
-            'unsuccesful' => LeadStatus::Lost->value,
-            'spam_/_not_interested' => LeadStatus::Lost->value,
-            'spam_not_interested' => LeadStatus::Lost->value,
-            'not_interested' => LeadStatus::Lost->value,
-        ];
+            'yes' => LeadStatus::Enrolled->value,
+            'no' => LeadStatus::NotInterested->value,
+            'pending_admission' => LeadStatus::Pending->value,
+            'in_progress' => LeadStatus::Pending->value,
+            'successful' => LeadStatus::Enrolled->value,
+            'succesful' => LeadStatus::Enrolled->value,
+            'confirmed_admission' => LeadStatus::Enrolled->value,
+            'unsuccessful' => LeadStatus::NotInterested->value,
+            'unsuccesful' => LeadStatus::NotInterested->value,
+            'spam_/_not_interested' => LeadStatus::NotInterested->value,
+            'spam_not_interested' => LeadStatus::NotInterested->value,
+        ] + LeadStatus::LEGACY_MAP;
         if (isset($aliases[$value])) {
             return [$aliases[$value], []];
         }

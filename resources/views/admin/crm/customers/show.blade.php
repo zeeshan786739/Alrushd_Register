@@ -92,7 +92,7 @@
                     <div class="fw-semibold">{{ $customer->lead->full_name }}</div>
                     <div class="crm-lead-meta mt-4">
                         Source: {{ $customer->lead->lead_source ?? $customer->lead->source ?? '—' }}
-                        · Status: {{ $customer->lead->lead_status }}
+                        · Status: {{ \App\Support\LeadStatusCatalog::label($customer->lead->lead_status) }}
                         @if($customer->lead->converted_at)
                             · Converted {{ $customer->lead->converted_at->format('M j, Y') }}
                         @endif

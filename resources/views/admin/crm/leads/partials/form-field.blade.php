@@ -9,7 +9,14 @@
 @endphp
 <label class="crm-lead-form-field {{ $wide ? 'crm-lead-form-field--wide' : '' }}">
     <span class="crm-lead-form-field__label">{{ $label }}@if($required) *@endif</span>
-    @if(($type ?? 'text') === 'textarea')
+    @if(($type ?? 'text') === 'select')
+        <select name="{{ $name }}" class="{{ trim(str_replace('form-control', 'form-select', $inputClass)) }}" @if($required) required @endif>
+            <option value="">{{ $placeholder ?? 'Select…' }}</option>
+            @foreach(($options ?? []) as $option)
+                <option value="{{ $option }}" @selected((string) $value === (string) $option)>{{ $option }}</option>
+            @endforeach
+        </select>
+    @elseif(($type ?? 'text') === 'textarea')
         <textarea name="{{ $name }}" class="{{ $inputClass }}" rows="{{ $rows ?? 4 }}" @if($required) required @endif @if(!empty($placeholder)) placeholder="{{ $placeholder }}" @endif>{{ $value }}</textarea>
     @else
         <input type="{{ $type }}"

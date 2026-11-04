@@ -8,7 +8,6 @@
     $activityIcons = [
         'created' => 'solar:add-circle-linear',
         'status_changed' => 'solar:refresh-circle-linear',
-        'priority_changed' => 'solar:flag-linear',
         'note_added' => 'solar:notes-linear',
         'follow_up_scheduled' => 'solar:calendar-linear',
         'follow_up_completed' => 'solar:check-circle-linear',
@@ -36,14 +35,10 @@
                     @if($lead->phone)
                         <span><iconify-icon icon="solar:phone-linear"></iconify-icon> {{ $lead->phone }}</span>
                     @endif
-                    @if($lead->company)
-                        <span><iconify-icon icon="solar:buildings-linear"></iconify-icon> {{ $lead->company }}</span>
-                    @endif
                     <span><iconify-icon icon="solar:user-linear"></iconify-icon> {{ $lead->assignedAdmin?->name ?? 'Unassigned' }}</span>
                 </div>
                 <div class="crm-workspace-header__badges">
                     @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
-                    @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
                     @include('admin.crm.partials.lead-source-badge', ['source'=>$lead->source, 'label'=>$lead->lead_source ?? null])
                     @if($lead->category)
                         <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}">
@@ -131,8 +126,9 @@
                     <div class="row g-3">
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Email</strong>{{ $lead->email ?? '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Phone</strong>{{ $lead->phone ?? '—' }}</div>
-                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Company</strong>{{ $lead->company ?? '—' }}</div>
-                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Source</strong>{{ $lead->lead_source ?? $lead->source ?? '—' }}</div>
+                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Year group</strong>{{ $lead->year_group ?: '—' }}</div>
+                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Contact method</strong>{{ $lead->contact_method ?: '—' }}</div>
+                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Lead source</strong>{{ $lead->lead_source ?? $lead->source ?? '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Category</strong>{{ $lead->category?->name ?? '—' }}</div>
                         @if($lead->formEntry)
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Form Submission</strong><a href="{{ route('admin.crm.form-entries.show', $lead->formEntry) }}">View submission #{{ $lead->formEntry->id }}</a></div>
@@ -151,7 +147,6 @@
                     <h6 class="crm-section-title"><iconify-icon icon="solar:widget-linear"></iconify-icon> Workflow snapshot</h6>
                     <div class="row g-3">
                         <div class="col-6"><strong class="text-sm text-secondary-light d-block">Status</strong>@include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])</div>
-                        <div class="col-6"><strong class="text-sm text-secondary-light d-block">Priority</strong>@include('admin.crm.partials.status-pill', ['status'=>$lead->priority])</div>
                         <div class="col-6"><strong class="text-sm text-secondary-light d-block">Next follow-up</strong><span class="text-sm">{{ $followUp->hasFollowUp() ? $followUp->label : 'None scheduled' }}</span></div>
                         <div class="col-6"><strong class="text-sm text-secondary-light d-block">Appointment</strong><span class="text-sm">{{ optional($lead->appointment_date)->format('M j, Y H:i') ?? '—' }}</span></div>
                         <div class="col-6"><strong class="text-sm text-secondary-light d-block">Last contacted</strong><span class="text-sm">{{ optional($lead->last_contacted_at)->diffForHumans() ?? '—' }}</span></div>
@@ -215,7 +210,7 @@
                         <div class="crm-quick-group__label">Lead workflow</div>
                         <form method="POST" action="{{ route('admin.crm.leads.status.update', $lead) }}" class="mb-12">@csrf @method('PATCH')
                             <label class="form-label text-sm">Status</label>
-                            <select name="lead_status" class="form-select radius-8 mb-8">@foreach(\App\Support\LeadStatusCatalog::ordered() as $status)<option value="{{ $status->value }}" @selected($lead->lead_status==$status->value)>{{ $status->label() }}</option>@endforeach</select>
+                            <select name="lead_status" class="form-select radius-8 mb-8">@foreach(\App\Support\LeadStatusCatalog::ordered() as $status)<option value="{{ $status->value }}" data-tone="{{ \App\Support\CrmStatusTone::for($status->value) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($status->value) }}" @selected($lead->lead_status==$status->value)>{{ $status->label() }}</option>@endforeach</select>
                             <button class="btn btn-outline-primary-600 btn-sm radius-8 w-100">Update Status</button>
                         </form>
                         @can('assign leads')

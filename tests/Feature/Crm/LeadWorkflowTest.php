@@ -72,7 +72,7 @@ class LeadWorkflowTest extends CrmTestCase
         $this->actingAsCrmAdmin()
             ->get(route('admin.crm.leads.index'))
             ->assertOk()
-            ->assertSee('Save Filter')
+            ->assertSee('Save filter')
             ->assertSee('My Filter')
             ->assertSee('Add Lead');
     }

@@ -7,7 +7,9 @@ use App\Models\Form;
 use App\Models\FormEntry;
 use App\Services\FormBuilderService;
 use App\Services\FormOptionsResolver;
+use App\Support\FormEntryBrowse;
 use App\Support\OrganizationContext;
+use App\Support\ScalarQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +19,13 @@ use Illuminate\View\View;
 
 class FormManagerController extends Controller
 {
-    public function __construct(private FormBuilderService $builder) {}
+    public function __construct(private FormBuilderService $builder)
+    {
+        // Submissions hold applicants' personal data, so they use the same permissions as the CRM list.
+        $this->middleware('permission:view form submissions')->only(['entries', 'entryShow']);
+        $this->middleware('permission:update form submissions')->only(['entryUpdateStatus']);
+        $this->middleware('permission:delete form submissions')->only(['entryDestroy']);
+    }
 
     public function index(): View
     {
@@ -150,10 +158,25 @@ class FormManagerController extends Controller
 
     public function entries(Form $form, Request $request): View
     {
-        $query = $form->entries()->orderByDesc('submitted_at')->orderByDesc('id');
+        ScalarQuery::strip($request);
 
-        if ($search = $request->get('search')) {
-            $query->where('data', 'like', '%'.$search.'%');
+        $form->load(['fields']);
+        $facets = FormEntryBrowse::facets($form);
+
+        // Only offer a filter this form actually has answers for.
+        $facetOptions = collect($facets)
+            ->map(fn (array $facet) => FormEntryBrowse::facetOptions($form->entries(), $facet))
+            ->filter()
+            ->all();
+
+        $sortOptions = FormEntryBrowse::sortOptions($facets, $facetOptions);
+        $sort = FormEntryBrowse::normalizeSort($request->query('sort'), $sortOptions);
+
+        $query = $form->entries();
+
+        FormEntryBrowse::applySearch($query, $request->query('search'));
+        foreach (array_keys($facetOptions) as $name) {
+            FormEntryBrowse::applyFacet($query, $facets[$name], $request->query($name));
         }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -167,8 +190,9 @@ class FormManagerController extends Controller
             $query->whereDate('submitted_at', '<=', $dateTo);
         }
 
+        FormEntryBrowse::applySort($query, $sort, $facets);
+
         $entries = $query->paginate(15)->withQueryString();
-        $form->load(['fields']);
 
         $entryStats = [
             'total' => $form->entries()->count(),
@@ -177,7 +201,9 @@ class FormManagerController extends Controller
             'rejected' => $form->entries()->where('status', 'rejected')->count(),
         ];
 
-        return view('admin.form-manager.entries.index', compact('form', 'entries', 'entryStats'));
+        return view('admin.form-manager.entries.index', compact(
+            'form', 'entries', 'entryStats', 'facets', 'facetOptions', 'sortOptions', 'sort'
+        ));
     }
 
     public function entryShow(Form $form, FormEntry $entry): View

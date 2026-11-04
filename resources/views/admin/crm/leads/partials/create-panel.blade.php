@@ -14,7 +14,6 @@
                 <div class="min-w-0">
                     <div class="crm-lead-ticket__ref">New lead</div>
                     <h2 class="crm-lead-ticket__title" data-crm-panel-title>Create lead</h2>
-                    <p class="crm-lead-ticket__form-hint">Same layout as viewing a lead — add without leaving the board.</p>
                 </div>
             </div>
 
@@ -25,13 +24,6 @@
                     'options' => $statusFormOptions,
                     'required' => true,
                     'ariaLabel' => 'Status',
-                ])
-                @include('admin.crm.leads.partials.form-tag-select', [
-                    'name' => 'priority',
-                    'value' => old('priority', 'medium'),
-                    'options' => $priorityFormOptions,
-                    'required' => true,
-                    'ariaLabel' => 'Priority',
                 ])
                 @if($categories->isNotEmpty())
                     @include('admin.crm.leads.partials.form-tag-select', [
@@ -53,8 +45,9 @@
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Last name', 'name' => 'last_name', 'value' => old('last_name')])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Email', 'name' => 'email', 'type' => 'email', 'value' => old('email')])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Phone', 'name' => 'phone', 'value' => old('phone')])
-                        @include('admin.crm.leads.partials.form-field', ['label' => 'Company', 'name' => 'company', 'value' => old('company')])
-                        @include('admin.crm.leads.partials.form-field', ['label' => 'Source', 'name' => 'lead_source', 'value' => old('lead_source')])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Year group', 'name' => 'year_group', 'type' => 'select', 'value' => old('year_group'), 'options' => $yearGroupOptions])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Contact method', 'name' => 'contact_method', 'type' => 'select', 'value' => old('contact_method'), 'options' => $contactMethodOptions])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Lead source', 'name' => 'lead_source', 'value' => old('lead_source'), 'wide' => true])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Description', 'name' => 'lead_description', 'type' => 'textarea', 'value' => old('lead_description'), 'wide' => true])
                     </div>
                 </section>

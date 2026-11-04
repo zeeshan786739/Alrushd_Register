@@ -58,9 +58,9 @@ class LeadImportReaderTest extends TestCase
         $inProgress = $normalizer->normalize($headers, ['col_0' => 'lead_status'], ['col_0' => 'In progress']);
         $notInterested = $normalizer->normalize($headers, ['col_0' => 'lead_status'], ['col_0' => 'Spam / Not interested']);
 
-        $this->assertSame('won', $successful['fields']['lead_status']);
-        $this->assertSame('contacted', $inProgress['fields']['lead_status']);
-        $this->assertSame('lost', $notInterested['fields']['lead_status']);
+        $this->assertSame('enrolled', $successful['fields']['lead_status']);
+        $this->assertSame('pending', $inProgress['fields']['lead_status']);
+        $this->assertSame('not_interested', $notInterested['fields']['lead_status']);
         $this->assertStringNotContainsString('Unknown status', implode(' ', $successful['warnings']));
     }
 }

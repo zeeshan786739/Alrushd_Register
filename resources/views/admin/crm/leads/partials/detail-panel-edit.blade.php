@@ -17,7 +17,7 @@
                 <div class="min-w-0">
                     <div class="crm-lead-ticket__ref">Lead #{{ $lead->id }} · Editing</div>
                     <h2 class="crm-lead-ticket__title" data-crm-panel-title>{{ $displayName }}</h2>
-                    <p class="crm-lead-ticket__form-hint">Update details — same layout as view mode.</p>
+                    <p class="crm-lead-ticket__form-hint">Update this lead's details.</p>
                 </div>
             </div>
 
@@ -28,13 +28,6 @@
                     'options' => $statusFormOptions,
                     'required' => true,
                     'ariaLabel' => 'Status',
-                ])
-                @include('admin.crm.leads.partials.form-tag-select', [
-                    'name' => 'priority',
-                    'value' => old('priority', $lead->priority),
-                    'options' => $priorityFormOptions,
-                    'required' => true,
-                    'ariaLabel' => 'Priority',
                 ])
                 @if($categories->isNotEmpty())
                     @include('admin.crm.leads.partials.form-tag-select', [
@@ -56,8 +49,9 @@
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Last name', 'name' => 'last_name', 'value' => old('last_name', $lead->last_name)])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Email', 'name' => 'email', 'type' => 'email', 'value' => old('email', $lead->email)])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Phone', 'name' => 'phone', 'value' => old('phone', $lead->phone)])
-                        @include('admin.crm.leads.partials.form-field', ['label' => 'Company', 'name' => 'company', 'value' => old('company', $lead->company)])
-                        @include('admin.crm.leads.partials.form-field', ['label' => 'Source', 'name' => 'lead_source', 'value' => old('lead_source', $lead->lead_source)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Year group', 'name' => 'year_group', 'type' => 'select', 'value' => old('year_group', $lead->year_group), 'options' => \App\Support\LeadFormOptions::withCurrent($yearGroupOptions, $lead->year_group)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Contact method', 'name' => 'contact_method', 'type' => 'select', 'value' => old('contact_method', $lead->contact_method), 'options' => \App\Support\LeadFormOptions::withCurrent($contactMethodOptions, $lead->contact_method)])
+                        @include('admin.crm.leads.partials.form-field', ['label' => 'Lead source', 'name' => 'lead_source', 'value' => old('lead_source', $lead->lead_source), 'wide' => true])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Description', 'name' => 'lead_description', 'type' => 'textarea', 'value' => old('lead_description', $lead->lead_description), 'wide' => true])
                     </div>
                 </section>

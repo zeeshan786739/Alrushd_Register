@@ -2,8 +2,6 @@
 
 namespace App\Http\Requests\Crm;
 
-use App\Enums\LeadPriority;
-use App\Enums\LeadStatus;
 use App\Models\Admin;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +20,7 @@ class BulkUpdateLeadsRequest extends FormRequest
 
         return match ($field) {
             'assigned_to' => $admin->can('assign leads'),
-            'lead_status', 'priority' => $admin->can('update leads'),
+            'lead_status' => $admin->can('update leads'),
             default => false,
         };
     }
@@ -33,7 +31,7 @@ class BulkUpdateLeadsRequest extends FormRequest
         return [
             'lead_ids' => ['required', 'array', 'min:1', 'max:100'],
             'lead_ids.*' => ['integer', 'min:1'],
-            'field' => ['required', Rule::in(['lead_status', 'priority', 'assigned_to'])],
+            'field' => ['required', Rule::in(['lead_status', 'assigned_to'])],
             'value' => ['nullable'],
         ];
     }
@@ -47,12 +45,6 @@ class BulkUpdateLeadsRequest extends FormRequest
             if ($field === 'lead_status') {
                 if (! \App\Support\LeadStatusCatalog::isValid(is_string($value) ? $value : null)) {
                     $validator->errors()->add('value', 'Invalid lead status.');
-                }
-            }
-
-            if ($field === 'priority') {
-                if (! in_array($value, array_column(LeadPriority::cases(), 'value'), true)) {
-                    $validator->errors()->add('value', 'Invalid priority.');
                 }
             }
 

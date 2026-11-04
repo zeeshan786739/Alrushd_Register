@@ -6,7 +6,6 @@ use App\Enums\LeadStatus;
 use App\Models\Crm\LeadStatusDefinition;
 use App\Models\Organization;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -120,32 +119,6 @@ final class LeadStatusCatalog
                 isCustom: true,
             ))
             ->all();
-    }
-
-    public static function makeSlug(string $name, int $organizationId): string
-    {
-        $base = Str::slug($name);
-        if ($base === '') {
-            $base = 'status';
-        }
-
-        $base = Str::limit($base, 50, '');
-        $reserved = array_column(LeadStatus::cases(), 'value');
-        $slug = $base;
-        $i = 2;
-
-        while (
-            in_array($slug, $reserved, true)
-            || LeadStatusDefinition::query()
-                ->where('organization_id', $organizationId)
-                ->where('slug', $slug)
-                ->exists()
-        ) {
-            $slug = Str::limit($base, 45, '').'-'.$i;
-            $i++;
-        }
-
-        return $slug;
     }
 
     private static function currentOrganization(): ?Organization

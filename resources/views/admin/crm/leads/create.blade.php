@@ -22,8 +22,9 @@
                     <div class="col-md-5"><label class="form-label">Last Name</label><input type="text" name="last_name" class="form-control radius-8" value="{{ old('last_name') }}"></div>
                     <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="email" class="form-control radius-8" value="{{ old('email') }}"></div>
                     <div class="col-md-4"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control radius-8" value="{{ old('phone') }}"></div>
-                    <div class="col-md-4"><label class="form-label">Company</label><input type="text" name="company" class="form-control radius-8" value="{{ old('company') }}"></div>
-                    <div class="col-md-4"><label class="form-label">Source</label><input type="text" name="lead_source" class="form-control radius-8" value="{{ old('lead_source') }}"></div>
+                    <div class="col-md-4"><label class="form-label">Year group</label><select name="year_group" class="form-select radius-8"><option value="">Select…</option>@foreach(\App\Support\LeadFormOptions::withCurrent(\App\Support\LeadFormOptions::yearGroups(), null) as $option)<option value="{{ $option }}" @selected(old('year_group', null) === $option)>{{ $option }}</option>@endforeach</select></div>
+                    <div class="col-md-4"><label class="form-label">Contact method</label><select name="contact_method" class="form-select radius-8"><option value="">Select…</option>@foreach(\App\Support\LeadFormOptions::withCurrent(\App\Support\LeadFormOptions::contactMethods(), null) as $option)<option value="{{ $option }}" @selected(old('contact_method', null) === $option)>{{ $option }}</option>@endforeach</select></div>
+                    <div class="col-md-4"><label class="form-label">Lead source</label><input type="text" name="lead_source" class="form-control radius-8" value="{{ old('lead_source') }}"></div>
                     @if(($categories ?? collect())->isNotEmpty())
                     <div class="col-md-4"><label class="form-label">Category</label>
                         <select name="lead_category_id" class="form-select radius-8">
@@ -34,8 +35,7 @@
                         </select>
                     </div>
                     @endif
-                    <div class="col-md-4"><label class="form-label">Status</label><select name="lead_status" class="form-select radius-8">@foreach(\App\Support\LeadStatusCatalog::ordered() as $status)<option value="{{ $status->value }}" @selected(old('lead_status','new')==$status->value)>{{ $status->label() }}</option>@endforeach</select></div>
-                    <div class="col-md-4"><label class="form-label">Priority</label><select name="priority" class="form-select radius-8">@foreach(\App\Enums\LeadPriority::cases() as $priority)<option value="{{ $priority->value }}" @selected(old('priority','medium')==$priority->value)>{{ ucfirst($priority->value) }}</option>@endforeach</select></div>
+                    <div class="col-md-4"><label class="form-label">Status</label><select name="lead_status" class="form-select radius-8">@foreach(\App\Support\LeadStatusCatalog::ordered() as $status)<option value="{{ $status->value }}" data-tone="{{ \App\Support\CrmStatusTone::for($status->value) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($status->value) }}" @selected(old('lead_status','new')==$status->value)>{{ $status->label() }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Assigned To</label><select name="assigned_to" class="form-select radius-8"><option value="">Unassigned</option>@foreach($admins as $admin)<option value="{{ $admin->id }}" @selected(old('assigned_to')==$admin->id)>{{ $admin->name }}</option>@endforeach</select></div>
                     <div class="col-md-4"><label class="form-label">Estimated Value</label><input type="number" step="0.01" name="estimated_value" class="form-control radius-8" value="{{ old('estimated_value') }}"></div>
                     <div class="col-md-4"><label class="form-label">Probability (%)</label><input type="number" min="0" max="100" name="probability" class="form-control radius-8" value="{{ old('probability', 0) }}"></div>

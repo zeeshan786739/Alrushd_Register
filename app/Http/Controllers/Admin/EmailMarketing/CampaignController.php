@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Admin\EmailMarketing;
 
 use App\Enums\EmailMarketing\CampaignStatus;
-use App\Enums\LeadPriority;
-use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\EmailMarketing\Campaign;
 use App\Models\EmailMarketing\MailboxSetting;
@@ -60,8 +58,7 @@ class CampaignController extends Controller
             'templates' => $templates,
             'mailbox' => $mailbox,
             'senderMailboxes' => $senderMailboxes,
-            'leadStatuses' => LeadStatus::options(),
-            'leadPriorities' => LeadPriority::options(),
+            'leadStatuses' => \App\Support\LeadStatusCatalog::options(),
         ]);
     }
 
@@ -152,8 +149,7 @@ class CampaignController extends Controller
             'templates' => $templates,
             'mailbox' => $mailbox,
             'senderMailboxes' => $senderMailboxes,
-            'leadStatuses' => LeadStatus::options(),
-            'leadPriorities' => LeadPriority::options(),
+            'leadStatuses' => \App\Support\LeadStatusCatalog::options(),
         ]);
     }
 
@@ -258,7 +254,6 @@ class CampaignController extends Controller
             'form_entry_ids' => array_filter(array_map('intval', (array) $request->input('form_entry_ids', []))),
             'lead_status' => $request->get('lead_status'),
             'lead_statuses' => array_filter((array) $request->input('lead_statuses', [])),
-            'lead_priority' => $request->get('lead_priority'),
             'lead_source' => $request->get('lead_source'),
             'form_id' => $request->integer('form_id') ?: null,
         ];
@@ -283,7 +278,6 @@ class CampaignController extends Controller
             'manual_emails' => $request->input('manual_emails'),
             'lead_status' => $request->input('lead_status'),
             'lead_statuses' => array_values(array_filter((array) $request->input('lead_statuses', []))),
-            'lead_priority' => $request->input('lead_priority'),
             'lead_source' => $request->input('lead_source'),
             'form_id' => $request->integer('form_id') ?: null,
         ];
@@ -313,7 +307,6 @@ class CampaignController extends Controller
             'lead_status' => 'nullable|string|max:80',
             'lead_statuses' => 'nullable|array',
             'lead_statuses.*' => 'string|max:80',
-            'lead_priority' => 'nullable|string|max:40',
             'lead_source' => 'nullable|string|max:80',
             'form_id' => 'nullable|integer',
             'lead_ids' => 'nullable|array',

@@ -9,8 +9,10 @@ use App\Models\Crm\Customer;
 use App\Models\Form;
 use App\Models\FormEntry;
 use App\Services\Crm\FormEntryLeadConverter;
+use App\Support\FormEntryBrowse;
 use App\Support\FormEntryContact;
 use App\Support\OrganizationContext;
+use App\Support\ScalarQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,10 +34,11 @@ class FormEntryController extends Controller
     public function index(Request $request): View
     {
         $entries = $this->filteredQuery($request)->paginate(15)->withQueryString();
-        $forms = Form::query()->orderBy('name')->get(['id', 'name']);
+        $forms = Form::forCurrentOrganization()->orderBy('name')->get(['id', 'name']);
         $stats = $this->entryStats();
+        $sortOptions = FormEntryBrowse::sortOptions(FormEntryBrowse::facets(), []);
 
-        return view('admin.crm.form-entries.index', compact('entries', 'forms', 'stats'));
+        return view('admin.crm.form-entries.index', compact('entries', 'forms', 'stats', 'sortOptions'));
     }
 
     public function forForm(Request $request, Form $form): View
@@ -150,21 +153,27 @@ class FormEntryController extends Controller
 
     private function filteredQuery(Request $request, ?int $formId = null)
     {
-        return FormEntry::forCurrentOrganization()
+        ScalarQuery::strip($request);
+
+        $facets = FormEntryBrowse::facets();
+        $sort = FormEntryBrowse::normalizeSort(
+            $request->query('sort'),
+            FormEntryBrowse::sortOptions($facets, $facets)
+        );
+
+        $query = FormEntry::forCurrentOrganization()
             ->with('form')
             ->when($formId, fn ($q) => $q->where('form_id', $formId))
             ->when($request->form_id, fn ($q, $id) => $q->where('form_id', $id))
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->when($request->legacy_source, fn ($q, $source) => $q->where('legacy_source', $source))
-            ->when($request->search, function ($q, $search) {
-                $q->where(function ($inner) use ($search) {
-                    $inner->where('entry_id', 'like', "%{$search}%")
-                        ->orWhere('data', 'like', "%{$search}%");
-                });
-            })
+            ->when($request->search, fn ($q, $search) => FormEntryBrowse::applySearch($q, (string) $search))
             ->when($request->date_from, fn ($q, $date) => $q->whereDate('submitted_at', '>=', $date))
-            ->when($request->date_to, fn ($q, $date) => $q->whereDate('submitted_at', '<=', $date))
-            ->orderByDesc('submitted_at');
+            ->when($request->date_to, fn ($q, $date) => $q->whereDate('submitted_at', '<=', $date));
+
+        FormEntryBrowse::applySort($query, $sort, $facets);
+
+        return $query;
     }
 
     /** @return array<string, mixed> */
@@ -201,7 +210,7 @@ class FormEntryController extends Controller
             'phone' => $data['phone'] ?? $data['mobile'] ?? $data['mobile_number'] ?? null,
             'company' => $data['company'] ?? null,
             'description' => collect($data)->except(['first_name', 'last_name', 'fname', 'lname', 'name', 'full_name', 'email', 'phone', 'mobile', 'mobile_number', 'company'])
-                ->map(fn ($v, $k) => $k.': '.$v)->implode("\n") ?: null,
+                ->map(fn ($v, $k) => $k.': '.(is_scalar($v) || $v === null ? $v : json_encode($v)))->implode("\n") ?: null,
         ];
     }
 }

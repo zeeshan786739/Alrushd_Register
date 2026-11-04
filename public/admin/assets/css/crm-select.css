@@ -1,0 +1,161 @@
+/* Select fields across the admin. Behaviour lives in js/crm-select.js. */
+
+.form-select:not([multiple]):not([size]):not(.is-invalid) {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 32px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23697386' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+    background-size: 12px 12px;
+}
+html[data-theme="dark"] .form-select:not([multiple]):not([size]):not(.is-invalid) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23aab6c8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+    background-size: 12px 12px;
+}
+.form-select:hover:not(:disabled):not(:focus) { border-color: var(--crm-border-strong, #b6c0cf) !important; }
+.form-select:disabled { cursor: not-allowed; }
+select.is-crm-select-open:not(.crm-form-tag-select__native) {
+    border-color: var(--crm-brand, #0f274a) !important;
+    box-shadow: 0 0 0 3px var(--crm-brand-soft, rgba(15, 39, 74, .12)) !important;
+}
+
+.crm-select-menu {
+    --crm-select-surface: var(--crm-surface, #fff);
+    --crm-select-text: var(--crm-text, #172b4d);
+    --crm-select-muted: var(--crm-text-muted, #697386);
+    --crm-select-line: var(--crm-border, #e2e8f0);
+    --crm-select-hover: rgba(9, 30, 66, .055);
+    --crm-select-chosen: rgba(15, 39, 74, .08);
+    --crm-select-accent: var(--crm-brand, #0f274a);
+    position: fixed;
+    z-index: 10080;
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    overflow: hidden;
+    border: 1px solid var(--crm-select-line);
+    border-radius: 10px;
+    background: var(--crm-select-surface);
+    box-shadow: 0 12px 32px rgba(15, 39, 74, .16), 0 2px 6px rgba(15, 39, 74, .06);
+    animation: crm-select-in .11s ease-out;
+    transform-origin: top left;
+}
+.crm-select-menu.is-above { transform-origin: bottom left; }
+@keyframes crm-select-in {
+    from { opacity: 0; transform: scale(.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .crm-select-menu { animation: none; }
+}
+
+.crm-select-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--crm-select-line);
+    color: var(--crm-select-muted);
+}
+.crm-select-search iconify-icon { flex: 0 0 auto; font-size: 15px; }
+.crm-select-search input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    background: transparent;
+    color: var(--crm-select-text);
+    font-size: 13px;
+    line-height: 20px;
+}
+.crm-select-search input::placeholder { color: var(--crm-select-muted); opacity: 1; }
+
+.crm-select-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 5px;
+    overflow-y: auto;
+    outline: 0;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.crm-select-group {
+    padding: 8px 9px 4px;
+    color: var(--crm-select-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.crm-select-group[hidden], .crm-select-option[hidden], .crm-select-empty[hidden] { display: none; }
+
+.crm-select-option {
+    --crm-select-tone: var(--crm-select-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    color: var(--crm-select-text);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+    cursor: pointer;
+    user-select: none;
+}
+.crm-select-option + .crm-select-option { margin-top: 1px; }
+.crm-select-option.is-active { background: var(--crm-select-hover); }
+.crm-select-option.is-selected { background: var(--crm-select-chosen); font-weight: 600; }
+.crm-select-option.is-placeholder { color: var(--crm-select-muted); }
+.crm-select-option.is-disabled { opacity: .5; cursor: not-allowed; }
+
+.crm-select-option__label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.crm-select-option__icon { flex: 0 0 auto; color: var(--crm-select-tone); font-size: 16px; }
+.crm-select-option__dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    margin: 0 2px;
+    border-radius: 50%;
+    background: var(--crm-select-tone);
+}
+.crm-select-option__check { flex: 0 0 auto; margin-left: 8px; color: var(--crm-select-accent); font-size: 16px; }
+
+.crm-select-option[data-tone="neutral"] { --crm-select-tone: #64748b; }
+.crm-select-option[data-tone="success"] { --crm-select-tone: #15803d; }
+.crm-select-option[data-tone="info"] { --crm-select-tone: #1d4ed8; }
+.crm-select-option[data-tone="warning"] { --crm-select-tone: #b45309; }
+.crm-select-option[data-tone="caution"] { --crm-select-tone: #c2410c; }
+.crm-select-option[data-tone="danger"] { --crm-select-tone: #b91c1c; }
+.crm-select-option[data-tone="indigo"] { --crm-select-tone: #4338ca; }
+
+.crm-select-empty {
+    padding: 14px 9px;
+    color: var(--crm-select-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+html[data-theme="dark"] .crm-form-tag-select:not(.is-open):not(:focus-within) .crm-form-tag-select__face { box-shadow: none; }
+
+html[data-theme="dark"] .crm-select-menu {
+    --crm-select-hover: rgba(255, 255, 255, .07);
+    --crm-select-chosen: rgba(141, 189, 255, .16);
+    --crm-select-accent: #8dbdff;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .5);
+}
+html[data-theme="dark"] .crm-select-option[data-tone="neutral"] { --crm-select-tone: #aab6c8; }
+html[data-theme="dark"] .crm-select-option[data-tone="success"] { --crm-select-tone: #4ade80; }
+html[data-theme="dark"] .crm-select-option[data-tone="info"] { --crm-select-tone: #7db4ff; }
+html[data-theme="dark"] .crm-select-option[data-tone="warning"] { --crm-select-tone: #fbbf24; }
+html[data-theme="dark"] .crm-select-option[data-tone="caution"] { --crm-select-tone: #fb923c; }
+html[data-theme="dark"] .crm-select-option[data-tone="danger"] { --crm-select-tone: #f87171; }
+html[data-theme="dark"] .crm-select-option[data-tone="indigo"] { --crm-select-tone: #a5b4fc; }

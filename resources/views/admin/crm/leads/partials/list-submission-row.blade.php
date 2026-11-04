@@ -47,10 +47,6 @@
         <span class="crm-status-pill crm-status-pill--tone-warning">Intake</span>
     </div>
 
-    <div class="crm-list-row__field crm-list-row__field--priority">
-        <span class="crm-list-row__empty">—</span>
-    </div>
-
     <div class="crm-list-row__field crm-list-row__field--assignee">
         <span class="crm-list-row__assignee crm-list-row__assignee--muted">
             <iconify-icon icon="solar:user-linear" aria-hidden="true"></iconify-icon>

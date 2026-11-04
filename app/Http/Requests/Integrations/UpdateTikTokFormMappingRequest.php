@@ -34,7 +34,7 @@ class UpdateTikTokFormMappingRequest extends FormRequest
                 'integer',
                 Rule::exists('admins', 'id')->where(fn ($query) => $query->where('organization_id', $organizationId)),
             ],
-            'priority' => ['required', Rule::in(array_keys(LeadPriority::options()))],
+            'priority' => ['nullable', Rule::in(array_keys(LeadPriority::options()))],
             'auto_create_lead' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
             'field_mapping' => ['nullable', 'array'],
@@ -61,7 +61,7 @@ class UpdateTikTokFormMappingRequest extends FormRequest
         return [
             'lead_source_label' => $validated['lead_source_label'],
             'assigned_to' => $validated['assigned_to'] ?? null,
-            'priority' => $validated['priority'],
+            'priority' => $validated['priority'] ?? LeadPriority::Medium->value,
             'auto_create_lead' => $this->boolean('auto_create_lead'),
             'is_active' => $this->boolean('is_active'),
             'field_mapping' => $mapping,

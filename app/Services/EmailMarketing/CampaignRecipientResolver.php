@@ -75,10 +75,6 @@ class CampaignRecipientResolver
             $query->where('lead_status', $options['lead_status']);
         }
 
-        if (! empty($options['lead_priority'])) {
-            $query->where('priority', $options['lead_priority']);
-        }
-
         if (! empty($options['lead_source']) && ! $integrationOnly) {
             $query->where('source', $options['lead_source']);
         }

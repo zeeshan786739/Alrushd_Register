@@ -129,7 +129,7 @@ class LeadImportTest extends CrmTestCase
         $this->assertSame('UK Parents', $lead->adset_name);
         $this->assertSame('Spring Creative', $lead->ad_name);
         $this->assertSame('محمد', $lead->first_name);
-        $this->assertSame('Year 7', $lead->custom_data['Student Year Group'] ?? null);
+        $this->assertSame('Year 7', $lead->year_group);
         $this->assertNotNull($lead->source_submitted_at);
         $this->assertTrue($lead->notes()->where('note', 'Called once, interested.')->exists());
         $this->assertTrue($lead->activities()->where('activity_type', 'imported')->exists());
@@ -170,7 +170,7 @@ class LeadImportTest extends CrmTestCase
         $this->assertSame('phone', $import->mapping['col_1'] ?? null);
         $this->assertSame('email', $import->mapping['col_2'] ?? null);
         $this->assertSame('campaign_name', $import->mapping['col_3'] ?? null);
-        $this->assertSame('company', $import->mapping['col_4'] ?? null);
+        $this->assertSame(\App\Support\LeadImportFields::CUSTOM, $import->mapping['col_4'] ?? null);
         $this->assertSame('city', $import->mapping['col_5'] ?? null);
         $this->confirm($import);
         $lead = Lead::forOrganization($this->organizationA->id)->where('email', 'sam.rivera@example.test')->first();
@@ -332,9 +332,11 @@ class LeadImportTest extends CrmTestCase
         $this->assertNotNull($lead);
         $this->assertSame('Muhammad', $lead->first_name);
         $this->assertSame('Yousaf', $lead->last_name);
-        $this->assertSame('lost', $lead->lead_status);
+        $this->assertSame('not_interested', $lead->lead_status);
         $this->assertSame('Foysal Ahmed', $lead->assignedAdmin?->name);
         $this->assertSame('Y5', $lead->custom_data['Year'] ?? null);
+        $this->assertSame('Y5', $lead->year_group);
+        $this->assertSame('WhatsApp', $lead->contact_method);
         $this->assertSame('Yes', $lead->custom_data['Application Form'] ?? null);
         $this->assertSame('No', $lead->custom_data['Direct Debit form'] ?? null);
         $this->assertSame('Whatsapp', $lead->custom_data['Lead Status'] ?? null);

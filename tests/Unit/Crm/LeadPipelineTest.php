@@ -37,13 +37,13 @@ class LeadPipelineTest extends TestCase
             'is_active' => true,
         ]);
 
-        $partial = ['qualified', 'new', 'contacted'];
+        $partial = ['spam', 'new', 'pending'];
         $ordered = LeadPipeline::saveOrder($organization, $partial);
         $values = array_map(static fn (LeadStatusOption $status) => $status->value, $ordered);
 
-        $this->assertSame('qualified', $values[0]);
+        $this->assertSame('spam', $values[0]);
         $this->assertSame('new', $values[1]);
-        $this->assertSame('contacted', $values[2]);
+        $this->assertSame('pending', $values[2]);
         $this->assertSame(count(LeadStatus::cases()), count($values));
         $this->assertSame(count(LeadStatus::cases()), count(array_unique($values)));
     }

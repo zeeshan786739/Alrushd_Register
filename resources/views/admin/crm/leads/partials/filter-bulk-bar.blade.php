@@ -34,7 +34,7 @@
                 <select class="form-select form-select-sm" data-crm-filter-bulk-status>
                     <option value="">Choose status…</option>
                     @foreach(\App\Support\LeadStatusCatalog::ordered() as $status)
-                        <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                        <option value="{{ $status->value }}" data-tone="{{ \App\Support\CrmStatusTone::for($status->value) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($status->value) }}">{{ $status->label() }}</option>
                     @endforeach
                 </select>
             </label>

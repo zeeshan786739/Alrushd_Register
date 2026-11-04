@@ -57,14 +57,6 @@
                         </select>
                         @error('assigned_to')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
-                    <div class="int-form-field">
-                        <label for="priority">Priority</label>
-                        <select name="priority" id="priority" class="form-select radius-8" required>
-                            @foreach($priorities as $value => $label)
-                                <option value="{{ $value }}" @selected(old('priority', $mapping->priority?->value ?? $mapping->priority) === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
                     <div class="int-form-field d-flex align-items-end gap-16">
                         <div class="form-check mb-12">
                             <input type="hidden" name="auto_create_lead" value="0">

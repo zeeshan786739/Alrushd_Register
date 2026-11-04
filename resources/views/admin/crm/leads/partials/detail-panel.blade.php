@@ -8,14 +8,6 @@
             'icon' => \App\Support\CrmStatusTone::icon($status->value),
         ];
     }
-    $priorityInlineOptions = [];
-    foreach (\App\Enums\LeadPriority::cases() as $priority) {
-        $priorityInlineOptions[$priority->value] = [
-            'label' => $priority->label(),
-            'tone' => \App\Support\CrmStatusTone::for($priority->value),
-            'icon' => \App\Support\CrmStatusTone::icon($priority->value),
-        ];
-    }
     $assigneeInlineOptions = ['' => ['label' => 'Unassigned', 'tone' => 'neutral', 'icon' => 'solar:user-linear']];
     foreach ($admins as $admin) {
         $assigneeInlineOptions[(string) $admin->id] = [
@@ -73,17 +65,8 @@
                     'options' => $statusInlineOptions,
                     'ariaLabel' => 'Status for '.$lead->full_name,
                 ])
-                @include('admin.crm.partials.inline-control', [
-                    'field' => 'priority',
-                    'value' => $lead->priority,
-                    'recordId' => $lead->id,
-                    'idAttr' => 'data-lead-id',
-                    'options' => $priorityInlineOptions,
-                    'ariaLabel' => 'Priority for '.$lead->full_name,
-                ])
             @else
                 @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
-                @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
             @endcan
             @if($lead->category)
                 <span class="crm-category-badge crm-category-badge--{{ $lead->category->displayTone() }}">
@@ -267,8 +250,12 @@
                     </dd>
                 </div>
                 <div class="crm-lead-ticket__property">
-                    <dt>Company</dt>
-                    <dd>{{ $lead->company ?? '—' }}</dd>
+                    <dt>Year group</dt>
+                    <dd>{{ $lead->year_group ?: '—' }}</dd>
+                </div>
+                <div class="crm-lead-ticket__property">
+                    <dt>Contact method</dt>
+                    <dd>{{ $lead->contact_method ?: '—' }}</dd>
                 </div>
                 <div class="crm-lead-ticket__property">
                     <dt>Created</dt>
@@ -286,9 +273,14 @@
                     <dt>Appointment</dt>
                     <dd>{{ optional($lead->appointment_date)->format('M j, Y g:i A') ?? '—' }}</dd>
                 </div>
-                @if(!$lead->formEntry && $lead->source && $lead->source !== 'manual')
+                @if($lead->source === 'manual' || ! $lead->source)
                     <div class="crm-lead-ticket__property">
-                        <dt>Source</dt>
+                        <dt>Lead source</dt>
+                        <dd>{{ $lead->lead_source ?: '—' }}</dd>
+                    </div>
+                @elseif(! $lead->formEntry)
+                    <div class="crm-lead-ticket__property">
+                        <dt>Lead source</dt>
                         <dd>@include('admin.crm.partials.crm-source-badge', ['source' => $lead->source, 'label' => $lead->lead_source ?? null])</dd>
                     </div>
                 @endif

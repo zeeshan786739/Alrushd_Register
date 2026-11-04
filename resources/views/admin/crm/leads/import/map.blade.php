@@ -61,15 +61,7 @@
                         <label class="form-label" for="default_status">Default status</label>
                         <select name="options[default_status]" id="default_status" class="form-select radius-8">
                             @foreach($statuses as $value => $label)
-                                <option value="{{ $value }}" @selected(old('options.default_status', $import->option('default_status', 'new')) === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label" for="default_priority">Default priority</label>
-                        <select name="options[default_priority]" id="default_priority" class="form-select radius-8">
-                            @foreach($priorities as $value => $label)
-                                <option value="{{ $value }}" @selected(old('options.default_priority', $import->option('default_priority', 'medium')) === $value)>{{ $label }}</option>
+                                <option value="{{ $value }}" data-tone="{{ \App\Support\CrmStatusTone::for($value) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($value) }}" @selected(old('options.default_status', $import->option('default_status', 'new')) === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>

@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Crm;
 
 use App\Enums\LeadPriority;
-use App\Enums\LeadStatus;
 use App\Support\LeadImportFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,8 +32,8 @@ class MapLeadImportRequest extends FormRequest
             'mapping' => ['required', 'array'],
             'mapping.*' => ['required', 'string', Rule::in(array_keys(LeadImportFields::options()))],
             'options.duplicate_behavior' => ['required', Rule::in(['skip', 'create'])],
-            'options.default_status' => ['required', Rule::enum(LeadStatus::class)],
-            'options.default_priority' => ['required', Rule::enum(LeadPriority::class)],
+            'options.default_status' => ['required', \App\Support\LeadStatusCatalog::validationRule()],
+            'options.default_priority' => ['nullable', Rule::enum(LeadPriority::class)],
             'options.default_assigned_to' => ['nullable', 'integer'],
             'options.source_label' => ['nullable', 'string', 'max:100'],
             'options.default_calling_code' => ['nullable', 'string', 'max:8'],

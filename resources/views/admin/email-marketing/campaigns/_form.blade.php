@@ -3,7 +3,6 @@
     $filters = is_object($c) ? ($c->recipient_filters ?? []) : [];
     $currentSource = old('recipient_source', is_object($c) ? ($c->recipient_source ?? 'leads') : 'leads');
     $leadStatuses = $leadStatuses ?? \App\Enums\LeadStatus::options();
-    $leadPriorities = $leadPriorities ?? \App\Enums\LeadPriority::options();
     $isEdit = is_object($c);
 @endphp
 

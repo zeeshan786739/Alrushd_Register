@@ -2,8 +2,6 @@
 
 namespace App\Http\Requests\Crm;
 
-use App\Enums\LeadPriority;
-use App\Enums\LeadStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +20,7 @@ class InlineUpdateLeadRequest extends FormRequest
 
         return match ($field) {
             'assigned_to' => $admin->can('assign', $lead),
-            'lead_status', 'priority', 'full_name' => $admin->can('update', $lead),
+            'lead_status', 'full_name' => $admin->can('update', $lead),
             default => false,
         };
     }
@@ -31,7 +29,7 @@ class InlineUpdateLeadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'field' => ['required', Rule::in(['lead_status', 'priority', 'assigned_to', 'full_name'])],
+            'field' => ['required', Rule::in(['lead_status', 'assigned_to', 'full_name'])],
             'value' => ['nullable'],
         ];
     }
@@ -45,12 +43,6 @@ class InlineUpdateLeadRequest extends FormRequest
             if ($field === 'lead_status') {
                 if (! \App\Support\LeadStatusCatalog::isValid(is_string($value) ? $value : null)) {
                     $validator->errors()->add('value', 'Invalid lead status.');
-                }
-            }
-
-            if ($field === 'priority') {
-                if (! in_array($value, array_column(LeadPriority::cases(), 'value'), true)) {
-                    $validator->errors()->add('value', 'Invalid priority.');
                 }
             }
 

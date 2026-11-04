@@ -11,7 +11,7 @@ class LeadPipelineReorderTest extends CrmTestCase
     {
         $statuses = array_column(LeadStatus::cases(), 'value');
         $reordered = array_values(array_unique(array_merge(
-            ['qualified', 'contacted', 'new'],
+            ['spam', 'pending', 'new'],
             $statuses
         )));
 
@@ -32,7 +32,7 @@ class LeadPipelineReorderTest extends CrmTestCase
         );
 
         $orderedValues = array_map(
-            static fn (LeadStatus $status) => $status->value,
+            static fn (\App\Support\LeadStatusOption $status) => $status->value,
             LeadPipeline::orderedStatuses($this->organizationA)
         );
         $this->assertSame($reordered, $orderedValues);
@@ -42,7 +42,7 @@ class LeadPipelineReorderTest extends CrmTestCase
     {
         $this->actingAsCrmAdmin()
             ->patchJson(route('admin.crm.leads.reorder-pipeline-columns'), [
-                'statuses' => ['new', 'contacted'],
+                'statuses' => ['new', 'pending'],
             ])
             ->assertStatus(422);
     }
@@ -51,7 +51,7 @@ class LeadPipelineReorderTest extends CrmTestCase
     {
         $statuses = array_column(LeadStatus::cases(), 'value');
         $reordered = array_values(array_unique(array_merge(
-            ['won', 'new', 'contacted'],
+            ['enrolled', 'new', 'pending'],
             $statuses
         )));
 
@@ -62,13 +62,16 @@ class LeadPipelineReorderTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
+        // Style rules also mention data-status, so only look at the rendered markup.
+        $html = preg_replace('#<style\b.*?</style>#s', '', $html);
+
         $positions = [];
         foreach ($reordered as $status) {
             $positions[$status] = strpos($html, 'data-status="'.$status.'"');
             $this->assertNotFalse($positions[$status], "Missing column {$status}");
         }
 
-        $this->assertTrue($positions['won'] < $positions['new']);
-        $this->assertTrue($positions['new'] < $positions['contacted']);
+        $this->assertTrue($positions['enrolled'] < $positions['new']);
+        $this->assertTrue($positions['new'] < $positions['pending']);
     }
 }

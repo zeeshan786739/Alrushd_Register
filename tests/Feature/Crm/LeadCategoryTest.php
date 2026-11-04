@@ -163,7 +163,7 @@ class LeadCategoryTest extends CrmTestCase
             'organization_id' => $this->organizationA->id,
             'source' => 'manual',
             'first_name' => 'StaffLead',
-            'lead_status' => 'contacted',
+            'lead_status' => 'pending',
             'priority' => 'medium',
             'lead_category_id' => $staff->id,
         ]);

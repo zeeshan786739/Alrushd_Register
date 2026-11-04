@@ -2,7 +2,6 @@
 
 namespace App\Models\Crm;
 
-use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Models\Admin;
 use App\Models\FormEntry;
@@ -27,7 +26,7 @@ class Lead extends Model
 
     protected $fillable = [
         'organization_id', 'form_submission_id', 'form_entry_id', 'enquire_id', 'referral_id',
-        'customer_id', 'source', 'lead_category_id', 'title', 'first_name', 'last_name', 'email', 'phone', 'company',
+        'customer_id', 'source', 'lead_category_id', 'title', 'first_name', 'last_name', 'email', 'phone', 'year_group', 'contact_method', 'company',
         'selected_school', 'lead_source', 'lead_status', 'list_position', 'priority', 'assigned_to',
         'estimated_value', 'probability', 'next_follow_up_date', 'next_follow_up_time',
         'next_follow_up_type', 'appointment_date', 'appointment_type', 'appointment_notes',
@@ -68,31 +67,17 @@ class Lead extends Model
     }
 
     /**
-     * Reserve position 1 for a new lead and shift existing ordered leads to 2..n.
-     * Uses a row lock so concurrent creates cannot collide or go negative.
+     * Reserve position 1 for a new lead and shift existing ordered leads down by one.
      */
     protected static function allocateTopListPosition(int $organizationId): int
     {
-        $orderedIds = static::query()
+        // One statement instead of one UPDATE per lead: this runs on every new lead,
+        // including each webhook delivery and each row of a spreadsheet import.
+        static::query()
             ->where('organization_id', $organizationId)
             ->whereNotNull('list_position')
-            ->orderBy('list_position')
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->lockForUpdate()
-            ->pluck('id');
-
-        if ($orderedIds->isEmpty()) {
-            return 1;
-        }
-
-        static::withoutTimestamps(function () use ($orderedIds) {
-            foreach ($orderedIds as $index => $id) {
-                static::query()->whereKey($id)->update([
-                    'list_position' => $index + 2,
-                ]);
-            }
-        });
+            ->toBase()
+            ->increment('list_position');
 
         return 1;
     }
@@ -192,16 +177,11 @@ class Lead extends Model
     public function scopeOverdueFollowUp($query)
     {
         return $query->whereDate('next_follow_up_date', '<', today())
-            ->whereNotIn('lead_status', [LeadStatus::Won->value, LeadStatus::Lost->value]);
+            ->whereNotIn('lead_status', LeadStatus::closedValues());
     }
 
     public static function statusOptions(): array
     {
         return \App\Support\LeadStatusCatalog::options();
-    }
-
-    public static function priorityOptions(): array
-    {
-        return LeadPriority::options();
     }
 }

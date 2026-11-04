@@ -1347,19 +1347,6 @@
         });
     }
 
-    function syncBoardCardPriority(leadId, priority) {
-        if (!priority) return;
-        page.querySelectorAll('[data-crm-board-card][data-lead-id="' + leadId + '"]').forEach(function (card) {
-            card.classList.remove(
-                'crm-board-card--priority-low',
-                'crm-board-card--priority-medium',
-                'crm-board-card--priority-high',
-                'crm-board-card--priority-urgent'
-            );
-            card.classList.add('crm-board-card--priority-' + priority);
-        });
-    }
-
     function syncLeadDisplay(lead) {
         if (!lead || !lead.id) return;
         var leadId = String(lead.id);
@@ -1418,9 +1405,6 @@
             page.querySelectorAll('[data-lead-id="' + leadId + '"][data-current-status]').forEach(function (el) {
                 el.setAttribute('data-current-status', lead.lead_status);
             });
-        }
-        if (lead.priority) {
-            syncBoardCardPriority(leadId, lead.priority);
         }
     }
 
@@ -3720,9 +3704,6 @@
                     }
                     handleLeadStatusMetricsChange(leadId, previousStatus, value);
                 }
-                if (field === 'priority') {
-                    syncBoardCardPriority(leadId, value);
-                }
                 applyPanelActivityUpdate(leadId, result.data);
                 showToast((result.data && result.data.message) || 'Updated.', false);
             }).catch(function () {
@@ -3952,7 +3933,6 @@
     function bulkSelectForField(field) {
         if (!bulkBar) return null;
         if (field === 'lead_status') return bulkBar.querySelector('[data-crm-bulk-status]');
-        if (field === 'priority') return bulkBar.querySelector('[data-crm-bulk-priority]');
         if (field === 'assigned_to') return bulkBar.querySelector('[data-crm-bulk-assignee]');
         return null;
     }
@@ -4019,7 +3999,7 @@
 
     if (canBulk && bulkBar) {
         page.addEventListener('change', function (event) {
-            if (event.target.matches('[data-crm-bulk-status], [data-crm-bulk-priority], [data-crm-bulk-assignee]')) {
+            if (event.target.matches('[data-crm-bulk-status], [data-crm-bulk-assignee]')) {
                 syncBulkUi();
             }
         });
@@ -4141,7 +4121,7 @@
 
     function currentLeadFilters() {
         var params = new URLSearchParams(window.location.search);
-        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'priority', 'assigned_to', 'view'];
+        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'year_group', 'contact_method', 'assigned_to', 'view'];
         var filters = {};
         keys.forEach(function (key) {
             var value = params.get(key);
@@ -4523,210 +4503,5 @@
             });
         });
     }
-
-        // Custom lead status create (+) + color picker + delete
-        (function initLeadStatusCreate() {
-            var page = document.getElementById('crm-leads-page');
-            if (!page) return;
-            var openBtn = page.querySelector('[data-crm-add-status]');
-            var modal = page.querySelector('[data-crm-status-modal]');
-            var form = page.querySelector('[data-crm-status-create-form]');
-
-            function csrf() {
-                return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            }
-
-            function selectColor(picker, hex) {
-                if (!picker || !hex) return;
-                hex = String(hex).toUpperCase();
-                if (hex.charAt(0) !== '#') hex = '#' + hex;
-                var input = picker.closest('form')?.querySelector('[data-crm-status-color]') || page.querySelector('[data-crm-status-color]');
-                var preview = picker.querySelector('[data-crm-color-preview]');
-                var hexLabel = picker.querySelector('[data-crm-color-hex]');
-                var wheel = picker.querySelector('[data-crm-color-wheel]');
-                if (input) input.value = hex;
-                if (preview) preview.style.background = hex;
-                if (hexLabel) hexLabel.textContent = hex;
-                if (wheel) wheel.value = hex;
-                picker.querySelectorAll('[data-crm-color-swatch]').forEach(function (btn) {
-                    btn.classList.toggle('is-selected', String(btn.getAttribute('data-color') || '').toUpperCase() === hex);
-                });
-            }
-
-            if (modal && form) {
-                var picker = modal.querySelector('[data-crm-color-picker]');
-                if (picker) {
-                    picker.addEventListener('click', function (e) {
-                        var swatch = e.target.closest('[data-crm-color-swatch]');
-                        if (!swatch || !picker.contains(swatch)) return;
-                        e.preventDefault();
-                        selectColor(picker, swatch.getAttribute('data-color'));
-                    });
-                    var wheel = picker.querySelector('[data-crm-color-wheel]');
-                    if (wheel) {
-                        wheel.addEventListener('input', function () {
-                            selectColor(picker, wheel.value);
-                        });
-                        wheel.addEventListener('change', function () {
-                            selectColor(picker, wheel.value);
-                        });
-                    }
-                }
-
-                var errorEl = modal.querySelector('[data-crm-status-create-error]');
-                var submitBtn = modal.querySelector('[data-crm-status-create-submit]');
-                var nameInput = form.querySelector('[name="name"]');
-
-                function openModal() {
-                    modal.hidden = false;
-                    if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
-                    if (nameInput) { nameInput.value = ''; nameInput.focus(); }
-                    if (picker) selectColor(picker, '#0080FF');
-                }
-                function closeModal() {
-                    modal.hidden = true;
-                }
-
-                if (openBtn) {
-                    openBtn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        openModal();
-                    });
-                }
-                modal.querySelectorAll('[data-crm-status-modal-close]').forEach(function (el) {
-                    el.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        closeModal();
-                    });
-                });
-                document.addEventListener('keydown', function (e) {
-                    if (e.key === 'Escape' && !modal.hidden) closeModal();
-                });
-
-                form.addEventListener('submit', function (e) {
-                    e.preventDefault();
-                    if (submitBtn) submitBtn.disabled = true;
-                    if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
-
-                    var body = new FormData(form);
-                    fetch(form.action, {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': csrf(),
-                        },
-                        body: body,
-                        credentials: 'same-origin',
-                    }).then(function (response) {
-                        return response.json().then(function (data) {
-                            return { ok: response.ok, data: data };
-                        });
-                    }).then(function (result) {
-                        if (submitBtn) submitBtn.disabled = false;
-                        if (!result.ok) {
-                            var msg = (result.data && (result.data.message || (result.data.errors && result.data.errors.name && result.data.errors.name[0]))) || 'Could not create status.';
-                            if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; }
-                            if (typeof showToast === 'function') showToast(msg, true);
-                            return;
-                        }
-                        closeModal();
-                        if (typeof showToast === 'function') showToast(result.data.message || 'Status created.');
-                        window.location.reload();
-                    }).catch(function () {
-                        if (submitBtn) submitBtn.disabled = false;
-                        var msg = 'Could not create status. Please try again.';
-                        if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; }
-                        if (typeof showToast === 'function') showToast(msg, true);
-                    });
-                });
-            }
-
-            function confirmStatusDelete(label, leadCount) {
-                var note = leadCount > 0
-                    ? (leadCount === 1
-                        ? '1 lead currently uses this status. Move that lead first, then try again.'
-                        : (leadCount + ' leads currently use this status. Move those leads first, then try again.'))
-                    : 'This only works when no leads are using the status.';
-
-                if (window.CrmUI && typeof window.CrmUI.confirm === 'function') {
-                    return window.CrmUI.confirm({
-                        title: 'Delete status?',
-                        message: '“' + label + '” will be removed from the pipeline.',
-                        note: note,
-                        label: 'Delete status',
-                        tone: 'danger',
-                        icon: 'solar:trash-bin-minimalistic-linear',
-                    });
-                }
-
-                return Promise.resolve(window.confirm('Delete status “' + label + '”?\n\n' + note));
-            }
-
-            // Delete custom status (hover ×) — professional confirm modal
-            page.addEventListener('click', function (e) {
-                var btn = e.target.closest('[data-crm-delete-status]');
-                if (!btn || !page.contains(btn)) return;
-                e.preventDefault();
-                e.stopPropagation();
-
-                var label = btn.getAttribute('data-status-label') || 'this status';
-                var url = btn.getAttribute('data-delete-url');
-                var leadCount = parseInt(btn.getAttribute('data-lead-count') || '0', 10) || 0;
-                var isCustom = btn.getAttribute('data-is-custom') === '1';
-
-                var chip = btn.closest('[data-crm-status-chip]');
-                if (chip) chip.classList.add('is-delete-open');
-
-                if (!isCustom || !url) {
-                    confirmStatusDelete(label, leadCount).then(function (confirmed) {
-                        if (chip) chip.classList.remove('is-delete-open');
-                        if (!confirmed) return;
-                        var msg = '“' + label + '” is a built-in status and can’t be deleted.';
-                        if (typeof showToast === 'function') showToast(msg, true);
-                        else window.alert(msg);
-                    });
-                    return;
-                }
-
-                confirmStatusDelete(label, leadCount).then(function (confirmed) {
-                    if (chip) chip.classList.remove('is-delete-open');
-                    if (!confirmed) return;
-
-                    btn.disabled = true;
-                    fetch(url, {
-                        method: 'DELETE',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': csrf(),
-                        },
-                        credentials: 'same-origin',
-                    }).then(function (response) {
-                        return response.json().then(function (data) {
-                            return { ok: response.ok, data: data };
-                        }).catch(function () {
-                            return { ok: response.ok, data: {} };
-                        });
-                    }).then(function (result) {
-                        btn.disabled = false;
-                        if (!result.ok) {
-                            var msg = (result.data && result.data.message) || ('Cannot delete “' + label + '” while leads still use it.');
-                            if (typeof showToast === 'function') showToast(msg, true);
-                            else window.alert(msg);
-                            return;
-                        }
-                        if (chip) chip.remove();
-                        if (typeof showToast === 'function') showToast(result.data.message || 'Status deleted.');
-                        window.location.reload();
-                    }).catch(function () {
-                        btn.disabled = false;
-                        var msg = 'Could not delete status. Please try again.';
-                        if (typeof showToast === 'function') showToast(msg, true);
-                        else window.alert(msg);
-                    });
-                });
-            });
-        })();
 
 })();

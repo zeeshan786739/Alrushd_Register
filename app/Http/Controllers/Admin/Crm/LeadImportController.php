@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin\Crm;
 
 use App\Enums\LeadImportRowStatus;
 use App\Enums\LeadImportStatus;
-use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Exports\Crm\LeadImportFailedRowsExport;
 use App\Http\Controllers\Controller;
@@ -276,8 +275,7 @@ class LeadImportController extends Controller
             'suggestions' => $data['suggestions'],
             'fieldOptions' => LeadImportFields::options(),
             'admins' => $admins,
-            'statuses' => LeadStatus::options(),
-            'priorities' => LeadPriority::options(),
+            'statuses' => \App\Support\LeadStatusCatalog::options(),
             'isAdministrationSheet' => app(AdministrationSheetImportProfile::class)
                 ->matches($data['parsed']['headers'] ?? []),
         ]);

@@ -174,25 +174,25 @@ html[data-theme="dark"] #crm-page-loader { background: #131c29dd; }
 html[data-theme="dark"].admin-pjax-loading #admin-page-content::before { background: #131c2966; }
 
 /* Semantic state colors shared by all CRM lists and detail screens. */
-html[data-theme="dark"] :is(.crm-status-pill--tone-neutral,.crm-inline-select[data-tone="neutral"],.crm-inline-control[data-tone="neutral"],.crm-status-pill--draft,.crm-status-pill--medium,.crm-status-pill--low) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-neutral,.crm-inline-select[data-tone="neutral"],.crm-inline-control[data-tone="neutral"],.crm-form-tag-select[data-tone="neutral"],.crm-status-pill--draft,.crm-status-pill--medium,.crm-status-pill--low) {
     --crm-tone-bg: #2b3648; --crm-tone-text: #cbd5e1; --crm-tone-border: #65758a; --crm-tone-ring: #65758a55;
 }
-html[data-theme="dark"] :is(.crm-status-pill--tone-success,.crm-inline-select[data-tone="success"],.crm-inline-control[data-tone="success"],.crm-status-pill--accepted,.crm-status-pill--won,.crm-status-pill--paid,.crm-status-pill--active,.crm-status-pill--approved,.crm-status-pill--completed) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-success,.crm-inline-select[data-tone="success"],.crm-inline-control[data-tone="success"],.crm-form-tag-select[data-tone="success"],.crm-status-pill--accepted,.crm-status-pill--won,.crm-status-pill--paid,.crm-status-pill--active,.crm-status-pill--approved,.crm-status-pill--completed) {
     --crm-tone-bg: #183d32; --crm-tone-text: #91e5b9; --crm-tone-border: #3d8062; --crm-tone-ring: #3d806255;
 }
-html[data-theme="dark"] :is(.crm-status-pill--tone-info,.crm-inline-select[data-tone="info"],.crm-inline-control[data-tone="info"],.crm-status-pill--sent,.crm-status-pill--contacted,.crm-status-pill--in_progress) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-info,.crm-inline-select[data-tone="info"],.crm-inline-control[data-tone="info"],.crm-form-tag-select[data-tone="info"],.crm-status-pill--sent,.crm-status-pill--contacted,.crm-status-pill--in_progress) {
     --crm-tone-bg: #213d60; --crm-tone-text: #afd3ff; --crm-tone-border: #557da8; --crm-tone-ring: #557da855;
 }
-html[data-theme="dark"] :is(.crm-status-pill--tone-warning,.crm-inline-select[data-tone="warning"],.crm-inline-control[data-tone="warning"],.crm-status-pill--pending,.crm-status-pill--new,.crm-status-pill--prospect,.crm-status-pill--partially_paid,.crm-status-pill--expired) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-warning,.crm-inline-select[data-tone="warning"],.crm-inline-control[data-tone="warning"],.crm-form-tag-select[data-tone="warning"],.crm-status-pill--pending,.crm-status-pill--new,.crm-status-pill--prospect,.crm-status-pill--partially_paid,.crm-status-pill--expired) {
     --crm-tone-bg: #453921; --crm-tone-text: #f4d68e; --crm-tone-border: #997c40; --crm-tone-ring: #997c4055;
 }
-html[data-theme="dark"] :is(.crm-status-pill--tone-caution,.crm-inline-select[data-tone="caution"],.crm-inline-control[data-tone="caution"],.crm-status-pill--overdue,.crm-status-pill--urgent,.crm-status-pill--high,.crm-status-pill--on_hold) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-caution,.crm-inline-select[data-tone="caution"],.crm-inline-control[data-tone="caution"],.crm-form-tag-select[data-tone="caution"],.crm-status-pill--overdue,.crm-status-pill--urgent,.crm-status-pill--high,.crm-status-pill--on_hold) {
     --crm-tone-bg: #493124; --crm-tone-text: #ffc59b; --crm-tone-border: #a06d49; --crm-tone-ring: #a06d4955;
 }
-html[data-theme="dark"] :is(.crm-status-pill--tone-danger,.crm-inline-select[data-tone="danger"],.crm-inline-control[data-tone="danger"],.crm-status-pill--rejected,.crm-status-pill--lost,.crm-status-pill--cancelled,.crm-status-pill--inactive) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-danger,.crm-inline-select[data-tone="danger"],.crm-inline-control[data-tone="danger"],.crm-form-tag-select[data-tone="danger"],.crm-status-pill--rejected,.crm-status-pill--lost,.crm-status-pill--cancelled,.crm-status-pill--inactive) {
     --crm-tone-bg: #472b35; --crm-tone-text: #ffb6bf; --crm-tone-border: #a05b6a; --crm-tone-ring: #a05b6a55;
 }
-html[data-theme="dark"] :is(.crm-status-pill--tone-indigo,.crm-inline-select[data-tone="indigo"],.crm-inline-control[data-tone="indigo"],.crm-status-pill--qualified,.crm-status-pill--negotiation,.crm-status-pill--proposal_sent,.crm-status-pill--converted) {
+html[data-theme="dark"] :is(.crm-status-pill--tone-indigo,.crm-inline-select[data-tone="indigo"],.crm-inline-control[data-tone="indigo"],.crm-form-tag-select[data-tone="indigo"],.crm-status-pill--qualified,.crm-status-pill--negotiation,.crm-status-pill--proposal_sent,.crm-status-pill--converted) {
     --crm-tone-bg: #353053; --crm-tone-text: #d0c4ff; --crm-tone-border: #8274af; --crm-tone-ring: #8274af55;
 }
 html[data-theme="dark"] .crm-status-pill { box-shadow: none; }

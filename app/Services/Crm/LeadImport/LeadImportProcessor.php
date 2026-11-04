@@ -106,13 +106,15 @@ class LeadImportProcessor
             'email' => $this->usableEmail($fields['email'] ?? null),
             'phone' => isset($fields['phone']) ? mb_substr((string) $fields['phone'], 0, 30) : null,
             'company' => $fields['company'] ?? null,
+            'year_group' => $this->textOrNull($fields['year_group'] ?? $custom['Year'] ?? null, 50),
+            'contact_method' => $this->textOrNull(\App\Support\LeadFormOptions::normalizeContactMethod($this->textOrNull($fields['contact_method'] ?? $custom['Lead Status'] ?? null, 100)), 100),
             'city' => $fields['city'] ?? null,
             'province' => $fields['province'] ?? null,
             'postal_code' => $fields['postal_code'] ?? null,
             'address' => $fields['address'] ?? null,
             'selected_school' => $fields['selected_school'] ?? null,
             'lead_description' => $fields['lead_description'] ?? null,
-            'lead_status' => $this->safeStatus($fields['lead_status'] ?? null, $options),
+            'lead_status' => $this->safeStatus($fields['lead_status'] ?? null, $options, $import),
             'priority' => $this->safePriority($options['default_priority'] ?? LeadPriority::Medium->value),
             'assigned_to' => $assignedTo,
             'next_follow_up_date' => $followUpDate,
@@ -221,11 +223,27 @@ class LeadImportProcessor
     /**
      * @param  array<string, mixed>  $options
      */
-    private function safeStatus(mixed $status, array $options): string
+    private function safeStatus(mixed $status, array $options, LeadImport $import): string
     {
-        $value = (string) ($status ?: ($options['default_status'] ?? LeadStatus::New->value));
+        $value = (string) LeadStatus::canonicalize((string) ($status ?: ($options['default_status'] ?? LeadStatus::New->value)));
 
-        return LeadStatus::tryFrom($value)?->value ?? LeadStatus::New->value;
+        if (LeadStatus::tryFrom($value)) {
+            return $value;
+        }
+
+        // A status the normalizer accepted may be one of the organization's custom statuses.
+        return \App\Support\LeadStatusCatalog::isValid($value, \App\Models\Organization::query()->find($import->organization_id))
+            ? $value
+            : LeadStatus::New->value;
+    }
+
+    private function textOrNull(mixed $value, int $limit): ?string
+    {
+        if (! is_scalar($value) || trim((string) $value) === '') {
+            return null;
+        }
+
+        return mb_substr(trim((string) $value), 0, $limit);
     }
 
     private function safePriority(mixed $priority): string

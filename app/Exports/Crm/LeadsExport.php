@@ -20,7 +20,7 @@ class LeadsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSiz
     public function headings(): array
     {
         return [
-            'ID', 'Name', 'Email', 'Phone', 'Source', 'Lead Source', 'Status', 'Priority',
+            'ID', 'Name', 'Email', 'Phone', 'Year Group', 'Contact Method', 'Source', 'Lead Source', 'Status',
             'Assigned To', 'Estimated Value', 'Follow Up Date', 'Converted', 'Created At',
         ];
     }
@@ -32,10 +32,11 @@ class LeadsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSiz
             $lead->full_name,
             $lead->email,
             $lead->phone,
+            $lead->year_group,
+            $lead->contact_method,
             $lead->source,
             $lead->lead_source,
-            $lead->lead_status,
-            $lead->priority,
+            \App\Support\LeadStatusCatalog::label($lead->lead_status),
             $lead->assignedAdmin?->name,
             $lead->estimated_value,
             $lead->next_follow_up_date,

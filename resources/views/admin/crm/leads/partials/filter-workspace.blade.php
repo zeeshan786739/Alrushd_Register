@@ -36,21 +36,19 @@
     $isUnassigned = request('assigned_to') === 'unassigned';
     $isNewStatus = request('lead_status') === 'new';
     $isFollowUpToday = request('follow_up') === 'today';
-    $isHighPriority = request('priority') === 'high_urgent';
 
     $shortcuts = [
         ['key' => 'assigned_me', 'label' => 'My leads', 'icon' => 'solar:user-check-linear', 'active' => $isAssignedToMe, 'url' => $isAssignedToMe ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'me'], ['assigned_to'])],
         ['key' => 'unassigned', 'label' => 'Unassigned', 'icon' => 'solar:user-cross-linear', 'active' => $isUnassigned, 'url' => $isUnassigned ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'unassigned'], ['assigned_to'])],
         ['key' => 'new', 'label' => 'New', 'icon' => 'solar:star-linear', 'active' => $isNewStatus, 'url' => $isNewStatus ? $filterUrl([], ['lead_status']) : $filterUrl(['lead_status' => 'new'], ['lead_status'])],
         ['key' => 'follow_up', 'label' => 'Due today', 'icon' => 'solar:calendar-linear', 'active' => $isFollowUpToday, 'url' => $isFollowUpToday ? $filterUrl([], ['follow_up']) : $filterUrl(['follow_up' => 'today'], ['follow_up'])],
-        ['key' => 'high_priority', 'label' => 'High priority', 'icon' => 'solar:flag-linear', 'active' => $isHighPriority, 'url' => $isHighPriority ? $filterUrl([], ['priority']) : $filterUrl(['priority' => 'high_urgent'], ['priority'])],
     ];
 
     $showFormPicker = $activeSource === 'form_submission' || request()->filled('form_id');
     $showImportPicker = $activeSource === 'file_import' || request()->filled('advertising_platform');
     $formLeadsTotal = (int) ($sourceCounts['form_submission'] ?? 0);
     $expandMore = request()->filled('campaign_name') || request()->filled('lead_status') || request()->filled('lead_category_id')
-        || request()->filled('assigned_to') || request()->filled('follow_up') || request()->filled('priority');
+        || request()->filled('assigned_to') || request()->filled('follow_up') || request()->filled('year_group') || request()->filled('contact_method');
 
     $activeFilterChips = [];
     if (request()->filled('search')) {
@@ -67,13 +65,13 @@
         $activeFilterChips[] = ['label' => 'Campaign', 'value' => request('campaign_name'), 'url' => $filterUrl([], ['campaign_name'])];
     }
     if (request()->filled('lead_status') && ! $isNewStatus) {
-        $activeFilterChips[] = ['label' => 'Status', 'value' => \App\Enums\LeadStatus::tryFrom(request('lead_status'))?->label() ?? request('lead_status'), 'url' => $filterUrl([], ['lead_status'])];
+        $activeFilterChips[] = ['label' => 'Status', 'value' => \App\Support\LeadStatusCatalog::label(\App\Enums\LeadStatus::canonicalize(request('lead_status'))), 'url' => $filterUrl([], ['lead_status'])];
     }
-    if (request()->filled('priority') && ! $isHighPriority) {
-        $priorityLabel = request('priority') === 'high_urgent'
-            ? 'High & urgent'
-            : (\App\Enums\LeadPriority::tryFrom(request('priority'))?->label() ?? request('priority'));
-        $activeFilterChips[] = ['label' => 'Priority', 'value' => $priorityLabel, 'url' => $filterUrl([], ['priority'])];
+    if (request()->filled('year_group')) {
+        $activeFilterChips[] = ['label' => 'Year group', 'value' => request('year_group'), 'url' => $filterUrl([], ['year_group'])];
+    }
+    if (request()->filled('contact_method')) {
+        $activeFilterChips[] = ['label' => 'Contact method', 'value' => request('contact_method'), 'url' => $filterUrl([], ['contact_method'])];
     }
     if (request()->filled('assigned_to') && ! $isAssignedToMe && ! $isUnassigned) {
         $assigneeLabel = $admins->firstWhere('id', (int) request('assigned_to'))?->name ?? 'Assignee';
@@ -302,7 +300,7 @@
                     <select name="lead_status" id="lead_status" class="form-select" data-crm-filter-auto-submit>
                         <option value="">Any status</option>
                         @foreach(\App\Support\LeadStatusCatalog::options() as $optValue => $optLabel)
-                            <option value="{{ $optValue }}" @selected(request('lead_status') == $optValue)>{{ $optLabel }}</option>
+                            <option value="{{ $optValue }}" data-tone="{{ \App\Support\CrmStatusTone::for($optValue) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($optValue) }}" @selected(\App\Enums\LeadStatus::canonicalize(request('lead_status')) === $optValue)>{{ $optLabel }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -337,13 +335,21 @@
                     </select>
                 </div>
                 <div class="crm-lead-finder__refine-field">
-                    <label for="priority">Priority</label>
-                    <select name="priority" id="priority" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any priority</option>
-                        @foreach(\App\Enums\LeadPriority::options() as $optValue => $optLabel)
-                            <option value="{{ $optValue }}" @selected(request('priority') == $optValue)>{{ $optLabel }}</option>
+                    <label for="year_group">Year group</label>
+                    <select name="year_group" id="year_group" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any year group</option>
+                        @foreach($yearGroupFilterOptions ?? [] as $option)
+                            <option value="{{ $option }}" @selected(request('year_group') === $option)>{{ $option }}</option>
                         @endforeach
-                        <option value="high_urgent" @selected(request('priority') === 'high_urgent')>High &amp; urgent</option>
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="contact_method">Contact method</label>
+                    <select name="contact_method" id="contact_method" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any method</option>
+                        @foreach($contactMethodFilterOptions ?? [] as $option)
+                            <option value="{{ $option }}" @selected(request('contact_method') === $option)>{{ $option }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="crm-lead-finder__refine-field crm-lead-finder__refine-field--wide">

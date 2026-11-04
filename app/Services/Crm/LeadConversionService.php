@@ -58,7 +58,7 @@ class LeadConversionService
             $lockedLead->update([
                 'is_converted' => true,
                 'converted_at' => now(),
-                'lead_status' => 'won',
+                'lead_status' => \App\Enums\LeadStatus::Enrolled->value,
                 'customer_id' => $customer->id,
             ]);
 

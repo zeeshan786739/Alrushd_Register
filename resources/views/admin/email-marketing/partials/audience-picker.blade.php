@@ -8,9 +8,7 @@
     if ($selectedStatuses === [] && ! empty($filters['lead_status'])) {
         $selectedStatuses = [$filters['lead_status']];
     }
-    $selectedPriority = old('lead_priority', $filters['lead_priority'] ?? '');
     $leadStatuses = $leadStatuses ?? \App\Enums\LeadStatus::options();
-    $leadPriorities = $leadPriorities ?? \App\Enums\LeadPriority::options();
 @endphp
 
 <div class="em-audience-builder" data-audience-picker>
@@ -60,22 +58,6 @@
                 @endforeach
             </div>
             <div class="form-text">Leave empty to include all statuses.</div>
-        </div>
-
-        <div class="em-filter-block" data-audience-lead-filters @if($currentSource === 'customers') hidden @endif>
-            <span class="em-filter-block__title">Priority</span>
-            <div class="em-filter-pills em-filter-pills--single" data-filter-group="lead_priority">
-                <label class="em-filter-pill">
-                    <input type="radio" name="lead_priority" value="" @checked($selectedPriority === '') data-audience-input>
-                    <span>Any priority</span>
-                </label>
-                @foreach($leadPriorities as $value => $label)
-                <label class="em-filter-pill">
-                    <input type="radio" name="lead_priority" value="{{ $value }}" @checked($selectedPriority === $value) data-audience-input>
-                    <span>{{ $label }}</span>
-                </label>
-                @endforeach
-            </div>
         </div>
 
         <div class="em-filter-block" data-audience-integration-filter @if($currentSource !== 'integration_leads') hidden @endif>

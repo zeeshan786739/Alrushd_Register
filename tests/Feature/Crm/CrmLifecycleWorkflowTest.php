@@ -21,7 +21,7 @@ class CrmLifecycleWorkflowTest extends CrmTestCase
             'first_name' => 'Flow',
             'last_name' => 'Customer',
             'email' => 'flow-e2e@example.com',
-            'lead_status' => 'qualified',
+            'lead_status' => 'pending',
             'priority' => 'high',
         ]);
 

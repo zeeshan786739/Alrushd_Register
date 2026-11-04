@@ -4,7 +4,7 @@
     $canAssign = auth('admin')->user()?->can('assign leads');
     $canDelete = auth('admin')->user()?->can('delete leads');
 @endphp
-<article class="crm-list-row crm-lead-row crm-list-row--priority-{{ $lead->priority }} crm-list-row--status-{{ $lead->lead_status }}"
+<article class="crm-list-row crm-lead-row crm-list-row--status-{{ $lead->lead_status }}"
          data-crm-list-row
          data-crm-lead-open
          data-lead-id="{{ $lead->id }}"
@@ -61,6 +61,7 @@
                 @endif
             </div>
             <div class="crm-list-row__tags">
+                @include('admin.crm.leads.partials.admission-tags', ['lead' => $lead, 'compact' => true, 'limit' => 2])
                 @if($lead->source)
                     @include('admin.crm.partials.crm-source-badge', [
                         'source' => $lead->source,
@@ -107,21 +108,6 @@
             ])
         @else
             @include('admin.crm.partials.status-pill', ['status'=>$lead->lead_status])
-        @endcan
-    </div>
-
-    <div class="crm-list-row__field crm-list-row__field--priority">
-        @can('update leads')
-            @include('admin.crm.partials.inline-control', [
-                'field' => 'priority',
-                'value' => $lead->priority,
-                'recordId' => $lead->id,
-                'idAttr' => 'data-lead-id',
-                'options' => $priorityInlineOptions,
-                'ariaLabel' => 'Priority for '.$lead->full_name,
-            ])
-        @else
-            @include('admin.crm.partials.status-pill', ['status'=>$lead->priority])
         @endcan
     </div>
 

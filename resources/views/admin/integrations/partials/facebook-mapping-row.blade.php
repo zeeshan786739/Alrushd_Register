@@ -25,13 +25,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <select name="priority" class="form-select form-select-sm radius-8" required>
-                        @foreach(['low','medium','high'] as $priority)
-                            <option value="{{ $priority }}" @selected($mapping->priority === $priority)>{{ ucfirst($priority) }}</option>
-                        @endforeach
-                    </select>
-                </div>
                 <div class="col-md-2 d-flex gap-8 align-items-center">
                     <div class="form-check mb-0">
                         <input class="form-check-input" type="checkbox" name="auto_create_lead" value="1" id="auto_{{ $mapping->id }}" @checked($mapping->auto_create_lead)>

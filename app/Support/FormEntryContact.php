@@ -6,7 +6,7 @@ use App\Models\FormEntry;
 
 final class FormEntryContact
 {
-    /** @return array{display_name: string, first_name: string, last_name: ?string, email: ?string, phone: ?string, company: ?string, preview: ?string} */
+    /** @return array{display_name: string, first_name: string, last_name: ?string, email: ?string, phone: ?string, company: ?string, year_group: ?string, preview: ?string} */
     public static function fromEntry(FormEntry $entry): array
     {
         $data = is_array($entry->data) ? $entry->data : [];
@@ -50,6 +50,7 @@ final class FormEntryContact
             'email' => $email ? (string) $email : null,
             'phone' => $phone ? (string) $phone : null,
             'company' => $company ? (string) $company : null,
+            'year_group' => self::pick($fields, ['year_group', 'student_year']),
             'preview' => $preview ?: null,
         ];
     }

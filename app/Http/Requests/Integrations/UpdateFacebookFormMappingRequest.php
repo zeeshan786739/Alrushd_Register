@@ -19,7 +19,7 @@ class UpdateFacebookFormMappingRequest extends FormRequest
             'internal_label' => ['required', 'string', 'max:255'],
             'lead_source_label' => ['nullable', 'string', 'max:255'],
             'assigned_to' => ['nullable', 'integer', 'exists:admins,id'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
+            'priority' => ['nullable', Rule::in(['low', 'medium', 'high'])],
             'auto_create_lead' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
         ];

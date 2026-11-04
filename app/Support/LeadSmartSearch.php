@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Enums\LeadPriority;
 use App\Enums\LeadStatus;
 use App\Support\LeadStatusCatalog;
 use Illuminate\Support\Collection;
@@ -41,13 +40,6 @@ final class LeadSmartSearch
                 'file_import' => ['import', 'file import', 'spreadsheet', 'imported leads', 'imported'],
                 'manual' => ['manual entry', 'manual leads', 'added manually'],
             ],
-            'priority' => [
-                'urgent' => ['urgent priority', 'urgent leads', 'urgent'],
-                'high' => ['high priority', 'high leads'],
-                'high_urgent' => ['high and urgent', 'high & urgent', 'high urgent'],
-                'medium' => ['medium priority', 'medium leads'],
-                'low' => ['low priority', 'low leads'],
-            ],
         ];
 
         foreach ($phrases as $field => $map) {
@@ -65,9 +57,21 @@ final class LeadSmartSearch
         foreach (LeadStatusCatalog::ordered() as $status) {
             $label = Str::lower($status->label());
             $value = $status->value;
-            if (Str::contains($normalized, $label) || Str::contains($normalized, str_replace('_', ' ', $value))) {
+            $words = array_unique([$label, str_replace(['_', '-'], ' ', $value)]);
+            // Whole words only, so a name such as "Renew" is not read as the status "New".
+            $pattern = '/\b('.implode('|', array_map(fn ($word) => preg_quote($word, '/'), $words)).')\b/';
+            if (preg_match($pattern, $normalized)) {
                 $filters['lead_status'] = $value;
-                $normalized = trim(str_replace([$label, str_replace('_', ' ', $value)], ' ', $normalized));
+                $normalized = trim(preg_replace($pattern, ' ', $normalized) ?? $normalized);
+                $confidence = 'high';
+            }
+        }
+
+        foreach (LeadStatus::LEGACY_MAP as $retired => $replacement) {
+            $pattern = '/\b'.preg_quote(str_replace('_', ' ', $retired), '/').'\b/';
+            if (! isset($filters['lead_status']) && preg_match($pattern, $normalized)) {
+                $filters['lead_status'] = $replacement;
+                $normalized = trim(preg_replace($pattern, ' ', $normalized) ?? $normalized);
                 $confidence = 'high';
             }
         }
@@ -175,13 +179,6 @@ final class LeadSmartSearch
 
         if (isset($filters['lead_status'])) {
             $parts[] = LeadStatusCatalog::label($filters['lead_status']) ?: 'Status';
-        }
-
-        if (isset($filters['priority'])) {
-            $parts[] = match ($filters['priority']) {
-                'high_urgent' => 'High & urgent',
-                default => LeadPriority::tryFrom($filters['priority'])?->label() ?? 'Priority',
-            };
         }
 
         if (isset($filters['source'])) {

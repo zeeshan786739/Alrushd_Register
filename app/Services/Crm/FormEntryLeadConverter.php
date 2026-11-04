@@ -57,6 +57,7 @@ class FormEntryLeadConverter
                 'email' => $data['email'],
                 'phone' => $data['phone'],
                 'company' => $data['company'],
+                'year_group' => $data['year_group'] !== null ? mb_substr($data['year_group'], 0, 50) : null,
                 'lead_source' => $formEntry->form?->name ?? 'Form Submission',
                 'lead_status' => 'new',
                 'priority' => 'medium',

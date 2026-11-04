@@ -153,7 +153,7 @@ XML;
             'Foysol', '44 7917 496967', 'parent@example.test', 'Muhammad Yousaf', 'Y5',
             'Pending', 1, 0, 0, 1, 46027, 'Google search', 'Whatsapp', 'No',
             'Interested in September enrolment', 'Phone', 46028, 46029, 'Call after 4pm',
-        ], null, 'A12');
+        ], null, 'A12', true);
         $sheet->setCellValue('A13', 46054);
         $sheet->fromArray([
             'Tayyeb', '44 7751 549306', 'second@example.test', 'Aya Abdulahi', 'Y6',

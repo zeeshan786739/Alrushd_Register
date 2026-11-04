@@ -2,8 +2,6 @@
 
 namespace App\Http\Requests\Crm;
 
-use App\Enums\LeadPriority;
-use App\Enums\LeadStatus;
 use App\Support\CrmOrgRules;
 use App\Support\LeadCategorySchema;
 use Illuminate\Foundation\Http\FormRequest;
@@ -24,6 +22,11 @@ class StoreLeadRequest extends FormRequest
         if ($this->input('lead_category_id') === '') {
             $this->merge(['lead_category_id' => null]);
         }
+        foreach (['year_group', 'contact_method'] as $field) {
+            if ($this->input($field) === '') {
+                $this->merge([$field => null]);
+            }
+        }
     }
 
     /** @return array<string, mixed> */
@@ -35,10 +38,10 @@ class StoreLeadRequest extends FormRequest
             'last_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'company' => ['nullable', 'string', 'max:255'],
+            'year_group' => ['nullable', 'string', 'max:50', Rule::in(\App\Support\LeadFormOptions::yearGroups())],
+            'contact_method' => ['nullable', 'string', 'max:100', Rule::in(\App\Support\LeadFormOptions::contactMethods())],
             'lead_source' => ['nullable', 'string', 'max:100'],
             'lead_status' => ['required', \App\Support\LeadStatusCatalog::validationRule()],
-            'priority' => ['required', Rule::enum(LeadPriority::class)],
             'assigned_to' => ['nullable', 'integer', CrmOrgRules::adminId()],
             'lead_description' => ['nullable', 'string'],
             'estimated_value' => ['nullable', 'numeric', 'min:0'],

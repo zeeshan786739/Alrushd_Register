@@ -1,63 +1,89 @@
 @php
-    $data = is_array($entry->data) ? $entry->data : (json_decode($entry->data, true) ?? []);
-    $previewParts = [];
-    foreach ($previewKeys as $k) {
-        if (!empty($data[$k]) && is_string($data[$k])) {
-            $previewParts[] = $data[$k];
-        }
-    }
-    if (empty($previewParts)) {
-        foreach (array_slice($data, 0, 3) as $key => $val) {
-            if (is_string($val) && strlen($val) < 80) {
-                $previewParts[] = ucfirst(str_replace('_', ' ', $key)).': '.$val;
-            }
-        }
-    }
-    $previewText = implode(' · ', array_slice($previewParts, 0, 3)) ?: '—';
-    $statusClass = match($entry->status) {
-        'approved' => 'bg-success-focus text-success-main',
-        'rejected' => 'bg-danger-focus text-danger-main',
-        default => 'bg-warning-focus text-warning-main',
-    };
+    $summary = \App\Support\FormEntryBrowse::summary($entry, $facets);
+    $primary = $summary['facets']['role'] ?? null;
+    $secondary = $primary ? ($summary['facets']['subject'] ?? null) : null;
+    $primary = $primary ?? ($summary['facets']['subject'] ?? null);
+    $yearGroup = $summary['facets']['year_group'] ?? null;
+    $displayName = $summary['name'] ?? 'Name not provided';
     $submittedAt = $entry->submitted_at ?? $entry->created_at;
+    $entryUrl = route('admin.form-manager.entries.show', [$form, $entry]);
+    $status = in_array($entry->status, ['pending', 'approved', 'rejected'], true) ? $entry->status : 'pending';
+    $user = auth('admin')->user();
 @endphp
-<article class="fc-submission-row fc-list-row fc-list-row--entry"
-         onclick="window.location='{{ route('admin.form-manager.entries.show', [$form, $entry]) }}'">
-    <span class="crm-list-row__priority-rail" aria-hidden="true"></span>
-    <div class="fc-list-row__field fw-semibold text-primary-600">#{{ $entry->id }}</div>
-    <div class="fc-list-row__field fc-list-row__field--date">
-        <span class="fc-list-row__date">{{ $submittedAt->format('d M Y') }}</span>
-        <span class="fc-list-row__date-sub">{{ $submittedAt->format('H:i') }}</span>
+<article class="fc-subs-row" data-status="{{ $status }}" data-fc-row-href="{{ $entryUrl }}">
+    <div class="fc-subs-applicant">
+        <span @class(['fc-subs-avatar', 'is-empty' => ! $summary['name']]) aria-hidden="true">
+            @if($summary['name'])
+                {{ \App\Support\UserManagementHelper::initials($summary['name']) }}
+            @else
+                <iconify-icon icon="solar:user-linear"></iconify-icon>
+            @endif
+        </span>
+        <div class="fc-subs-applicant__copy">
+            <a href="{{ $entryUrl }}" class="fc-applicant__name" title="{{ $displayName }}">{{ $displayName }}</a>
+            @if($summary['email'])
+                <span class="fc-applicant__contact" title="{{ $summary['email'] }}">{{ $summary['email'] }}</span>
+            @endif
+            @if($summary['phone'])
+                <span class="fc-applicant__contact">{{ $summary['phone'] }}</span>
+            @endif
+        </div>
     </div>
-    <div class="fc-list-row__field">
-        <span class="badge {{ $statusClass }} px-12 py-6 radius-8 text-xs fw-semibold">{{ ucfirst($entry->status) }}</span>
-    </div>
-    <div class="fc-list-row__field">
-        <p class="fc-preview-text mb-0" title="{{ $previewText }}">{{ $previewText }}</p>
-        @if($entry->legacy_source)
-            <span class="fc-badge fc-badge-neutral mt-4">Legacy: {{ $entry->legacy_source }}</span>
+
+    <div class="fc-applied" data-label="{{ $detailsHeading }}">
+        @if($primary)
+            <span class="fc-applied__role" title="{{ $primary }}">{{ $primary }}</span>
+        @endif
+        @if($secondary)
+            <span class="fc-applied__sub" title="{{ $secondary }}">{{ $secondary }}</span>
+        @endif
+        @if($yearGroup)
+            <span @class(['fc-applied__role' => ! $primary, 'fc-applied__sub' => (bool) $primary])>{{ $yearGroup }}</span>
+        @endif
+        @if(! $primary && ! $yearGroup)
+            <span class="fc-applied__sub" title="{{ $summary['preview'] }}">{{ $summary['preview'] ?? '—' }}</span>
         @endif
     </div>
-    <div class="fc-list-row__actions" onclick="event.stopPropagation()">
-        <div class="fc-table-actions">
-            <a href="{{ route('admin.form-manager.entries.show', [$form, $entry]) }}"
-               class="fc-action-icon view"
-               title="View submission"
-               aria-label="View submission">
-                <iconify-icon icon="solar:eye-linear"></iconify-icon>
-            </a>
+
+    <div class="fc-subs-date" title="{{ $submittedAt->format('d M Y, H:i') }}" data-label="Submitted">
+        <span class="fc-list-row__date">{{ $submittedAt->format('d M Y') }}</span>
+        <span class="fc-list-row__date-sub">{{ $submittedAt->diffForHumans() }}</span>
+    </div>
+
+    <div class="fc-subs-status">
+        @if($user?->can('update form submissions'))
+            <form method="POST" action="{{ route('admin.form-manager.entries.status', [$form, $entry]) }}">
+                @csrf @method('PATCH')
+                <label class="visually-hidden" for="fc-status-{{ $entry->id }}">Status for {{ $displayName }}</label>
+                <select id="fc-status-{{ $entry->id }}" name="status" class="fc-subs-status-select" data-status="{{ $status }}" data-fc-auto-submit>
+                    @foreach(['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $value => $label)
+                        <option value="{{ $value }}" data-tone="{{ \App\Support\CrmStatusTone::for($value) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($value) }}" @selected($status === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @else
+            <span class="fc-subs-status-select is-static" data-status="{{ $status }}">{{ ucfirst($status) }}</span>
+        @endif
+    </div>
+
+    <div class="fc-subs-actions">
+        <a href="{{ $entryUrl }}" class="fc-subs-icon-btn" title="View submission" aria-label="View submission from {{ $displayName }}">
+            <iconify-icon icon="solar:eye-linear" aria-hidden="true"></iconify-icon>
+        </a>
+        @if($user?->can('delete form submissions'))
             <form method="POST"
                   action="{{ route('admin.form-manager.entries.destroy', [$form, $entry]) }}"
-                  class="d-inline"
-                  onsubmit="return confirm('Delete this submission?')">
+                  data-crm-confirm
+                  data-confirm-title="Delete this submission?"
+                  data-confirm-message="The submission from {{ $displayName }} will be permanently deleted. This cannot be undone."
+                  data-confirm-label="Delete"
+                  data-confirm-tone="danger"
+                  data-confirm-icon="solar:trash-bin-minimalistic-linear">
                 @csrf @method('DELETE')
-                <button type="submit"
-                        class="fc-action-icon delete"
-                        title="Delete submission"
-                        aria-label="Delete submission">
-                    <iconify-icon icon="solar:trash-bin-minimalistic-linear"></iconify-icon>
+                <button type="submit" class="fc-subs-icon-btn is-danger" title="Delete submission" aria-label="Delete submission from {{ $displayName }}">
+                    <iconify-icon icon="solar:trash-bin-minimalistic-linear" aria-hidden="true"></iconify-icon>
                 </button>
             </form>
-        </div>
+        @endif
     </div>
 </article>

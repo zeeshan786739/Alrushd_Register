@@ -21,12 +21,13 @@
         <div class="col-md-3">@include('admin.partials.dashboard-stat-card', ['label'=>'Facebook','value'=>$stats['facebook'],'icon'=>'logos:facebook','tone'=>'gold'])</div>
     </div>
     @include('admin.partials.filter-bar', ['action'=>route('admin.crm.form-entries.index'),'resetUrl'=>route('admin.crm.form-entries.index'),'fields'=>[
-        ['name'=>'search','label'=>'Search','placeholder'=>'Entry data'],
+        ['name'=>'search','label'=>'Search','placeholder'=>'Name, email, phone or any answer'],
         ['name'=>'form_id','label'=>'Form','type'=>'select','options'=>$forms->pluck('name','id')->all()],
         ['name'=>'legacy_source','label'=>'Channel','type'=>'select','options'=>['facebook_lead_ads'=>'Facebook Lead Ads']],
         ['name'=>'status','label'=>'Status','type'=>'select','options'=>['pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected']],
         ['name'=>'date_from','label'=>'From','type'=>'date'],
         ['name'=>'date_to','label'=>'To','type'=>'date'],
+        ['name'=>'sort','label'=>'Sort by','type'=>'select','placeholder'=>'Newest first','options'=>collect($sortOptions)->except('newest')->all()],
     ]])
     <div class="card radius-12 shadow-2 border-0"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0">
         <thead><tr><th>ID</th><th>Form</th><th>Status</th><th>Submitted</th><th>Preview</th><th></th></tr></thead>

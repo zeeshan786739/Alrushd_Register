@@ -75,7 +75,6 @@ class AudienceController extends Controller
             'form_entry_ids' => array_filter(array_map('intval', (array) $request->input('form_entry_ids', []))),
             'lead_status' => $request->get('lead_status'),
             'lead_statuses' => array_filter((array) $request->input('lead_statuses', [])),
-            'lead_priority' => $request->get('lead_priority'),
             'lead_source' => $request->get('lead_source'),
             'form_id' => $request->integer('form_id') ?: null,
         ];
@@ -107,7 +106,7 @@ class AudienceController extends Controller
             'type' => 'lead',
             'name' => $lead->full_name,
             'email' => $lead->email,
-            'meta' => LeadSourceOptions::label($lead->source).' · '.ucfirst((string) $lead->lead_status),
+            'meta' => LeadSourceOptions::label($lead->source).' · '.\App\Support\LeadStatusCatalog::label($lead->lead_status),
             'source' => $lead->source,
         ])->all();
     }

@@ -17,7 +17,7 @@ class LeadConversionTest extends CrmTestCase
             'first_name' => 'Convert',
             'last_name' => 'Me',
             'email' => 'convert@example.com',
-            'lead_status' => 'qualified',
+            'lead_status' => 'pending',
             'priority' => 'high',
         ]);
 
@@ -30,7 +30,7 @@ class LeadConversionTest extends CrmTestCase
 
         $lead->refresh();
         $this->assertTrue($lead->is_converted);
-        $this->assertSame('won', $lead->lead_status);
+        $this->assertSame('enrolled', $lead->lead_status);
         $this->assertSame($customer->id, $lead->customer_id);
     }
 
@@ -69,7 +69,7 @@ class LeadConversionTest extends CrmTestCase
             'source' => 'manual',
             'first_name' => 'Other',
             'email' => 'dup@example.com',
-            'lead_status' => 'qualified',
+            'lead_status' => 'pending',
             'priority' => 'medium',
         ]);
 
@@ -85,7 +85,7 @@ class LeadConversionTest extends CrmTestCase
         $lead->refresh();
         $this->assertFalse((bool) $lead->is_converted);
         $this->assertNull($lead->customer_id);
-        $this->assertSame('qualified', $lead->lead_status);
+        $this->assertSame('pending', $lead->lead_status);
         $this->assertSame(1, Customer::forOrganization($this->organizationA->id)->count());
     }
 
@@ -103,7 +103,7 @@ class LeadConversionTest extends CrmTestCase
             'source' => 'manual',
             'first_name' => 'Blocked',
             'email' => 'http-dup@example.com',
-            'lead_status' => 'qualified',
+            'lead_status' => 'pending',
             'priority' => 'medium',
         ]);
 
@@ -132,7 +132,7 @@ class LeadConversionTest extends CrmTestCase
             'source' => 'manual',
             'first_name' => 'Soft',
             'email' => 'soft-dup@example.com',
-            'lead_status' => 'qualified',
+            'lead_status' => 'pending',
             'priority' => 'medium',
         ]);
 

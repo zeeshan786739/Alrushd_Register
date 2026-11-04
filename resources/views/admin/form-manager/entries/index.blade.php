@@ -10,14 +10,70 @@
 @endonce
 
 @php
-    $currentStatus = request('status', '');
-    $previewKeys = ['full_name', 'name', 'first_name', 'email', 'phone', 'mobile', 'job_title', 'company'];
+    use App\Support\FormEntryBrowse;
+
+    $currentStatus = (string) request('status', '');
+    $baseUrl = route('admin.form-manager.entries', $form);
+    $urlWith = fn (array $query) => $baseUrl.(($clean = array_filter($query, fn ($value) => filled($value))) ? '?'.http_build_query($clean) : '');
+
+    // The results column is named after what this form actually collects.
+    $detailsFacet = collect(['role', 'subject', 'year_group'])->first(fn ($name) => isset($facetOptions[$name]));
+    $detailsHeading = $detailsFacet ? $facets[$detailsFacet]['label'] : 'Details';
+
+    // Column heading link: first click sorts ascending, the next click reverses it.
+    $sortHeading = function (string $label, string $asc, string $desc) use ($sort, $urlWith) {
+        $active = in_array($sort, [$asc, $desc], true);
+        $next = $sort === $asc ? $desc : $asc;
+
+        return compact('label', 'active') + [
+            'url' => $urlWith(array_merge(request()->except(['page', 'sort']), ['sort' => $next])),
+            'icon' => ! $active ? 'solar:sort-vertical-linear' : ($sort === $asc && $asc !== $desc ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'),
+        ];
+    };
+    $headings = [
+        $sortHeading('Applicant', 'name_asc', 'name_desc'),
+        $detailsFacet ? $sortHeading($detailsHeading, $detailsFacet.'_asc', $detailsFacet.'_desc') : null,
+        $sortHeading('Submitted', 'oldest', 'newest'),
+        $sortHeading('Status', 'status', 'status'),
+    ];
+
+    $tabs = [
+        ['key' => '', 'label' => 'All', 'count' => $entryStats['total']],
+        ['key' => 'pending', 'label' => 'Pending', 'count' => $entryStats['pending']],
+        ['key' => 'approved', 'label' => 'Approved', 'count' => $entryStats['approved']],
+        ['key' => 'rejected', 'label' => 'Rejected', 'count' => $entryStats['rejected']],
+    ];
+
+    // Each active refinement becomes a chip whose link removes only that refinement.
+    $chipFor = fn (string $key, string $label, string $value) => [
+        'label' => $label,
+        'value' => $value,
+        'url' => $urlWith(request()->except(['page', $key])),
+    ];
+    $panelChips = [];
+    foreach (array_keys($facetOptions) as $name) {
+        if (request()->filled($name)) {
+            $panelChips[] = $chipFor($name, $facets[$name]['label'], (string) request($name));
+        }
+    }
+    if (request()->filled('date_from')) {
+        $panelChips[] = $chipFor('date_from', 'From', \Illuminate\Support\Carbon::hasFormat((string) request('date_from'), 'Y-m-d') ? \Illuminate\Support\Carbon::parse(request('date_from'))->format('d M Y') : (string) request('date_from'));
+    }
+    if (request()->filled('date_to')) {
+        $panelChips[] = $chipFor('date_to', 'To', \Illuminate\Support\Carbon::hasFormat((string) request('date_to'), 'Y-m-d') ? \Illuminate\Support\Carbon::parse(request('date_to'))->format('d M Y') : (string) request('date_to'));
+    }
+    $chips = $panelChips;
+    if (request()->filled('search')) {
+        array_unshift($chips, $chipFor('search', 'Search', (string) request('search')));
+    }
+    $keepSortOnly = $urlWith($sort !== FormEntryBrowse::DEFAULT_SORT ? ['sort' => $sort] : []);
+    $isRefined = $chips !== [] || $currentStatus !== '';
 @endphp
 
 <div class="dashboard-main-body" id="form-center-page">
     @include('admin.partials.page-header', [
         'title' => $form->name,
-        'subtitle' => ($entryStats['total'] ?? $entries->total()).' total submissions stored in form_entries',
+        'subtitle' => number_format($entryStats['total']).' '.\Illuminate\Support\Str::plural('submission', $entryStats['total']).($entryStats['pending'] > 0 ? ' · '.number_format($entryStats['pending']).' awaiting review' : ''),
         'showBreadcrumb' => true,
         'breadcrumbs' => [
             ['label' => 'Forms & Intake'],
@@ -31,138 +87,186 @@
         ],
     ])
 
-    <div class="fc-workspace crm-workspace-shell">
-        <div class="crm-metrics-strip" aria-label="Submission metrics">
-            <div class="crm-metrics-strip__items">
-                <span class="crm-metrics-strip__hint">{{ $form->name }} submissions</span>
-                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
-                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Total</span><strong>{{ number_format($entryStats['total']) }}</strong></span>
-                <span class="crm-metrics-strip__sep" aria-hidden="true"></span>
-                <span class="crm-metrics-strip__item"><span class="crm-metrics-strip__label">Pending</span><strong>{{ number_format($entryStats['pending']) }}</strong></span>
-            </div>
-        </div>
-    </div>
-
-    <div class="fc-page-body">
-        <div class="fc-stat-pill-grid">
-            @php
-                $pills = [
-                    ['key' => '', 'label' => 'All', 'count' => $entryStats['total'], 'icon' => 'solar:documents-linear', 'bg' => 'bg-primary-50 text-primary-600'],
-                    ['key' => 'pending', 'label' => 'Pending', 'count' => $entryStats['pending'], 'icon' => 'solar:clock-circle-linear', 'bg' => 'bg-warning-50 text-warning-600'],
-                    ['key' => 'approved', 'label' => 'Approved', 'count' => $entryStats['approved'], 'icon' => 'solar:check-circle-linear', 'bg' => 'bg-success-50 text-success-600'],
-                    ['key' => 'rejected', 'label' => 'Rejected', 'count' => $entryStats['rejected'], 'icon' => 'solar:close-circle-linear', 'bg' => 'bg-danger-50 text-danger-600'],
-                ];
-            @endphp
-            @foreach($pills as $pill)
-                @php
-                    $pillQuery = array_filter([
-                        'search' => request('search'),
-                        'date_from' => request('date_from'),
-                        'date_to' => request('date_to'),
-                        'status' => $pill['key'] ?: null,
-                    ]);
-                    $isActive = $currentStatus === $pill['key'];
-                @endphp
-                <a href="{{ route('admin.form-manager.entries', $form) }}?{{ http_build_query($pillQuery) }}"
-                   class="fc-stat-pill {{ $isActive ? 'active-filter' : '' }}">
-                    <span class="fc-stat-pill-icon {{ $pill['bg'] }}">
-                        <iconify-icon icon="{{ $pill['icon'] }}"></iconify-icon>
-                    </span>
-                    <span>
-                        <span class="d-block fw-bold text-lg lh-1 mb-4">{{ number_format($pill['count']) }}</span>
-                        <span class="text-secondary-light text-sm">{{ $pill['label'] }}</span>
-                    </span>
+    <section class="fc-subs" aria-label="{{ $form->name }} submissions">
+        <nav class="fc-subs-tabs" aria-label="Filter by status">
+            @foreach($tabs as $tab)
+                @php $isActive = $currentStatus === $tab['key']; @endphp
+                <a href="{{ $urlWith(array_merge(request()->except(['status', 'page']), ['status' => $tab['key']])) }}"
+                   @class(['fc-subs-tab', 'is-active' => $isActive])
+                   data-status="{{ $tab['key'] ?: 'all' }}"
+                   @if($isActive) aria-current="page" @endif>
+                    <span class="fc-subs-tab__dot" aria-hidden="true"></span>
+                    {{ $tab['label'] }}
+                    <span class="fc-subs-tab__count">{{ number_format($tab['count']) }}</span>
                 </a>
             @endforeach
-        </div>
+        </nav>
 
-        <div class="fc-filter-workspace mb-16">
-            <div class="fc-filter-workspace__head">
-                <h2 class="fc-filter-workspace__title">Filter submissions</h2>
-                <p class="fc-filter-workspace__sub">Search and narrow by date or status</p>
-            </div>
-            <form method="GET" action="{{ route('admin.form-manager.entries', $form) }}" class="fc-filter-grid">
-                <div class="fc-filter-field">
-                    <label for="fc-entry-search">Search</label>
-                    <div class="um-ai-search__shell">
-                        <span class="um-ai-search__icon"><iconify-icon icon="solar:magnifer-linear"></iconify-icon></span>
-                        <input type="text" id="fc-entry-search" name="search" class="um-ai-search__input" value="{{ request('search') }}" placeholder="Name, email, phone…">
-                    </div>
-                </div>
-                <div class="fc-filter-field">
-                    <label for="fc-date-from">Start date</label>
-                    <input type="date" id="fc-date-from" name="date_from" class="form-control radius-8" value="{{ request('date_from') }}">
-                </div>
-                <div class="fc-filter-field">
-                    <label for="fc-date-to">End date</label>
-                    <input type="date" id="fc-date-to" name="date_to" class="form-control radius-8" value="{{ request('date_to') }}">
-                </div>
-                <div class="fc-filter-field">
-                    <label for="fc-entry-status">Status</label>
-                    <select id="fc-entry-status" name="status" class="form-select radius-8">
-                        <option value="">All</option>
-                        @foreach(['pending','approved','rejected'] as $st)
-                            <option value="{{ $st }}" @selected(request('status') === $st)>{{ ucfirst($st) }}</option>
+        <form method="GET" action="{{ $baseUrl }}" class="fc-subs-controls" id="fc-entries-filter">
+            @if($currentStatus !== '')
+                <input type="hidden" name="status" value="{{ $currentStatus }}">
+            @endif
+
+            <div class="fc-subs-toolbar">
+                <label class="fc-subs-search" for="fc-entry-search">
+                    <span class="visually-hidden">Search submissions</span>
+                    <iconify-icon icon="solar:magnifer-linear" aria-hidden="true"></iconify-icon>
+                    <input type="search" id="fc-entry-search" name="search" value="{{ request('search') }}" placeholder="Search by name, email, phone or any answer" autocomplete="off">
+                </label>
+
+                <button type="button"
+                        @class(['fc-subs-filter-toggle', 'is-active' => $panelChips !== []])
+                        data-fc-filter-toggle
+                        aria-controls="fc-subs-panel"
+                        aria-expanded="{{ $panelChips !== [] ? 'true' : 'false' }}">
+                    <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
+                    Filters
+                    @if($panelChips !== [])
+                        <span class="fc-subs-filter-toggle__count">{{ count($panelChips) }}</span>
+                    @endif
+                </button>
+
+                <div class="fc-subs-sort">
+                    <label for="fc-entry-sort">Sort by</label>
+                    <select id="fc-entry-sort" name="sort" class="form-select" data-fc-auto-submit>
+                        @foreach($sortOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($sort === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="fc-filter-field">
-                    <label>&nbsp;</label>
-                    <div class="d-flex gap-8">
-                        <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11 fc-btn">
-                            <iconify-icon icon="solar:filter-linear"></iconify-icon>
-                            <span>Filter</span>
-                        </button>
-                        <a href="{{ route('admin.form-manager.entries', $form) }}"
-                           class="btn btn-outline-neutral-500 radius-8 fc-btn fc-btn-icon"
-                           title="Reset filters"
-                           aria-label="Reset filters">
-                            <iconify-icon icon="solar:refresh-linear"></iconify-icon>
-                        </a>
+            </div>
+
+            <div class="fc-subs-panel" id="fc-subs-panel" @if($panelChips === []) hidden @endif>
+                <div class="fc-subs-panel__fields">
+                    @foreach($facetOptions as $name => $options)
+                        <div class="fc-subs-field">
+                            <label for="fc-entry-{{ $name }}">{{ $facets[$name]['label'] }}</label>
+                            @if($facets[$name]['match'] === 'contains')
+                                <input type="search" id="fc-entry-{{ $name }}" name="{{ $name }}" class="form-control" list="fc-entry-{{ $name }}-list" value="{{ request($name) }}" placeholder="Type or choose" autocomplete="off">
+                                <datalist id="fc-entry-{{ $name }}-list">
+                                    @foreach($options as $option)
+                                        <option value="{{ $option }}"></option>
+                                    @endforeach
+                                </datalist>
+                            @else
+                                <select id="fc-entry-{{ $name }}" name="{{ $name }}" class="form-select" data-fc-auto-submit>
+                                    <option value="">All</option>
+                                    @foreach($options as $option)
+                                        <option value="{{ $option }}" @selected(mb_strtolower((string) request($name)) === mb_strtolower($option))>{{ $option }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
+                        </div>
+                    @endforeach
+                    <div class="fc-subs-field">
+                        <label for="fc-date-from">Submitted from</label>
+                        <input type="date" id="fc-date-from" name="date_from" class="form-control" value="{{ request('date_from') }}" max="{{ request('date_to') }}">
+                    </div>
+                    <div class="fc-subs-field">
+                        <label for="fc-date-to">Submitted to</label>
+                        <input type="date" id="fc-date-to" name="date_to" class="form-control" value="{{ request('date_to') }}" min="{{ request('date_from') }}">
                     </div>
                 </div>
-            </form>
-        </div>
-
-        <div class="crm-leads-toolbar">
-            <div class="crm-leads-toolbar__meta">
-                <strong>Submissions</strong>
-                <span>{{ $entries->total() }} result{{ $entries->total() === 1 ? '' : 's' }}</span>
+                <div class="fc-subs-panel__actions">
+                    <button type="submit" class="fc-subs-btn fc-subs-btn--primary">Apply filters</button>
+                </div>
             </div>
+        </form>
+
+        <div class="fc-subs-summary">
+            <span class="fc-subs-summary__count" role="status">
+                @if($entries->total() > 0)
+                    Showing <strong>{{ number_format($entries->firstItem()) }}–{{ number_format($entries->lastItem()) }}</strong> of <strong>{{ number_format($entries->total()) }}</strong>
+                @else
+                    No results
+                @endif
+            </span>
+            @foreach($chips as $chip)
+                <a href="{{ $chip['url'] }}" class="fc-subs-chip" title="Remove this filter">
+                    <span class="fc-subs-chip__label">{{ $chip['label'] }}:</span>
+                    {{ \Illuminate\Support\Str::limit($chip['value'], 32) }}
+                    <iconify-icon icon="solar:close-circle-linear" aria-hidden="true"></iconify-icon>
+                    <span class="visually-hidden">Remove</span>
+                </a>
+            @endforeach
+            @if($chips !== [])
+                <a href="{{ $urlWith(['status' => $currentStatus, 'sort' => $sort !== FormEntryBrowse::DEFAULT_SORT ? $sort : null]) }}" class="fc-subs-clear">Clear all</a>
+            @endif
         </div>
 
-        <div class="crm-list-shell">
-            <div class="crm-leads-table">
-                @if($entries->isEmpty())
-                    <div class="crm-leads-list-empty">
-                        <iconify-icon icon="solar:inbox-linear"></iconify-icon>
-                        <strong>No submissions found</strong>
-                        <span>Try adjusting your filters or check back later.</span>
-                    </div>
+        @if($entries->isEmpty())
+            <div class="fc-subs-empty">
+                <span class="fc-subs-empty__icon" aria-hidden="true"><iconify-icon icon="solar:inbox-linear"></iconify-icon></span>
+                @if($isRefined)
+                    <strong>No submissions match</strong>
+                    <p>Try a different search or remove a filter.</p>
+                    <a href="{{ $keepSortOnly }}" class="fc-subs-btn">Show all submissions</a>
                 @else
-                    <div class="crm-leads-table__head crm-leads-table__head--entries" aria-hidden="true">
-                        <span>#</span><span>Submitted</span><span>Status</span><span>Preview</span><span></span>
-                    </div>
-                    <div class="crm-leads-list">
-                        @foreach($entries as $entry)
-                            @include('admin.form-manager.partials.entry-row', compact('entry', 'form', 'previewKeys'))
-                        @endforeach
-                    </div>
-                    @if($entries->hasPages())
-                        <div class="fc-pagination">
-                            <span class="fc-pagination-info">
-                                Showing {{ $entries->firstItem() }}–{{ $entries->lastItem() }} of {{ $entries->total() }} results
-                            </span>
-                            {{ $entries->appends(request()->query())->links('pagination::bootstrap-5') }}
-                        </div>
-                    @elseif($entries->total() > 0)
-                        <div class="fc-pagination">
-                            <span class="fc-pagination-info">{{ $entries->total() }} submission{{ $entries->total() === 1 ? '' : 's' }}</span>
-                        </div>
-                    @endif
+                    <strong>No submissions yet</strong>
+                    <p>New submissions for this form will appear here.</p>
                 @endif
             </div>
-        </div>
-    </div>
+        @else
+            <div class="fc-subs-table">
+                <div class="fc-subs-head">
+                    @foreach($headings as $heading)
+                        @if($heading)
+                            <a href="{{ $heading['url'] }}" @class(['fc-sort-link', 'is-active' => $heading['active']])>
+                                {{ $heading['label'] }}
+                                <iconify-icon icon="{{ $heading['icon'] }}" aria-hidden="true"></iconify-icon>
+                            </a>
+                        @else
+                            <span>{{ $detailsHeading }}</span>
+                        @endif
+                    @endforeach
+                    <span class="visually-hidden">Actions</span>
+                </div>
+                <div class="fc-subs-rows">
+                    @foreach($entries as $entry)
+                        @include('admin.form-manager.partials.entry-row', compact('entry', 'form', 'facets', 'detailsHeading'))
+                    @endforeach
+                </div>
+            </div>
+            @if($entries->hasPages())
+                <div class="fc-pagination">
+                    {{ $entries->appends(request()->query())->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
+        @endif
+    </section>
 </div>
+@endsection
+
+@section('script')
+<script>
+(function () {
+    var page = document.getElementById('form-center-page');
+    if (!page) return;
+
+    var toggle = page.querySelector('[data-fc-filter-toggle]');
+    var panel = page.querySelector('#fc-subs-panel');
+    if (toggle && panel) {
+        toggle.addEventListener('click', function () {
+            panel.hidden = !panel.hidden;
+            toggle.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+            if (!panel.hidden) {
+                var first = panel.querySelector('input, select');
+                if (first) first.focus();
+            }
+        });
+    }
+
+    page.addEventListener('change', function (event) {
+        var field = event.target.closest('[data-fc-auto-submit]');
+        if (field && field.form) field.form.submit();
+    });
+
+    // The whole row opens the submission; controls inside it keep their own behaviour.
+    page.addEventListener('click', function (event) {
+        var row = event.target.closest('[data-fc-row-href]');
+        if (!row || event.target.closest('a, button, select, input, label, form')) return;
+        window.location.href = row.getAttribute('data-fc-row-href');
+    });
+})();
+</script>
 @endsection

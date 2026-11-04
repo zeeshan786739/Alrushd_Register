@@ -4,7 +4,7 @@
     $canAssign = auth('admin')->user()?->can('assign leads');
     $canDelete = auth('admin')->user()?->can('delete leads');
 @endphp
-<article class="crm-board-card crm-board-card--priority-{{ $lead->priority }}"
+<article class="crm-board-card"
          data-crm-board-card
          data-crm-lead-open
          data-lead-id="{{ $lead->id }}"
@@ -63,9 +63,6 @@
             </span>
             <div class="crm-board-card__identity-copy min-w-0">
                 <div class="crm-board-card__title">{{ $lead->full_name }}</div>
-                @if($lead->company)
-                    <div class="crm-board-card__company">{{ $lead->company }}</div>
-                @endif
             </div>
         </div>
 
@@ -126,20 +123,7 @@
         </div>
 
         <div class="crm-board-card__footer">
-            <div class="crm-board-card__footer-left">
-                @if($canUpdate)
-                    @include('admin.crm.partials.inline-control', [
-                        'field' => 'priority',
-                        'value' => $lead->priority,
-                        'recordId' => $lead->id,
-                        'idAttr' => 'data-lead-id',
-                        'options' => $priorityInlineOptions,
-                        'ariaLabel' => 'Priority for '.$lead->full_name,
-                    ])
-                @else
-                    @include('admin.crm.partials.status-pill', ['status' => $lead->priority])
-                @endif
-            </div>
+            <div class="crm-board-card__footer-left"></div>
             <div class="crm-board-card__footer-right">
                 @if($canAssign)
                     @include('admin.crm.partials.inline-control', [

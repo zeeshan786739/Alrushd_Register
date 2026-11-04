@@ -13,14 +13,10 @@ final class LeadAdmissionTags
      */
     public static function forLead(Lead $lead, int $limit = 8): array
     {
-        if (! is_array($lead->custom_data) || $lead->custom_data === []) {
-            return [];
-        }
-
-        $custom = $lead->custom_data;
+        $custom = is_array($lead->custom_data) ? $lead->custom_data : [];
         $tags = [];
 
-        if ($year = self::text($custom['Year'] ?? null)) {
+        if ($year = self::text($lead->year_group) ?? self::text($custom['Year'] ?? null)) {
             $tags[] = [
                 'label' => $year,
                 'short' => $year,
@@ -30,7 +26,7 @@ final class LeadAdmissionTags
             ];
         }
 
-        if ($method = self::text($custom['Lead Status'] ?? null)) {
+        if ($method = self::text($lead->contact_method) ?? self::text($custom['Lead Status'] ?? null)) {
             $tags[] = [
                 'label' => $method,
                 'short' => $method,

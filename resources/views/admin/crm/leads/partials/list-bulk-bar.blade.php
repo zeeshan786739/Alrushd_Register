@@ -11,24 +11,11 @@
                 <select class="form-select form-select-sm" data-crm-bulk-status>
                     <option value="">Choose…</option>
                     @foreach(\App\Support\LeadStatusCatalog::ordered() as $status)
-                        <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                        <option value="{{ $status->value }}" data-tone="{{ \App\Support\CrmStatusTone::for($status->value) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($status->value) }}">{{ $status->label() }}</option>
                     @endforeach
                 </select>
             </label>
             <button type="button" class="crm-list-bulk-bar__btn" data-crm-bulk-apply="lead_status" disabled>Apply</button>
-
-            <span class="crm-list-bulk-bar__divider" aria-hidden="true"></span>
-
-            <label class="crm-list-bulk-bar__field">
-                <span>Priority</span>
-                <select class="form-select form-select-sm" data-crm-bulk-priority>
-                    <option value="">Choose…</option>
-                    @foreach(\App\Enums\LeadPriority::cases() as $priority)
-                        <option value="{{ $priority->value }}">{{ $priority->label() }}</option>
-                    @endforeach
-                </select>
-            </label>
-            <button type="button" class="crm-list-bulk-bar__btn" data-crm-bulk-apply="priority" disabled>Apply</button>
         @endcan
 
         @can('assign leads')
