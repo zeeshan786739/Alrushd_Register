@@ -192,6 +192,11 @@ class Lead extends Model
         return $query->whereDate('next_follow_up_date', today());
     }
 
+    public function scopeMissing($query, string $column)
+    {
+        return $query->where(fn ($inner) => $inner->whereNull($column)->orWhere($column, ''));
+    }
+
     public function scopeOverdueFollowUp($query)
     {
         return $query->whereDate('next_follow_up_date', '<', today())

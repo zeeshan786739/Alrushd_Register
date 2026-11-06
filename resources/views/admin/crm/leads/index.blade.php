@@ -26,11 +26,11 @@
         ];
     }
     $workflowStatuses = $workflowStatuses ?? \App\Support\LeadPipeline::orderedStatuses();
-    $activeFilters = collect(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','admission_intake','contact_method','assigned_to']))
+    $activeFilters = collect(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','admission_intake','contact_method','contact_details','children','converted','date_from','date_to','assigned_to']))
         ->filter(fn ($value) => $value !== null && $value !== '')
         ->count();
 @endphp
-<div class="dashboard-main-body {{ ($viewMode ?? 'board') === 'list' ? 'crm-list-view' : 'crm-board-view' }}" id="crm-leads-page"
+<div class="dashboard-main-body {{ ($viewMode ?? 'board') === 'list' ? 'crm-list-view' : 'crm-board-view' }} {{ ($filteredTotal ?? 0) === 0 && $activeFilters > 0 ? 'is-no-results' : '' }}" id="crm-leads-page"
      data-inline-url-template="{{ url('admin/crm/leads') }}/__ID__/inline"
      data-panel-url-template="{{ url('admin/crm/leads') }}/__ID__/panel"
      data-panel-edit-url-template="{{ url('admin/crm/leads') }}/__ID__/panel/edit"
@@ -166,7 +166,7 @@
             <div class="crm-save-filter-inline__inner">
                 <input type="text" name="name" class="form-control radius-8" placeholder="Filter name" required>
                 <input type="hidden" name="filters[view]" value="{{ $viewMode ?? 'board' }}">
-                @foreach(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','admission_intake','contact_method','assigned_to','sort_by','sort_order']) as $key=>$value)
+                @foreach(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','admission_intake','contact_method','contact_details','children','converted','date_from','date_to','date_field','assigned_to','sort_by','sort_order']) as $key=>$value)
                     @if($value !== null && $value !== '')<input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">@endif
                 @endforeach
                 <button type="submit" class="btn btn-outline-primary-600 radius-8">Save</button>
@@ -174,6 +174,10 @@
             </div>
         </form>
         @endcan
+
+        @if(($filteredTotal ?? 0) === 0 && $activeFilters > 0)
+            @include('admin.crm.leads.partials.no-results', ['viewMode' => $viewMode ?? 'board'])
+        @endif
 
         <div class="crm-board-only crm-workflow-board" data-crm-board>
             @foreach($workflowStatuses as $status)
@@ -395,4 +399,5 @@
 
 @section('script')
 <script src="{{ asset('admin/assets/js/crm-leads.js') }}?v={{ filemtime(public_path('admin/assets/js/crm-leads.js')) }}"></script>
+<script src="{{ \App\Support\AdminAsset::url('admin/assets/js/crm-date-filter.js') }}"></script>
 @endsection

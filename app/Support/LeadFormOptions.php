@@ -10,6 +10,9 @@ final class LeadFormOptions
     /** A lead is one family: the first child's year is year_group, the rest are extra_year_groups. */
     public const MAX_CHILDREN = 4;
 
+    /** Filter value meaning "this field is blank", used to find leads that still need tagging. */
+    public const FILTER_NOT_SET = '__none__';
+
     /** The intake the team filters by most, offered as a one-click filter on the Leads page. */
     public const FEATURED_ADMISSION_INTAKE = 'Sept 27/28';
 

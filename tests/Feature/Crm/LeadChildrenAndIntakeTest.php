@@ -128,7 +128,7 @@ class LeadChildrenAndIntakeTest extends CrmTestCase
     {
         $this->lead(['first_name' => 'Joining 2027', 'admission_intake' => 'Sept 27/28']);
         $this->lead(['first_name' => 'Joining 2026', 'admission_intake' => 'Sept 26/27']);
-        $this->lead(['first_name' => 'Not set yet']);
+        $this->lead(['first_name' => 'Waheed Untagged']);
 
         $this->actingAsCrmAdmin()
             ->get(route('admin.crm.leads.index', ['view' => 'list']))
@@ -141,7 +141,7 @@ class LeadChildrenAndIntakeTest extends CrmTestCase
             ->assertOk()
             ->assertSee('Joining 2027')
             ->assertDontSee('Joining 2026')
-            ->assertDontSee('Not set yet');
+            ->assertDontSee('Waheed Untagged');
     }
 
     public function test_intake_can_be_set_and_cleared_in_bulk(): void

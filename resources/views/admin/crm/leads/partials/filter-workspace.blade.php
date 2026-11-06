@@ -36,6 +36,7 @@
     $isUnassigned = request('assigned_to') === 'unassigned';
     $isNewStatus = request('lead_status') === 'new';
     $isFollowUpToday = request('follow_up') === 'today';
+    $isOverdue = request('follow_up') === 'overdue';
     $featuredIntake = \App\Support\LeadFormOptions::FEATURED_ADMISSION_INTAKE;
     $isFeaturedIntake = request('admission_intake') === $featuredIntake;
 
@@ -44,14 +45,22 @@
         ['key' => 'unassigned', 'label' => 'Unassigned', 'icon' => 'solar:user-cross-linear', 'active' => $isUnassigned, 'url' => $isUnassigned ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'unassigned'], ['assigned_to'])],
         ['key' => 'new', 'label' => 'New', 'icon' => 'solar:star-linear', 'active' => $isNewStatus, 'url' => $isNewStatus ? $filterUrl([], ['lead_status']) : $filterUrl(['lead_status' => 'new'], ['lead_status'])],
         ['key' => 'follow_up', 'label' => 'Due today', 'icon' => 'solar:calendar-linear', 'active' => $isFollowUpToday, 'url' => $isFollowUpToday ? $filterUrl([], ['follow_up']) : $filterUrl(['follow_up' => 'today'], ['follow_up'])],
+        ['key' => 'overdue', 'label' => 'Overdue', 'icon' => 'solar:alarm-linear', 'active' => $isOverdue, 'url' => $isOverdue ? $filterUrl([], ['follow_up']) : $filterUrl(['follow_up' => 'overdue'], ['follow_up'])],
         ['key' => 'admission_intake', 'label' => $featuredIntake.' admissions', 'icon' => 'solar:calendar-mark-linear', 'active' => $isFeaturedIntake, 'url' => $isFeaturedIntake ? $filterUrl([], ['admission_intake']) : $filterUrl(['admission_intake' => $featuredIntake], ['admission_intake'])],
     ];
 
     $showFormPicker = $activeSource === 'form_submission' || request()->filled('form_id');
     $showImportPicker = $activeSource === 'file_import' || request()->filled('advertising_platform');
     $formLeadsTotal = (int) ($sourceCounts['form_submission'] ?? 0);
-    $expandMore = request()->filled('campaign_name') || request()->filled('lead_status') || request()->filled('lead_category_id')
-        || request()->filled('assigned_to') || request()->filled('follow_up') || request()->filled('year_group') || (request()->filled('admission_intake') && ! $isFeaturedIntake) || request()->filled('contact_method');
+    $expandMore = request()->filled('campaign_name') || request()->filled('lead_category_id') || request()->filled('follow_up')
+        || request()->filled('contact_method') || request()->filled('contact_details') || request()->filled('children') || request()->filled('converted');
+    $moreFilterCount = collect(['campaign_name', 'lead_category_id', 'follow_up', 'contact_method', 'contact_details', 'children', 'converted'])
+        ->filter(fn ($key) => request()->filled($key))->count();
+    $notSet = \App\Support\LeadFormOptions::FILTER_NOT_SET;
+    $notSetLabel = fn ($value) => $value === $notSet ? 'Not set' : $value;
+    $contactDetailOptions = ['has_phone' => 'Has a phone number', 'has_email' => 'Has an email', 'missing_phone' => 'No phone number', 'missing_email' => 'No email'];
+    $followUpOptions = ['today' => 'Due today', 'overdue' => 'Overdue', 'upcoming' => 'Upcoming', 'none' => 'No follow-up set'];
+    $dateSummary = \App\Support\LeadDateFilter::summary(request());
 
     $activeFilterChips = [];
     if (request()->filled('search')) {
@@ -71,10 +80,22 @@
         $activeFilterChips[] = ['label' => 'Status', 'value' => \App\Support\LeadStatusCatalog::label(\App\Enums\LeadStatus::canonicalize(request('lead_status'))), 'url' => $filterUrl([], ['lead_status'])];
     }
     if (request()->filled('year_group')) {
-        $activeFilterChips[] = ['label' => 'Year group', 'value' => request('year_group'), 'url' => $filterUrl([], ['year_group'])];
+        $activeFilterChips[] = ['label' => 'Year group', 'value' => $notSetLabel(request('year_group')), 'url' => $filterUrl([], ['year_group'])];
     }
     if (request()->filled('admission_intake') && ! $isFeaturedIntake) {
-        $activeFilterChips[] = ['label' => 'Admission intake', 'value' => request('admission_intake'), 'url' => $filterUrl([], ['admission_intake'])];
+        $activeFilterChips[] = ['label' => 'Admission intake', 'value' => $notSetLabel(request('admission_intake')), 'url' => $filterUrl([], ['admission_intake'])];
+    }
+    if ($dateSummary !== null) {
+        $activeFilterChips[] = ['label' => \App\Support\LeadDateFilter::FIELDS[\App\Support\LeadDateFilter::field(request())], 'value' => $dateSummary, 'url' => $filterUrl([], ['date_from', 'date_to', 'date_field'])];
+    }
+    if (isset($contactDetailOptions[request('contact_details')])) {
+        $activeFilterChips[] = ['label' => 'Contact details', 'value' => $contactDetailOptions[request('contact_details')], 'url' => $filterUrl([], ['contact_details'])];
+    }
+    if (request('children') === 'multiple') {
+        $activeFilterChips[] = ['label' => 'Children', 'value' => 'More than one', 'url' => $filterUrl([], ['children'])];
+    }
+    if (in_array(request('converted'), ['yes', 'no'], true)) {
+        $activeFilterChips[] = ['label' => 'Converted', 'value' => request('converted') === 'yes' ? 'Yes' : 'No', 'url' => $filterUrl([], ['converted'])];
     }
     if (request()->filled('contact_method')) {
         $activeFilterChips[] = ['label' => 'Contact method', 'value' => request('contact_method'), 'url' => $filterUrl([], ['contact_method'])];
@@ -83,8 +104,8 @@
         $assigneeLabel = $admins->firstWhere('id', (int) request('assigned_to'))?->name ?? 'Assignee';
         $activeFilterChips[] = ['label' => 'Assignee', 'value' => $assigneeLabel, 'url' => $filterUrl([], ['assigned_to'])];
     }
-    if (request()->filled('follow_up') && ! $isFollowUpToday) {
-        $followLabel = request('follow_up') === 'overdue' ? 'Overdue' : request('follow_up');
+    if (request()->filled('follow_up') && ! $isFollowUpToday && ! $isOverdue) {
+        $followLabel = $followUpOptions[request('follow_up')] ?? request('follow_up');
         $activeFilterChips[] = ['label' => 'Follow-up', 'value' => $followLabel, 'url' => $filterUrl([], ['follow_up'])];
     }
     if (request()->filled('lead_category_id')) {
@@ -163,6 +184,7 @@
                         {{ $chip['label'] }}
                     </a>
                 @endforeach
+                @include('admin.crm.leads.partials.date-range-filter')
             </div>
         </div>
     </div>
@@ -286,21 +308,13 @@
         @if(($viewMode ?? 'board') === 'list' && request('per_page'))
             <input type="hidden" name="per_page" value="{{ request('per_page') }}">
         @endif
-        @foreach(['search', 'source', 'form_id', 'advertising_platform'] as $preserveKey)
+        @foreach(['search', 'source', 'form_id', 'advertising_platform', 'date_field', 'date_from', 'date_to'] as $preserveKey)
             @if(request()->filled($preserveKey))
                 <input type="hidden" name="{{ $preserveKey }}" value="{{ request($preserveKey) }}">
             @endif
         @endforeach
 
-        <details class="crm-lead-finder__more" @if($expandMore) open @endif>
-            <summary class="crm-lead-finder__more-summary">
-                <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
-                More filters
-                @if(count($activeFilterChips) > 0)
-                    <span class="crm-filter-workspace__filter-count">{{ count($activeFilterChips) }}</span>
-                @endif
-            </summary>
-            <div class="crm-lead-finder__refine">
+        <div class="crm-lead-finder__refine crm-lead-finder__refine--primary">
                 <div class="crm-lead-finder__refine-field">
                     <label for="lead_status">Status</label>
                     <select name="lead_status" id="lead_status" class="form-select" data-crm-filter-auto-submit>
@@ -310,6 +324,49 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="year_group">Year group</label>
+                    <select name="year_group" id="year_group" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any year group</option>
+                        <option value="{{ $notSet }}" @selected(request('year_group') === $notSet)>Not set</option>
+                        @foreach($yearGroupFilterOptions ?? [] as $option)
+                            <option value="{{ $option }}" @selected(request('year_group') === $option)>{{ $option }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="admission_intake">Admission intake</label>
+                    <select name="admission_intake" id="admission_intake" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any intake</option>
+                        <option value="{{ $notSet }}" @selected(request('admission_intake') === $notSet)>Not set yet</option>
+                        @foreach($admissionIntakeFilterOptions ?? [] as $option)
+                            <option value="{{ $option }}" @selected(request('admission_intake') === $option)>{{ $option }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="assigned_to">Assignee</label>
+                    <select name="assigned_to" id="assigned_to" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Anyone</option>
+                        <option value="me" @selected(request('assigned_to') === 'me' || (string) request('assigned_to') === (string) $currentAdminId)>Me</option>
+                        <option value="unassigned" @selected(request('assigned_to') === 'unassigned')>Unassigned</option>
+                        @foreach($admins as $admin)
+                            <option value="{{ $admin->id }}" @selected((string) request('assigned_to') === (string) $admin->id && request('assigned_to') !== 'me')>{{ $admin->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+        </div>
+
+        <details class="crm-lead-finder__more" @if($expandMore) open @endif>
+            <summary class="crm-lead-finder__more-summary">
+                <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
+                More filters
+                @if($moreFilterCount > 0)
+                    <span class="crm-filter-workspace__filter-count">{{ $moreFilterCount }}</span>
+                @endif
+                <iconify-icon class="crm-lead-finder__more-chevron" icon="solar:alt-arrow-down-linear" aria-hidden="true"></iconify-icon>
+            </summary>
+            <div class="crm-lead-finder__refine">
                 @if(\App\Support\LeadCategorySchema::ready())
                     <div class="crm-lead-finder__refine-field">
                         <label for="lead_category_id">Category</label>
@@ -322,39 +379,11 @@
                     </div>
                 @endif
                 <div class="crm-lead-finder__refine-field">
-                    <label for="assigned_to">Assignee</label>
-                    <select name="assigned_to" id="assigned_to" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Anyone</option>
-                        <option value="me" @selected(request('assigned_to') === 'me' || (string) request('assigned_to') === (string) $currentAdminId)>Me</option>
-                        <option value="unassigned" @selected(request('assigned_to') === 'unassigned')>Unassigned</option>
-                        @foreach($admins as $admin)
-                            <option value="{{ $admin->id }}" @selected((string) request('assigned_to') === (string) $admin->id && request('assigned_to') !== 'me')>{{ $admin->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
                     <label for="follow_up">Follow-up</label>
                     <select name="follow_up" id="follow_up" class="form-select" data-crm-filter-auto-submit>
                         <option value="">Any time</option>
-                        <option value="today" @selected(request('follow_up') === 'today')>Due today</option>
-                        <option value="overdue" @selected(request('follow_up') === 'overdue')>Overdue</option>
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="year_group">Year group</label>
-                    <select name="year_group" id="year_group" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any year group</option>
-                        @foreach($yearGroupFilterOptions ?? [] as $option)
-                            <option value="{{ $option }}" @selected(request('year_group') === $option)>{{ $option }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="admission_intake">Admission intake</label>
-                    <select name="admission_intake" id="admission_intake" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any intake</option>
-                        @foreach($admissionIntakeFilterOptions ?? [] as $option)
-                            <option value="{{ $option }}" @selected(request('admission_intake') === $option)>{{ $option }}</option>
+                        @foreach($followUpOptions as $optValue => $optLabel)
+                            <option value="{{ $optValue }}" @selected(request('follow_up') === $optValue)>{{ $optLabel }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -365,6 +394,30 @@
                         @foreach($contactMethodFilterOptions ?? [] as $option)
                             <option value="{{ $option }}" @selected(request('contact_method') === $option)>{{ $option }}</option>
                         @endforeach
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="contact_details">Contact details</label>
+                    <select name="contact_details" id="contact_details" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any</option>
+                        @foreach($contactDetailOptions as $optValue => $optLabel)
+                            <option value="{{ $optValue }}" @selected(request('contact_details') === $optValue)>{{ $optLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="children">Children</label>
+                    <select name="children" id="children" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any</option>
+                        <option value="multiple" @selected(request('children') === 'multiple')>More than one</option>
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="converted">Converted to customer</label>
+                    <select name="converted" id="converted" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any</option>
+                        <option value="no" @selected(request('converted') === 'no')>Not yet</option>
+                        <option value="yes" @selected(request('converted') === 'yes')>Yes</option>
                     </select>
                 </div>
                 <div class="crm-lead-finder__refine-field crm-lead-finder__refine-field--wide">

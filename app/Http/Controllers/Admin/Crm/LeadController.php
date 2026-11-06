@@ -26,6 +26,7 @@ use App\Support\CrmFormStats;
 use App\Support\CrmEmailDeliverySummary;
 use App\Support\FormEntryBrowse;
 use App\Support\FormEntryContact;
+use App\Support\LeadDateFilter;
 use App\Support\LeadFormOptions;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
@@ -997,6 +998,12 @@ class LeadController extends Controller
                 'year_group',
                 'admission_intake',
                 'contact_method',
+                'contact_details',
+                'children',
+                'converted',
+                'date_field',
+                'date_from',
+                'date_to',
                 'assigned_to',
                 'view',
             ])
@@ -1023,8 +1030,12 @@ class LeadController extends Controller
                 }
             })
             ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', LeadStatus::canonicalize((string) $status)))
-            ->when($request->year_group, fn ($q, $yearGroup) => $q->withChildInYearGroup((string) $yearGroup))
-            ->when($request->admission_intake, fn ($q, $intake) => $q->where('admission_intake', $intake))
+            ->when($request->year_group, fn ($q, $yearGroup) => $yearGroup === LeadFormOptions::FILTER_NOT_SET
+                ? $q->missing('year_group')
+                : $q->withChildInYearGroup((string) $yearGroup))
+            ->when($request->admission_intake, fn ($q, $intake) => $intake === LeadFormOptions::FILTER_NOT_SET
+                ? $q->missing('admission_intake')
+                : $q->where('admission_intake', $intake))
             ->when($request->contact_method, fn ($q, $method) => $q->where('contact_method', $method))
             ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
             ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
@@ -1034,6 +1045,16 @@ class LeadController extends Controller
             )
             ->when($request->follow_up === 'today', fn ($q) => $q->followUpToday())
             ->when($request->follow_up === 'overdue', fn ($q) => $q->overdueFollowUp())
+            ->when($request->follow_up === 'upcoming', fn ($q) => $q->where('next_follow_up_date', '>', today()->toDateString()))
+            ->when($request->follow_up === 'none', fn ($q) => $q->whereNull('next_follow_up_date'))
+            ->when($request->contact_details === 'has_phone', fn ($q) => $q->whereNotNull('phone')->where('phone', '!=', ''))
+            ->when($request->contact_details === 'has_email', fn ($q) => $q->whereNotNull('email')->where('email', '!=', ''))
+            ->when($request->contact_details === 'missing_phone', fn ($q) => $q->missing('phone'))
+            ->when($request->contact_details === 'missing_email', fn ($q) => $q->missing('email'))
+            ->when($request->children === 'multiple', fn ($q) => $q->whereNotNull('extra_year_groups'))
+            ->when($request->converted === 'yes', fn ($q) => $q->where('is_converted', true))
+            ->when($request->converted === 'no', fn ($q) => $q->where('is_converted', false))
+            ->tap(fn ($q) => LeadDateFilter::apply($q, $request))
             ->when($request->source, fn ($q, $source) => $q->where('source', $source))
             ->when($request->form_id, fn ($q, $formId) => $q->whereHas(
                 'formEntry',
@@ -1344,7 +1365,8 @@ class LeadController extends Controller
             return false;
         }
 
-        if ($request->filled('year_group') || $request->filled('admission_intake') || $request->filled('contact_method')) {
+        if ($request->anyFilled(['date_from', 'date_to', 'contact_details', 'children', 'converted'])
+            || $request->filled('year_group') || $request->filled('admission_intake') || $request->filled('contact_method')) {
             return false;
         }
 

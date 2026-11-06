@@ -4131,7 +4131,7 @@
 
     function currentLeadFilters() {
         var params = new URLSearchParams(window.location.search);
-        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'year_group', 'admission_intake', 'contact_method', 'assigned_to', 'view'];
+        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'year_group', 'admission_intake', 'contact_method', 'contact_details', 'children', 'converted', 'date_field', 'date_from', 'date_to', 'assigned_to', 'view'];
         var filters = {};
         keys.forEach(function (key) {
             var value = params.get(key);
