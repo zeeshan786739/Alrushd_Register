@@ -4139,6 +4139,11 @@
                 filters[key] = value;
             }
         });
+        params.forEach(function (value, key) {
+            if (key.indexOf('cf_') === 0 && value !== '') {
+                filters[key] = value;
+            }
+        });
         return filters;
     }
 

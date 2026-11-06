@@ -28,6 +28,7 @@ use App\Support\FormEntryBrowse;
 use App\Support\FormEntryContact;
 use App\Support\LeadDateFilter;
 use App\Support\LeadFormOptions;
+use App\Support\LeadSettings;
 use App\Support\CrmStatusTone;
 use App\Support\LeadCategorySchema;
 use App\Support\LeadFollowUpState;
@@ -303,7 +304,7 @@ class LeadController extends Controller
 
     public function store(StoreLeadRequest $request): RedirectResponse|JsonResponse
     {
-        $lead = Lead::create(array_merge($request->validated(), [
+        $lead = Lead::create(array_merge($this->withCustomFields($request->validated()), [
             'organization_id' => OrganizationContext::idOrFail(),
             'source' => 'manual',
             'created_by' => auth('admin')->id(),
@@ -416,7 +417,7 @@ class LeadController extends Controller
             $lead->logActivity('status_changed', 'Status changed to '.LeadStatusCatalog::label($request->validated('lead_status')));
         }
 
-        $lead->update($request->validated());
+        $lead->update($this->withCustomFields($request->validated(), $lead));
         $lead->refresh();
 
         if ($request->expectsJson()) {
@@ -1006,14 +1007,32 @@ class LeadController extends Controller
                 'date_to',
                 'assigned_to',
                 'view',
+                ...LeadSettings::customFilterParams(),
             ])
             ->filter(fn ($value) => is_scalar($value) && $value !== '')
             ->all();
     }
 
+    /** @param  array<string, mixed>  $validated */
+    private function withCustomFields(array $validated, ?Lead $lead = null): array
+    {
+        if (array_key_exists('custom_fields', $validated)) {
+            $validated['custom_fields'] = LeadSettings::mergeCustomFields($validated['custom_fields'] ?? [], $lead?->custom_fields);
+        }
+
+        return $validated;
+    }
+
     private function filteredQuery(Request $request)
     {
         ScalarQuery::strip($request);
+
+        // Bookmarks and saved filters keep working after an option is renamed.
+        foreach (['admission_intake', 'contact_method'] as $renamable) {
+            if (is_string($request->query($renamable))) {
+                $request->merge([$renamable => LeadSettings::canonical($renamable, $request->query($renamable))]);
+            }
+        }
 
         return Lead::forCurrentOrganization()
             ->with(array_filter([
@@ -1055,6 +1074,17 @@ class LeadController extends Controller
             ->when($request->converted === 'yes', fn ($q) => $q->where('is_converted', true))
             ->when($request->converted === 'no', fn ($q) => $q->where('is_converted', false))
             ->tap(fn ($q) => LeadDateFilter::apply($q, $request))
+            ->tap(function ($q) use ($request) {
+                foreach (LeadSettings::customFilters() as $filter) {
+                    $value = $request->input(LeadSettings::CUSTOM_PARAM_PREFIX.$filter['key']);
+                    if (! is_string($value) || $value === '') {
+                        continue;
+                    }
+                    $value === LeadFormOptions::FILTER_NOT_SET
+                        ? $q->whereNull('custom_fields->'.$filter['key'])
+                        : $q->where('custom_fields->'.$filter['key'], $value);
+                }
+            })
             ->when($request->source, fn ($q, $source) => $q->where('source', $source))
             ->when($request->form_id, fn ($q, $formId) => $q->whereHas(
                 'formEntry',
@@ -1365,7 +1395,7 @@ class LeadController extends Controller
             return false;
         }
 
-        if ($request->anyFilled(['date_from', 'date_to', 'contact_details', 'children', 'converted'])
+        if ($request->anyFilled(['date_from', 'date_to', 'contact_details', 'children', 'converted', ...LeadSettings::customFilterParams()])
             || $request->filled('year_group') || $request->filled('admission_intake') || $request->filled('contact_method')) {
             return false;
         }

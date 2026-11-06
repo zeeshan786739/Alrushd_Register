@@ -53,7 +53,7 @@ final class LeadStatusCatalog
 
         $enum = LeadStatus::tryFrom($value);
         if ($enum) {
-            return $enum->label();
+            return LeadSettings::statusLabel($enum->value, $enum->label(), $organization?->id);
         }
 
         foreach (self::ordered($organization) as $status) {

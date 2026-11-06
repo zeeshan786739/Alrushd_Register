@@ -21,6 +21,7 @@ class CrmPermissionsSeeder extends Seeder
             'view invoices', 'create invoices', 'update invoices', 'delete invoices',
             'send invoices', 'record invoice payments',
             'manage crm documents',
+            'manage lead settings',
             'view form submissions', 'update form submissions', 'delete form submissions',
             'export form submissions', 'convert form submissions',
         ];

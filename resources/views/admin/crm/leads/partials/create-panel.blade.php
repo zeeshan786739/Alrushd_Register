@@ -46,8 +46,9 @@
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Email', 'name' => 'email', 'type' => 'email', 'value' => old('email')])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Phone', 'name' => 'phone', 'value' => old('phone')])
                         <div class="crm-lead-form-field--wide">@include('admin.crm.leads.partials.child-year-groups', ['yearGroup' => old('year_group'), 'extras' => old('extra_year_groups', []), 'options' => $yearGroupOptions])</div>
-                        @include('admin.crm.leads.partials.form-field', ['label' => 'Admission intake', 'name' => 'admission_intake', 'type' => 'select', 'value' => old('admission_intake'), 'options' => \App\Support\LeadFormOptions::admissionIntakes()])
-                        @include('admin.crm.leads.partials.form-field', ['label' => 'Contact method', 'name' => 'contact_method', 'type' => 'select', 'value' => old('contact_method'), 'options' => $contactMethodOptions])
+                        @include('admin.crm.leads.partials.form-field', ['label' => \App\Support\LeadSettings::filterLabel('admission_intake'), 'name' => 'admission_intake', 'type' => 'select', 'value' => old('admission_intake'), 'options' => \App\Support\LeadFormOptions::admissionIntakes()])
+                        @include('admin.crm.leads.partials.form-field', ['label' => \App\Support\LeadSettings::filterLabel('contact_method'), 'name' => 'contact_method', 'type' => 'select', 'value' => old('contact_method'), 'options' => $contactMethodOptions])
+                        @include('admin.crm.leads.partials.custom-fields', ['values' => []])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Lead source', 'name' => 'lead_source', 'value' => old('lead_source'), 'wide' => true])
                         @include('admin.crm.leads.partials.form-field', ['label' => 'Description', 'name' => 'lead_description', 'type' => 'textarea', 'value' => old('lead_description'), 'wide' => true])
                     </div>

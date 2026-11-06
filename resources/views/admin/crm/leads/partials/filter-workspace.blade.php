@@ -32,34 +32,38 @@
         ['value' => 'student_admission', 'label' => 'Admission', 'hint' => 'Student admission sync', 'icon' => LeadSourceOptions::icon('student_admission'), 'tone' => 'admission'],
     ])->filter(fn ($channel) => (int) ($sourceCounts[$channel['value']] ?? 0) > 0 || $activeSource === $channel['value']);
 
-    $isAssignedToMe = request('assigned_to') === 'me' || (string) request('assigned_to') === (string) $currentAdminId;
-    $isUnassigned = request('assigned_to') === 'unassigned';
-    $isNewStatus = request('lead_status') === 'new';
-    $isFollowUpToday = request('follow_up') === 'today';
-    $isOverdue = request('follow_up') === 'overdue';
-    $featuredIntake = \App\Support\LeadFormOptions::FEATURED_ADMISSION_INTAKE;
-    $isFeaturedIntake = request('admission_intake') === $featuredIntake;
+    $isActiveQuick = fn (array $quick) => $quick['param'] === 'lead_status'
+        ? \App\Enums\LeadStatus::canonicalize((string) request('lead_status')) === $quick['value']
+        : ((string) request($quick['param']) === (string) $quick['value']
+            || ($quick['param'] === 'assigned_to' && $quick['value'] === 'me' && (string) request('assigned_to') === (string) $currentAdminId));
 
-    $shortcuts = [
-        ['key' => 'assigned_me', 'label' => 'My leads', 'icon' => 'solar:user-check-linear', 'active' => $isAssignedToMe, 'url' => $isAssignedToMe ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'me'], ['assigned_to'])],
-        ['key' => 'unassigned', 'label' => 'Unassigned', 'icon' => 'solar:user-cross-linear', 'active' => $isUnassigned, 'url' => $isUnassigned ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'unassigned'], ['assigned_to'])],
-        ['key' => 'new', 'label' => 'New', 'icon' => 'solar:star-linear', 'active' => $isNewStatus, 'url' => $isNewStatus ? $filterUrl([], ['lead_status']) : $filterUrl(['lead_status' => 'new'], ['lead_status'])],
-        ['key' => 'follow_up', 'label' => 'Due today', 'icon' => 'solar:calendar-linear', 'active' => $isFollowUpToday, 'url' => $isFollowUpToday ? $filterUrl([], ['follow_up']) : $filterUrl(['follow_up' => 'today'], ['follow_up'])],
-        ['key' => 'overdue', 'label' => 'Overdue', 'icon' => 'solar:alarm-linear', 'active' => $isOverdue, 'url' => $isOverdue ? $filterUrl([], ['follow_up']) : $filterUrl(['follow_up' => 'overdue'], ['follow_up'])],
-        ['key' => 'admission_intake', 'label' => $featuredIntake.' admissions', 'icon' => 'solar:calendar-mark-linear', 'active' => $isFeaturedIntake, 'url' => $isFeaturedIntake ? $filterUrl([], ['admission_intake']) : $filterUrl(['admission_intake' => $featuredIntake], ['admission_intake'])],
-    ];
+    $shortcuts = collect(\App\Support\LeadSettings::quickFilters())->map(fn (array $quick) => [
+        'key' => $quick['id'],
+        'param' => $quick['param'],
+        'label' => $quick['label'],
+        'icon' => \App\Support\LeadSettings::quickFilterIcon($quick['param'], $quick['value']),
+        'active' => $isActiveQuick($quick),
+        'url' => $isActiveQuick($quick) ? $filterUrl([], [$quick['param']]) : $filterUrl([$quick['param'] => $quick['value']], [$quick['param']]),
+    ])->all();
+    // A lit quick button already shows this filter is on, so no chip is needed for it.
+    $coveredByQuick = fn (string $param) => collect($shortcuts)->contains(fn ($chip) => $chip['param'] === $param && $chip['active']);
+
+    $pageFilters = collect(\App\Support\LeadSettings::filters());
+    // The campaign box takes a full row, so it goes last to avoid leaving gaps between the dropdowns.
+    $mainFilters = $pageFilters->where('placement', \App\Support\LeadSettings::PLACEMENT_MAIN)->sortBy(fn ($filter) => $filter['key'] === 'campaign_name');
+    $moreFilters = $pageFilters->where('placement', \App\Support\LeadSettings::PLACEMENT_MORE)->sortBy(fn ($filter) => $filter['key'] === 'campaign_name');
+    $hiddenFilters = $pageFilters->where('placement', \App\Support\LeadSettings::PLACEMENT_HIDDEN);
+    $labelFor = fn (string $key) => \App\Support\LeadSettings::filterLabel($key);
 
     $showFormPicker = $activeSource === 'form_submission' || request()->filled('form_id');
     $showImportPicker = $activeSource === 'file_import' || request()->filled('advertising_platform');
     $formLeadsTotal = (int) ($sourceCounts['form_submission'] ?? 0);
-    $expandMore = request()->filled('campaign_name') || request()->filled('lead_category_id') || request()->filled('follow_up')
-        || request()->filled('contact_method') || request()->filled('contact_details') || request()->filled('children') || request()->filled('converted');
-    $moreFilterCount = collect(['campaign_name', 'lead_category_id', 'follow_up', 'contact_method', 'contact_details', 'children', 'converted'])
-        ->filter(fn ($key) => request()->filled($key))->count();
+    $moreFilterCount = $moreFilters->filter(fn ($filter) => request()->filled($filter['param']))->count();
+    $expandMore = $moreFilterCount > 0;
     $notSet = \App\Support\LeadFormOptions::FILTER_NOT_SET;
     $notSetLabel = fn ($value) => $value === $notSet ? 'Not set' : $value;
-    $contactDetailOptions = ['has_phone' => 'Has a phone number', 'has_email' => 'Has an email', 'missing_phone' => 'No phone number', 'missing_email' => 'No email'];
-    $followUpOptions = ['today' => 'Due today', 'overdue' => 'Overdue', 'upcoming' => 'Upcoming', 'none' => 'No follow-up set'];
+    $contactDetailOptions = \App\Support\LeadSettings::CONTACT_DETAIL_OPTIONS;
+    $followUpOptions = \App\Support\LeadSettings::FOLLOW_UP_OPTIONS;
     $dateSummary = \App\Support\LeadDateFilter::summary(request());
 
     $activeFilterChips = [];
@@ -74,45 +78,56 @@
         $activeFilterChips[] = ['label' => 'Channel', 'value' => ($platformOptions ?? [])[request('advertising_platform')] ?? request('advertising_platform'), 'url' => $filterUrl([], ['advertising_platform'])];
     }
     if (request()->filled('campaign_name')) {
-        $activeFilterChips[] = ['label' => 'Campaign', 'value' => request('campaign_name'), 'url' => $filterUrl([], ['campaign_name'])];
+        $activeFilterChips[] = ['label' => $labelFor('campaign_name'), 'value' => request('campaign_name'), 'url' => $filterUrl([], ['campaign_name'])];
     }
-    if (request()->filled('lead_status') && ! $isNewStatus) {
-        $activeFilterChips[] = ['label' => 'Status', 'value' => \App\Support\LeadStatusCatalog::label(\App\Enums\LeadStatus::canonicalize(request('lead_status'))), 'url' => $filterUrl([], ['lead_status'])];
+    if (request()->filled('lead_status') && ! $coveredByQuick('lead_status')) {
+        $activeFilterChips[] = ['label' => $labelFor('lead_status'), 'value' => \App\Support\LeadStatusCatalog::label(\App\Enums\LeadStatus::canonicalize(request('lead_status'))), 'url' => $filterUrl([], ['lead_status'])];
     }
     if (request()->filled('year_group')) {
-        $activeFilterChips[] = ['label' => 'Year group', 'value' => $notSetLabel(request('year_group')), 'url' => $filterUrl([], ['year_group'])];
+        $activeFilterChips[] = ['label' => $labelFor('year_group'), 'value' => $notSetLabel(request('year_group')), 'url' => $filterUrl([], ['year_group'])];
     }
-    if (request()->filled('admission_intake') && ! $isFeaturedIntake) {
-        $activeFilterChips[] = ['label' => 'Admission intake', 'value' => $notSetLabel(request('admission_intake')), 'url' => $filterUrl([], ['admission_intake'])];
+    if (request()->filled('admission_intake') && ! $coveredByQuick('admission_intake')) {
+        $activeFilterChips[] = ['label' => $labelFor('admission_intake'), 'value' => $notSetLabel(request('admission_intake')), 'url' => $filterUrl([], ['admission_intake'])];
     }
     if ($dateSummary !== null) {
         $activeFilterChips[] = ['label' => \App\Support\LeadDateFilter::FIELDS[\App\Support\LeadDateFilter::field(request())], 'value' => $dateSummary, 'url' => $filterUrl([], ['date_from', 'date_to', 'date_field'])];
     }
     if (isset($contactDetailOptions[request('contact_details')])) {
-        $activeFilterChips[] = ['label' => 'Contact details', 'value' => $contactDetailOptions[request('contact_details')], 'url' => $filterUrl([], ['contact_details'])];
+        $activeFilterChips[] = ['label' => $labelFor('contact_details'), 'value' => $contactDetailOptions[request('contact_details')], 'url' => $filterUrl([], ['contact_details'])];
     }
     if (request('children') === 'multiple') {
-        $activeFilterChips[] = ['label' => 'Children', 'value' => 'More than one', 'url' => $filterUrl([], ['children'])];
+        $activeFilterChips[] = ['label' => $labelFor('children'), 'value' => 'More than one', 'url' => $filterUrl([], ['children'])];
     }
     if (in_array(request('converted'), ['yes', 'no'], true)) {
-        $activeFilterChips[] = ['label' => 'Converted', 'value' => request('converted') === 'yes' ? 'Yes' : 'No', 'url' => $filterUrl([], ['converted'])];
+        $activeFilterChips[] = ['label' => $labelFor('converted'), 'value' => request('converted') === 'yes' ? 'Yes' : 'No', 'url' => $filterUrl([], ['converted'])];
     }
     if (request()->filled('contact_method')) {
-        $activeFilterChips[] = ['label' => 'Contact method', 'value' => request('contact_method'), 'url' => $filterUrl([], ['contact_method'])];
+        $activeFilterChips[] = ['label' => $labelFor('contact_method'), 'value' => request('contact_method'), 'url' => $filterUrl([], ['contact_method'])];
     }
-    if (request()->filled('assigned_to') && ! $isAssignedToMe && ! $isUnassigned) {
-        $assigneeLabel = $admins->firstWhere('id', (int) request('assigned_to'))?->name ?? 'Assignee';
-        $activeFilterChips[] = ['label' => 'Assignee', 'value' => $assigneeLabel, 'url' => $filterUrl([], ['assigned_to'])];
+    if (request()->filled('assigned_to') && ! $coveredByQuick('assigned_to')) {
+        $assigneeLabel = match (request('assigned_to')) {
+            'me' => 'Me',
+            'unassigned' => 'Unassigned',
+            default => $admins->firstWhere('id', (int) request('assigned_to'))?->name ?? 'Assignee',
+        };
+        $activeFilterChips[] = ['label' => $labelFor('assigned_to'), 'value' => $assigneeLabel, 'url' => $filterUrl([], ['assigned_to'])];
     }
-    if (request()->filled('follow_up') && ! $isFollowUpToday && ! $isOverdue) {
+    if (request()->filled('follow_up') && ! $coveredByQuick('follow_up')) {
         $followLabel = $followUpOptions[request('follow_up')] ?? request('follow_up');
-        $activeFilterChips[] = ['label' => 'Follow-up', 'value' => $followLabel, 'url' => $filterUrl([], ['follow_up'])];
+        $activeFilterChips[] = ['label' => $labelFor('follow_up'), 'value' => $followLabel, 'url' => $filterUrl([], ['follow_up'])];
     }
     if (request()->filled('lead_category_id')) {
         $categoryLabel = request('lead_category_id') === 'uncategorized'
             ? 'Uncategorized'
             : ($categories->firstWhere('id', (int) request('lead_category_id'))?->name ?? 'Category');
-        $activeFilterChips[] = ['label' => 'Category', 'value' => $categoryLabel, 'url' => $filterUrl([], ['lead_category_id'])];
+        $activeFilterChips[] = ['label' => $labelFor('lead_category_id'), 'value' => $categoryLabel, 'url' => $filterUrl([], ['lead_category_id'])];
+    }
+
+    foreach (\App\Support\LeadSettings::customFilters() as $customFilter) {
+        $customParam = \App\Support\LeadSettings::CUSTOM_PARAM_PREFIX.$customFilter['key'];
+        if (request()->filled($customParam) && ! $coveredByQuick($customParam)) {
+            $activeFilterChips[] = ['label' => $customFilter['label'], 'value' => $notSetLabel(request($customParam)), 'url' => $filterUrl([], [$customParam])];
+        }
     }
 
     $smartSuggestions = $smartSearchSuggestions ?? [];
@@ -184,11 +199,14 @@
                         {{ $chip['label'] }}
                     </a>
                 @endforeach
-                @include('admin.crm.leads.partials.date-range-filter')
+                @if(\App\Support\LeadSettings::showDatePicker() || \App\Support\LeadDateFilter::summary(request()) !== null)
+                    @include('admin.crm.leads.partials.date-range-filter')
+                @endif
             </div>
         </div>
     </div>
 
+    @if(\App\Support\LeadSettings::showSources())
     <div class="crm-lead-finder__sources">
         <div class="crm-lead-finder__sources-head">
             <h3 class="crm-lead-finder__sources-title">Lead source</h3>
@@ -242,6 +260,8 @@
             @endforeach
         </div>
     </div>
+
+    @endif
 
     @if($showFormPicker)
         <div class="crm-lead-finder__step2 crm-lead-finder__step2--forms">
@@ -314,126 +334,46 @@
             @endif
         @endforeach
 
-        <div class="crm-lead-finder__refine crm-lead-finder__refine--primary">
-                <div class="crm-lead-finder__refine-field">
-                    <label for="lead_status">Status</label>
-                    <select name="lead_status" id="lead_status" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any status</option>
-                        @foreach(\App\Support\LeadStatusCatalog::options() as $optValue => $optLabel)
-                            <option value="{{ $optValue }}" data-tone="{{ \App\Support\CrmStatusTone::for($optValue) }}" data-icon="{{ \App\Support\CrmStatusTone::icon($optValue) }}" @selected(\App\Enums\LeadStatus::canonicalize(request('lead_status')) === $optValue)>{{ $optLabel }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="year_group">Year group</label>
-                    <select name="year_group" id="year_group" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any year group</option>
-                        <option value="{{ $notSet }}" @selected(request('year_group') === $notSet)>Not set</option>
-                        @foreach($yearGroupFilterOptions ?? [] as $option)
-                            <option value="{{ $option }}" @selected(request('year_group') === $option)>{{ $option }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="admission_intake">Admission intake</label>
-                    <select name="admission_intake" id="admission_intake" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any intake</option>
-                        <option value="{{ $notSet }}" @selected(request('admission_intake') === $notSet)>Not set yet</option>
-                        @foreach($admissionIntakeFilterOptions ?? [] as $option)
-                            <option value="{{ $option }}" @selected(request('admission_intake') === $option)>{{ $option }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="assigned_to">Assignee</label>
-                    <select name="assigned_to" id="assigned_to" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Anyone</option>
-                        <option value="me" @selected(request('assigned_to') === 'me' || (string) request('assigned_to') === (string) $currentAdminId)>Me</option>
-                        <option value="unassigned" @selected(request('assigned_to') === 'unassigned')>Unassigned</option>
-                        @foreach($admins as $admin)
-                            <option value="{{ $admin->id }}" @selected((string) request('assigned_to') === (string) $admin->id && request('assigned_to') !== 'me')>{{ $admin->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-        </div>
+        {{-- A hidden filter still in the URL (a saved filter or bookmark) must survive other filter changes. --}}
+        @foreach($hiddenFilters as $filter)
+            @if(request()->filled($filter['param']))
+                <input type="hidden" name="{{ $filter['param'] }}" value="{{ request($filter['param']) }}">
+            @endif
+        @endforeach
 
-        <details class="crm-lead-finder__more" @if($expandMore) open @endif>
-            <summary class="crm-lead-finder__more-summary">
-                <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
-                More filters
-                @if($moreFilterCount > 0)
-                    <span class="crm-filter-workspace__filter-count">{{ $moreFilterCount }}</span>
-                @endif
-                <iconify-icon class="crm-lead-finder__more-chevron" icon="solar:alt-arrow-down-linear" aria-hidden="true"></iconify-icon>
-            </summary>
-            <div class="crm-lead-finder__refine">
-                @if(\App\Support\LeadCategorySchema::ready())
-                    <div class="crm-lead-finder__refine-field">
-                        <label for="lead_category_id">Category</label>
-                        <select name="lead_category_id" id="lead_category_id" class="form-select" data-crm-filter-auto-submit>
-                            <option value="">Any category</option>
-                            @foreach($categoryFilterOptions ?? [] as $optValue => $optLabel)
-                                <option value="{{ $optValue }}" @selected(request('lead_category_id') == $optValue)>{{ $optLabel }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-                <div class="crm-lead-finder__refine-field">
-                    <label for="follow_up">Follow-up</label>
-                    <select name="follow_up" id="follow_up" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any time</option>
-                        @foreach($followUpOptions as $optValue => $optLabel)
-                            <option value="{{ $optValue }}" @selected(request('follow_up') === $optValue)>{{ $optLabel }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="contact_method">Contact method</label>
-                    <select name="contact_method" id="contact_method" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any method</option>
-                        @foreach($contactMethodFilterOptions ?? [] as $option)
-                            <option value="{{ $option }}" @selected(request('contact_method') === $option)>{{ $option }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="contact_details">Contact details</label>
-                    <select name="contact_details" id="contact_details" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any</option>
-                        @foreach($contactDetailOptions as $optValue => $optLabel)
-                            <option value="{{ $optValue }}" @selected(request('contact_details') === $optValue)>{{ $optLabel }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="children">Children</label>
-                    <select name="children" id="children" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any</option>
-                        <option value="multiple" @selected(request('children') === 'multiple')>More than one</option>
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field">
-                    <label for="converted">Converted to customer</label>
-                    <select name="converted" id="converted" class="form-select" data-crm-filter-auto-submit>
-                        <option value="">Any</option>
-                        <option value="no" @selected(request('converted') === 'no')>Not yet</option>
-                        <option value="yes" @selected(request('converted') === 'yes')>Yes</option>
-                    </select>
-                </div>
-                <div class="crm-lead-finder__refine-field crm-lead-finder__refine-field--wide">
-                    <label for="campaign_name">Campaign contains</label>
-                    <div class="crm-lead-finder__campaign-row">
-                        <input type="text"
-                               name="campaign_name"
-                               id="campaign_name"
-                               class="form-control"
-                               placeholder="e.g. Year 7 Open Day"
-                               value="{{ request('campaign_name') }}">
-                        <button type="submit" class="crm-filter-workspace__btn crm-filter-workspace__btn--primary">Apply</button>
-                    </div>
-                </div>
+        @if($mainFilters->isNotEmpty())
+            <div class="crm-lead-finder__refine crm-lead-finder__refine--primary">
+                @foreach($mainFilters as $filter)
+                    @include('admin.crm.leads.partials.filter-field')
+                @endforeach
             </div>
-        </details>
+        @endif
+
+        <div class="crm-lead-finder__more-row">
+            @if($moreFilters->isNotEmpty())
+                <details class="crm-lead-finder__more" @if($expandMore) open @endif>
+                    <summary class="crm-lead-finder__more-summary">
+                        <iconify-icon icon="solar:filter-linear" aria-hidden="true"></iconify-icon>
+                        More filters
+                        @if($moreFilterCount > 0)
+                            <span class="crm-filter-workspace__filter-count">{{ $moreFilterCount }}</span>
+                        @endif
+                        <iconify-icon class="crm-lead-finder__more-chevron" icon="solar:alt-arrow-down-linear" aria-hidden="true"></iconify-icon>
+                    </summary>
+                    <div class="crm-lead-finder__refine">
+                        @foreach($moreFilters as $filter)
+                            @include('admin.crm.leads.partials.filter-field')
+                        @endforeach
+                    </div>
+                </details>
+            @endif
+            @can('manage lead settings')
+                <a href="{{ route('admin.crm.settings.leads.edit') }}" class="crm-lead-finder__customize" title="Choose which filters and options show here">
+                    <iconify-icon icon="solar:tuning-2-linear" aria-hidden="true"></iconify-icon>
+                    Customize filters
+                </a>
+            @endcan
+        </div>
     </form>
 
     @if($hasExtraFilters)

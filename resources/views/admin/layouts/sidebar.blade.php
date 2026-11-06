@@ -35,7 +35,7 @@
 
     {{-- ================= CRM ================= --}}
     @if(plan_module('crm'))
-    @canany(['view leads','view customers','view projects','view quotations','view invoices','manage crm documents'])
+    @canany(['view leads','view customers','view projects','view quotations','view invoices','manage crm documents','manage lead settings'])
     <li class="sidebar-menu-group-title" role="presentation">CRM</li>
     <li class="{{ AdminNav::dropdownClass([
         'admin.crm.overview','admin.crm.leads.*','admin.crm.customers.*','admin.crm.projects.*',
@@ -111,10 +111,20 @@
                 </a>
             </li>
             @endcan
+            @can('manage lead settings')
+            <li>
+                <a href="{{ route('admin.crm.settings.leads.edit') }}"
+                   class="{{ AdminNav::linkClass('admin.crm.settings.leads.*') }}"
+                   title="Lead Settings">
+                    <iconify-icon icon="solar:tuning-2-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
+                    <span>Lead Settings</span>
+                </a>
+            </li>
+            @endcan
             @can('manage crm documents')
             <li>
                 <a href="{{ route('admin.crm.settings.documents.edit') }}"
-                   class="{{ AdminNav::linkClass('admin.crm.settings.*') }}"
+                   class="{{ AdminNav::linkClass('admin.crm.settings.documents.*') }}"
                    title="Document Settings">
                     <iconify-icon icon="solar:settings-linear" class="menu-icon" aria-hidden="true"></iconify-icon>
                     <span>Document Settings</span>

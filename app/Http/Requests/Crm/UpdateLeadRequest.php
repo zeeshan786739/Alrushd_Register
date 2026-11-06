@@ -62,6 +62,8 @@ class UpdateLeadRequest extends FormRequest
             'probability' => ['nullable', 'integer', 'min:0', 'max:100'],
         ];
 
+        $rules += \App\Support\LeadSettings::customFieldRules($this->route('lead')?->custom_fields);
+
         if (LeadCategorySchema::ready()) {
             $rules['lead_category_id'] = ['nullable', 'integer', CrmOrgRules::leadCategoryId()];
         }

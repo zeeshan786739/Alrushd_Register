@@ -254,13 +254,19 @@
                     <dd>{{ implode(', ', $lead->childYearGroups()) ?: '—' }}</dd>
                 </div>
                 <div class="crm-lead-ticket__property">
-                    <dt>Admission intake</dt>
+                    <dt>{{ \App\Support\LeadSettings::filterLabel('admission_intake') }}</dt>
                     <dd>{{ $lead->admission_intake ?: '—' }}</dd>
                 </div>
                 <div class="crm-lead-ticket__property">
-                    <dt>Contact method</dt>
+                    <dt>{{ \App\Support\LeadSettings::filterLabel('contact_method') }}</dt>
                     <dd>{{ $lead->contact_method ?: '—' }}</dd>
                 </div>
+                @foreach(\App\Support\LeadSettings::customFilters() as $customFilter)
+                    <div class="crm-lead-ticket__property">
+                        <dt>{{ $customFilter['label'] }}</dt>
+                        <dd>{{ $lead->custom_fields[$customFilter['key']] ?? '—' }}</dd>
+                    </div>
+                @endforeach
                 <div class="crm-lead-ticket__property">
                     <dt>Created</dt>
                     <dd>{{ $lead->created_at->format('M j, Y') }}</dd>

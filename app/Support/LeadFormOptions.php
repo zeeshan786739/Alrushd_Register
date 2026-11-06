@@ -85,13 +85,13 @@ final class LeadFormOptions
     /** @return list<string> */
     public static function contactMethods(): array
     {
-        return ['Phone call', 'WhatsApp', 'Email', 'SMS', 'In person', 'Other'];
+        return LeadSettings::contactMethods();
     }
 
     /** @return list<string> */
     public static function admissionIntakes(): array
     {
-        return ['Sept 26/27', self::FEATURED_ADMISSION_INTAKE, 'Sept 28/29'];
+        return LeadSettings::admissionIntakes();
     }
 
     /**
@@ -126,7 +126,7 @@ final class LeadFormOptions
 
     private static function intakeForYear(int $year): string
     {
-        return sprintf('Sept %02d/%02d', $year, $year + 1);
+        return LeadSettings::canonical('admission_intake', sprintf('Sept %02d/%02d', $year, $year + 1));
     }
 
     /**
@@ -156,14 +156,14 @@ final class LeadFormOptions
             return null;
         }
 
-        return match (mb_strtolower($value)) {
+        return LeadSettings::canonical('contact_method', match (mb_strtolower($value)) {
             'call', 'phone', 'phone call', 'telephone', 'called' => 'Phone call',
             'whatsapp', 'whats app', 'wa' => 'WhatsApp',
             'email', 'e-mail', 'mail' => 'Email',
             'sms', 'text', 'text message' => 'SMS',
             'in person', 'in-person', 'visit' => 'In person',
             default => $value,
-        };
+        });
     }
 
     /**

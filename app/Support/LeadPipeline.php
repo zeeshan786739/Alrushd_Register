@@ -59,7 +59,7 @@ class LeadPipeline
         foreach ($defaults as $status) {
             $byValue[$status->value] = new LeadStatusOption(
                 value: $status->value,
-                labelText: $status->label(),
+                labelText: LeadSettings::statusLabel($status->value, $status->label(), $organization?->id),
                 tone: CrmStatusTone::for($status->value),
                 isCustom: false,
             );

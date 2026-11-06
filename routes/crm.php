@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\Crm\FormEntryController;
 use App\Http\Controllers\Admin\Crm\InvoiceController;
 use App\Http\Controllers\Admin\Crm\LeadController;
 use App\Http\Controllers\Admin\Crm\LeadImportController;
+use App\Http\Controllers\Admin\Crm\LeadSettingsController;
 use App\Http\Controllers\Admin\Crm\ProjectController;
 use App\Http\Controllers\Admin\Crm\QuotationController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,18 @@ Route::prefix('crm')->name('crm.')->group(function () {
     Route::get('/', [CrmOverviewController::class, 'index'])->name('overview');
     Route::get('settings/documents', [DocumentSettingsController::class, 'edit'])->name('settings.documents.edit');
     Route::put('settings/documents', [DocumentSettingsController::class, 'update'])->name('settings.documents.update');
+    Route::prefix('settings/leads')->name('settings.leads.')->controller(LeadSettingsController::class)->group(function () {
+        Route::get('/', 'edit')->name('edit');
+        Route::put('layout', 'updateLayout')->name('layout');
+        Route::post('restore', 'restore')->name('restore');
+        Route::post('custom-filters', 'storeCustomFilter')->name('custom-filters.store');
+        Route::patch('custom-filters/{key}', 'updateCustomFilter')->name('custom-filters.update');
+        Route::delete('custom-filters/{key}', 'destroyCustomFilter')->name('custom-filters.destroy');
+        Route::post('lists/{list}', 'addOption')->name('options.store');
+        Route::patch('lists/{list}', 'updateOption')->name('options.update');
+        Route::put('lists/{list}/order', 'reorderOptions')->name('options.order');
+        Route::delete('lists/{list}', 'removeOption')->name('options.destroy');
+    });
     Route::get('leads/smart-search', [LeadController::class, 'smartSearchSuggest'])->name('leads.smart-search');
     Route::get('leads/export', [LeadController::class, 'export'])->name('leads.export');
     Route::get('leads/import', [LeadImportController::class, 'create'])->name('leads.import.create');

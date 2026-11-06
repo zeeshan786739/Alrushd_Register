@@ -32,7 +32,7 @@ class Lead extends Model
         'next_follow_up_type', 'appointment_date', 'appointment_type', 'appointment_notes',
         'lead_description', 'address', 'city', 'province', 'postal_code',
         'advertising_platform', 'campaign_name', 'adset_name', 'ad_name', 'form_name',
-        'source_submitted_at', 'custom_data', 'lead_import_id',
+        'source_submitted_at', 'custom_data', 'custom_fields', 'lead_import_id',
         'is_converted', 'converted_at', 'last_contacted_at', 'contact_count', 'created_by',
     ];
 
@@ -47,6 +47,7 @@ class Lead extends Model
             'last_contacted_at' => 'datetime',
             'source_submitted_at' => 'datetime',
             'custom_data' => 'array',
+            'custom_fields' => 'array',
             'extra_year_groups' => 'array',
             'list_position' => 'integer',
         ];

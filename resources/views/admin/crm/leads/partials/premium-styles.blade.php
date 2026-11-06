@@ -155,6 +155,14 @@
 }
 #crm-leads-page .crm-source-pill.is-active .crm-source-pill__count{background:rgba(255,255,255,.18);color:#fff}
 #crm-leads-page .crm-lead-finder__refine-form{display:grid;gap:8px}
+#crm-leads-page .crm-lead-finder__more-row{position:relative}
+#crm-leads-page .crm-lead-finder__customize{
+    position:absolute;top:0;right:0;display:inline-flex;align-items:center;gap:6px;
+    padding:4px 8px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--crm-text-muted,#697386);text-decoration:none;
+}
+#crm-leads-page .crm-lead-finder__customize:hover{background:var(--crm-brand-soft,rgba(15,39,74,.08));color:var(--crm-brand,#0f274a)}
+html[data-theme="dark"] #crm-leads-page .crm-lead-finder__customize:hover{color:#8dbdff}
+#crm-leads-page .crm-lead-finder__more-row:not(:has(details)){min-height:28px}
 #crm-leads-page .crm-lead-finder__more{border:0;padding:0;background:transparent}
 #crm-leads-page .crm-lead-finder__more[open]{padding-bottom:4px}
 #crm-leads-page .crm-lead-finder__more-chevron{font-size:13px;transition:transform .15s ease}
