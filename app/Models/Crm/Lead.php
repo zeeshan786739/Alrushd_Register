@@ -26,7 +26,7 @@ class Lead extends Model
 
     protected $fillable = [
         'organization_id', 'form_submission_id', 'form_entry_id', 'enquire_id', 'referral_id',
-        'customer_id', 'source', 'lead_category_id', 'title', 'first_name', 'last_name', 'email', 'phone', 'year_group', 'contact_method', 'company',
+        'customer_id', 'source', 'lead_category_id', 'title', 'first_name', 'last_name', 'email', 'phone', 'year_group', 'admission_intake', 'extra_year_groups', 'contact_method', 'company',
         'selected_school', 'lead_source', 'lead_status', 'list_position', 'priority', 'assigned_to',
         'estimated_value', 'probability', 'next_follow_up_date', 'next_follow_up_time',
         'next_follow_up_type', 'appointment_date', 'appointment_type', 'appointment_notes',
@@ -47,8 +47,26 @@ class Lead extends Model
             'last_contacted_at' => 'datetime',
             'source_submitted_at' => 'datetime',
             'custom_data' => 'array',
+            'extra_year_groups' => 'array',
             'list_position' => 'integer',
         ];
+    }
+
+    /** @return list<string> One entry per child, so twins appear twice. */
+    public function childYearGroups(): array
+    {
+        return array_values(array_filter(
+            [$this->year_group, ...($this->extra_year_groups ?? [])],
+            fn ($year) => is_string($year) && trim($year) !== ''
+        ));
+    }
+
+    /** Leads with a child in this year group, whichever child that is. */
+    public function scopeWithChildInYearGroup($query, string $yearGroup)
+    {
+        return $query->where(fn ($inner) => $inner
+            ->where('year_group', $yearGroup)
+            ->orWhereJsonContains('extra_year_groups', $yearGroup));
     }
 
     protected static function booted(): void

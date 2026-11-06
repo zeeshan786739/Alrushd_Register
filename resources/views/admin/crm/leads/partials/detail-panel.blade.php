@@ -250,8 +250,12 @@
                     </dd>
                 </div>
                 <div class="crm-lead-ticket__property">
-                    <dt>Year group</dt>
-                    <dd>{{ $lead->year_group ?: '—' }}</dd>
+                    <dt>{{ count($lead->childYearGroups()) > 1 ? 'Year groups' : 'Year group' }}</dt>
+                    <dd>{{ implode(', ', $lead->childYearGroups()) ?: '—' }}</dd>
+                </div>
+                <div class="crm-lead-ticket__property">
+                    <dt>Admission intake</dt>
+                    <dd>{{ $lead->admission_intake ?: '—' }}</dd>
                 </div>
                 <div class="crm-lead-ticket__property">
                     <dt>Contact method</dt>

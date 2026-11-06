@@ -16,13 +16,25 @@ final class LeadAdmissionTags
         $custom = is_array($lead->custom_data) ? $lead->custom_data : [];
         $tags = [];
 
-        if ($year = self::text($lead->year_group) ?? self::text($custom['Year'] ?? null)) {
+        $years = $lead->childYearGroups() ?: array_filter([self::text($custom['Year'] ?? null)]);
+        foreach (array_count_values($years) as $year => $children) {
+            $label = $children > 1 ? $year.' ×'.$children : (string) $year;
             $tags[] = [
-                'label' => $year,
-                'short' => $year,
+                'label' => $label,
+                'short' => $label,
                 'icon' => 'solar:book-linear',
                 'tone' => 'info',
                 'title' => 'Year group',
+            ];
+        }
+
+        if ($intake = self::text($lead->admission_intake)) {
+            $tags[] = [
+                'label' => $intake,
+                'short' => $intake,
+                'icon' => 'solar:calendar-linear',
+                'tone' => 'warning',
+                'title' => 'Admission intake',
             ];
         }
 
@@ -55,7 +67,7 @@ final class LeadAdmissionTags
             ];
         }
 
-        if ($current = self::text($custom['Current status'] ?? null)) {
+        if (! $lead->admission_intake && ($current = self::text($custom['Current status'] ?? null))) {
             $tags[] = [
                 'label' => $current,
                 'short' => $current,

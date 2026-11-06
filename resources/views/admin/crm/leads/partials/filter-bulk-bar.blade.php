@@ -44,6 +44,23 @@
                     disabled>
                 Apply
             </button>
+            <span class="crm-filter-bulk-bar__divider" aria-hidden="true"></span>
+            <label class="crm-filter-bulk-bar__field">
+                <span>Set intake</span>
+                <select class="form-select form-select-sm" data-crm-filter-bulk-intake>
+                    <option value="">Choose…</option>
+                    <option value="__unassigned__">Not set</option>
+                    @foreach(\App\Support\LeadFormOptions::admissionIntakes() as $intake)
+                        <option value="{{ $intake }}">{{ $intake }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <button type="button"
+                    class="crm-filter-bulk-bar__btn"
+                    data-crm-filter-bulk-apply="admission_intake"
+                    disabled>
+                Apply
+            </button>
         @endcan
     </div>
 </div>

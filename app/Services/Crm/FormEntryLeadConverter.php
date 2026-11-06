@@ -58,6 +58,10 @@ class FormEntryLeadConverter
                 'phone' => $data['phone'],
                 'company' => $data['company'],
                 'year_group' => $data['year_group'] !== null ? mb_substr($data['year_group'], 0, 50) : null,
+                'extra_year_groups' => $data['extra_year_groups'] !== null
+                    ? array_map(fn (string $year) => mb_substr($year, 0, 50), $data['extra_year_groups'])
+                    : null,
+                'admission_intake' => $data['admission_intake'],
                 'lead_source' => $formEntry->form?->name ?? 'Form Submission',
                 'lead_status' => 'new',
                 'priority' => 'medium',

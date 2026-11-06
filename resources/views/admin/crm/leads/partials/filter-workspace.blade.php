@@ -36,19 +36,22 @@
     $isUnassigned = request('assigned_to') === 'unassigned';
     $isNewStatus = request('lead_status') === 'new';
     $isFollowUpToday = request('follow_up') === 'today';
+    $featuredIntake = \App\Support\LeadFormOptions::FEATURED_ADMISSION_INTAKE;
+    $isFeaturedIntake = request('admission_intake') === $featuredIntake;
 
     $shortcuts = [
         ['key' => 'assigned_me', 'label' => 'My leads', 'icon' => 'solar:user-check-linear', 'active' => $isAssignedToMe, 'url' => $isAssignedToMe ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'me'], ['assigned_to'])],
         ['key' => 'unassigned', 'label' => 'Unassigned', 'icon' => 'solar:user-cross-linear', 'active' => $isUnassigned, 'url' => $isUnassigned ? $filterUrl([], ['assigned_to']) : $filterUrl(['assigned_to' => 'unassigned'], ['assigned_to'])],
         ['key' => 'new', 'label' => 'New', 'icon' => 'solar:star-linear', 'active' => $isNewStatus, 'url' => $isNewStatus ? $filterUrl([], ['lead_status']) : $filterUrl(['lead_status' => 'new'], ['lead_status'])],
         ['key' => 'follow_up', 'label' => 'Due today', 'icon' => 'solar:calendar-linear', 'active' => $isFollowUpToday, 'url' => $isFollowUpToday ? $filterUrl([], ['follow_up']) : $filterUrl(['follow_up' => 'today'], ['follow_up'])],
+        ['key' => 'admission_intake', 'label' => $featuredIntake.' admissions', 'icon' => 'solar:calendar-mark-linear', 'active' => $isFeaturedIntake, 'url' => $isFeaturedIntake ? $filterUrl([], ['admission_intake']) : $filterUrl(['admission_intake' => $featuredIntake], ['admission_intake'])],
     ];
 
     $showFormPicker = $activeSource === 'form_submission' || request()->filled('form_id');
     $showImportPicker = $activeSource === 'file_import' || request()->filled('advertising_platform');
     $formLeadsTotal = (int) ($sourceCounts['form_submission'] ?? 0);
     $expandMore = request()->filled('campaign_name') || request()->filled('lead_status') || request()->filled('lead_category_id')
-        || request()->filled('assigned_to') || request()->filled('follow_up') || request()->filled('year_group') || request()->filled('contact_method');
+        || request()->filled('assigned_to') || request()->filled('follow_up') || request()->filled('year_group') || (request()->filled('admission_intake') && ! $isFeaturedIntake) || request()->filled('contact_method');
 
     $activeFilterChips = [];
     if (request()->filled('search')) {
@@ -69,6 +72,9 @@
     }
     if (request()->filled('year_group')) {
         $activeFilterChips[] = ['label' => 'Year group', 'value' => request('year_group'), 'url' => $filterUrl([], ['year_group'])];
+    }
+    if (request()->filled('admission_intake') && ! $isFeaturedIntake) {
+        $activeFilterChips[] = ['label' => 'Admission intake', 'value' => request('admission_intake'), 'url' => $filterUrl([], ['admission_intake'])];
     }
     if (request()->filled('contact_method')) {
         $activeFilterChips[] = ['label' => 'Contact method', 'value' => request('contact_method'), 'url' => $filterUrl([], ['contact_method'])];
@@ -340,6 +346,15 @@
                         <option value="">Any year group</option>
                         @foreach($yearGroupFilterOptions ?? [] as $option)
                             <option value="{{ $option }}" @selected(request('year_group') === $option)>{{ $option }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="crm-lead-finder__refine-field">
+                    <label for="admission_intake">Admission intake</label>
+                    <select name="admission_intake" id="admission_intake" class="form-select" data-crm-filter-auto-submit>
+                        <option value="">Any intake</option>
+                        @foreach($admissionIntakeFilterOptions ?? [] as $option)
+                            <option value="{{ $option }}" @selected(request('admission_intake') === $option)>{{ $option }}</option>
                         @endforeach
                     </select>
                 </div>

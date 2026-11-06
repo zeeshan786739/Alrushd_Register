@@ -166,6 +166,7 @@ class LeadImportMappingService
             'phone' => ['phone', 'phone_number', 'mobile', 'mobile_number', 'telephone', 'contact_no', 'contact_number', 'whatsapp', 'whatsapp_number', 'tel'],
             'email' => ['email', 'email_address', 'contact_email', 'e_mail'],
             'year_group' => ['year_group', 'student_year', 'school_year'],
+            'admission_intake' => ['admission_intake', 'intake', 'admission_year', 'academic_year', 'target_intake'],
             'contact_method' => ['contact_method', 'method_of_contact', 'preferred_contact'],
             'city' => ['city', 'town'],
             'province' => ['province', 'state', 'county'],

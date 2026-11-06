@@ -19,6 +19,7 @@ final class LeadImportFields
             'email' => 'Email',
             'phone' => 'Phone',
             'year_group' => 'Year group',
+            'admission_intake' => 'Admission intake',
             'contact_method' => 'Contact method',
             'city' => 'City',
             'province' => 'Province / state',

@@ -16,6 +16,18 @@
                 </select>
             </label>
             <button type="button" class="crm-list-bulk-bar__btn" data-crm-bulk-apply="lead_status" disabled>Apply</button>
+            <span class="crm-list-bulk-bar__divider" aria-hidden="true"></span>
+            <label class="crm-list-bulk-bar__field">
+                <span>Intake</span>
+                <select class="form-select form-select-sm" data-crm-bulk-intake>
+                    <option value="">Choose…</option>
+                    <option value="__unassigned__">Not set</option>
+                    @foreach(\App\Support\LeadFormOptions::admissionIntakes() as $intake)
+                        <option value="{{ $intake }}">{{ $intake }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <button type="button" class="crm-list-bulk-bar__btn" data-crm-bulk-apply="admission_intake" disabled>Apply</button>
         @endcan
 
         @can('assign leads')

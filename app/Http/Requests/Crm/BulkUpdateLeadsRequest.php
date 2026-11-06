@@ -20,7 +20,7 @@ class BulkUpdateLeadsRequest extends FormRequest
 
         return match ($field) {
             'assigned_to' => $admin->can('assign leads'),
-            'lead_status' => $admin->can('update leads'),
+            'lead_status', 'admission_intake' => $admin->can('update leads'),
             default => false,
         };
     }
@@ -31,7 +31,7 @@ class BulkUpdateLeadsRequest extends FormRequest
         return [
             'lead_ids' => ['required', 'array', 'min:1', 'max:100'],
             'lead_ids.*' => ['integer', 'min:1'],
-            'field' => ['required', Rule::in(['lead_status', 'assigned_to'])],
+            'field' => ['required', Rule::in(['lead_status', 'assigned_to', 'admission_intake'])],
             'value' => ['nullable'],
         ];
     }
@@ -46,6 +46,11 @@ class BulkUpdateLeadsRequest extends FormRequest
                 if (! \App\Support\LeadStatusCatalog::isValid(is_string($value) ? $value : null)) {
                     $validator->errors()->add('value', 'Invalid lead status.');
                 }
+            }
+
+            if ($field === 'admission_intake' && $value !== null && $value !== ''
+                && ! in_array($value, \App\Support\LeadFormOptions::admissionIntakes(), true)) {
+                $validator->errors()->add('value', 'Invalid admission intake.');
             }
 
             if ($field === 'assigned_to' && $value !== null && $value !== '') {

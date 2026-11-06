@@ -22,10 +22,14 @@ class UpdateLeadRequest extends FormRequest
         if ($this->input('lead_category_id') === '') {
             $this->merge(['lead_category_id' => null]);
         }
-        foreach (['year_group', 'contact_method'] as $field) {
+        foreach (['year_group', 'admission_intake', 'contact_method'] as $field) {
             if ($this->input($field) === '') {
                 $this->merge([$field => null]);
             }
+        }
+        // Forms always send this list, so a save that leaves it out never erases children.
+        if (is_array($this->input('extra_year_groups'))) {
+            $this->merge(\App\Support\LeadFormOptions::collapseChildren($this->input('year_group'), $this->input('extra_year_groups')));
         }
     }
 
@@ -38,7 +42,10 @@ class UpdateLeadRequest extends FormRequest
             'last_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'year_group' => ['nullable', 'string', 'max:50', Rule::in(\App\Support\LeadFormOptions::withCurrent(\App\Support\LeadFormOptions::yearGroups(), $this->route('lead')?->year_group))],
+            'year_group' => ['nullable', 'string', 'max:50', Rule::in(array_values(array_unique(array_merge(\App\Support\LeadFormOptions::yearGroups(), $this->route('lead')?->childYearGroups() ?? []))))],
+            'extra_year_groups' => ['nullable', 'array', 'max:'.(\App\Support\LeadFormOptions::MAX_CHILDREN - 1)],
+            'extra_year_groups.*' => ['string', 'max:50', Rule::in(array_values(array_unique(array_merge(\App\Support\LeadFormOptions::yearGroups(), $this->route('lead')?->childYearGroups() ?? []))))],
+            'admission_intake' => ['nullable', 'string', 'max:30', Rule::in(\App\Support\LeadFormOptions::withCurrent(\App\Support\LeadFormOptions::admissionIntakes(), $this->route('lead')?->admission_intake))],
             'contact_method' => ['nullable', 'string', 'max:100', Rule::in(\App\Support\LeadFormOptions::withCurrent(\App\Support\LeadFormOptions::contactMethods(), $this->route('lead')?->contact_method))],
             'lead_source' => ['nullable', 'string', 'max:100'],
             'lead_status' => ['required', \App\Support\LeadStatusCatalog::validationRule()],

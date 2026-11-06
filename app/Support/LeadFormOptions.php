@@ -7,6 +7,12 @@ use Illuminate\Support\Collection;
 
 final class LeadFormOptions
 {
+    /** A lead is one family: the first child's year is year_group, the rest are extra_year_groups. */
+    public const MAX_CHILDREN = 4;
+
+    /** The intake the team filters by most, offered as a one-click filter on the Leads page. */
+    public const FEATURED_ADMISSION_INTAKE = 'Sept 27/28';
+
     /**
      * @param  Collection<int, \App\Models\Admin>  $admins
      * @param  Collection<int, \App\Models\Crm\LeadCategory>  $categories
@@ -77,6 +83,66 @@ final class LeadFormOptions
     public static function contactMethods(): array
     {
         return ['Phone call', 'WhatsApp', 'Email', 'SMS', 'In person', 'Other'];
+    }
+
+    /** @return list<string> */
+    public static function admissionIntakes(): array
+    {
+        return ['Sept 26/27', self::FEATURED_ADMISSION_INTAKE, 'Sept 28/29'];
+    }
+
+    /**
+     * Read an intake from free text or a date: "Sept 2027", "27/28", "2027-09-01".
+     * Returns null unless it clearly means a September start, so that a date such as
+     * 10/11/2026 is never mistaken for the 10/11 academic year.
+     */
+    public static function normalizeAdmissionIntake(?string $value): ?string
+    {
+        $text = trim((string) $value);
+
+        if (preg_match('/^(20\d{2})-(\d{1,2})-\d{1,2}/', $text, $match)) {
+            return (int) $match[2] === 9 ? self::intakeForYear((int) substr($match[1], 2)) : null;
+        }
+        if (preg_match('/^\d{1,2}[\/.-](\d{1,2})[\/.-](?:20)?(\d{2})$/', $text, $match)) {
+            return (int) $match[1] === 9 ? self::intakeForYear((int) $match[2]) : null;
+        }
+        if (preg_match('/(?<!\d)(?:20)?(\d{2})\s*[\/-]\s*(?:20)?(\d{2})(?!\d)/', $text, $match) && (int) $match[2] === (int) $match[1] + 1) {
+            return self::intakeForYear((int) $match[1]);
+        }
+        if (preg_match('/\bsep(?:t|tember)?\b/i', $text)) {
+            if (preg_match('/\b20(\d{2})\b/', $text, $match)) {
+                return self::intakeForYear((int) $match[1]);
+            }
+            if (preg_match('/\bsep(?:t|tember)?\b\W*(\d{2})\b/i', $text, $match)) {
+                return self::intakeForYear((int) $match[1]);
+            }
+        }
+
+        return null;
+    }
+
+    private static function intakeForYear(int $year): string
+    {
+        return sprintf('Sept %02d/%02d', $year, $year + 1);
+    }
+
+    /**
+     * Close any gaps in the children entered on a form, so the first filled year is
+     * always year_group. Twins in the same year stay as two entries.
+     *
+     * @return array{year_group: ?string, extra_year_groups: ?list<string>}
+     */
+    public static function collapseChildren(mixed $yearGroup, array $extras): array
+    {
+        $years = array_values(array_filter(
+            [$yearGroup, ...$extras],
+            fn ($year) => is_string($year) && trim($year) !== ''
+        ));
+
+        return [
+            'year_group' => $years[0] ?? null,
+            'extra_year_groups' => array_slice($years, 1) ?: null,
+        ];
     }
 
     /** Align common spreadsheet spellings with the dropdown; anything else is kept as entered. */

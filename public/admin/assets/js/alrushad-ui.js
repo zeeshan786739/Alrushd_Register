@@ -287,6 +287,50 @@
         return row;
     }
 
+    function crmRenumberChildren(shell) {
+        var rows = shell.querySelectorAll('[data-crm-child]');
+        rows.forEach(function (row, index) {
+            var select = row.querySelector('select');
+            var label = row.querySelector('[data-crm-child-label]');
+            var remove = row.querySelector('[data-crm-child-remove]');
+            if (select) select.name = index === 0 ? 'year_group' : 'extra_year_groups[]';
+            if (label) label.textContent = rows.length > 1 ? 'Child ' + (index + 1) + ' year group' : 'Year group';
+            if (remove) remove.hidden = rows.length === 1;
+        });
+
+        var add = shell.querySelector('[data-crm-child-add]');
+        if (add) add.hidden = rows.length >= parseInt(shell.getAttribute('data-max') || '4', 10);
+    }
+
+    if (!window.__crmChildrenDelegated) {
+        window.__crmChildrenDelegated = true;
+
+        document.addEventListener('click', function (e) {
+            var add = e.target.closest('[data-crm-child-add]');
+            if (add) {
+                e.preventDefault();
+                var shell = add.closest('[data-crm-children]');
+                var template = shell.querySelector('[data-crm-child-template]');
+                var list = shell.querySelector('[data-crm-children-list]');
+                list.appendChild(template.content.cloneNode(true));
+                crmRenumberChildren(shell);
+                var rows = list.querySelectorAll('[data-crm-child]');
+                rows[rows.length - 1].querySelector('select').focus();
+                return;
+            }
+
+            var remove = e.target.closest('[data-crm-child-remove]');
+            if (remove) {
+                e.preventDefault();
+                var owner = remove.closest('[data-crm-children]');
+                remove.closest('[data-crm-child]').remove();
+                crmRenumberChildren(owner);
+                var nextAdd = owner.querySelector('[data-crm-child-add]');
+                if (nextAdd) nextAdd.focus();
+            }
+        });
+    }
+
     if (!window.__crmLineItemsDelegated) {
         window.__crmLineItemsDelegated = true;
 

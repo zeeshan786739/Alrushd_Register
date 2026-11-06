@@ -3934,6 +3934,7 @@
         if (!bulkBar) return null;
         if (field === 'lead_status') return bulkBar.querySelector('[data-crm-bulk-status]');
         if (field === 'assigned_to') return bulkBar.querySelector('[data-crm-bulk-assignee]');
+        if (field === 'admission_intake') return bulkBar.querySelector('[data-crm-bulk-intake]');
         return null;
     }
 
@@ -3999,7 +4000,7 @@
 
     if (canBulk && bulkBar) {
         page.addEventListener('change', function (event) {
-            if (event.target.matches('[data-crm-bulk-status], [data-crm-bulk-assignee]')) {
+            if (event.target.matches('[data-crm-bulk-status], [data-crm-bulk-assignee], [data-crm-bulk-intake]')) {
                 syncBulkUi();
             }
         });
@@ -4033,7 +4034,7 @@
             if (!select || !select.value) return;
 
             var value = select.value;
-            if (field === 'assigned_to' && value === '__unassigned__') {
+            if (value === '__unassigned__') {
                 value = '';
             }
 
@@ -4065,6 +4066,15 @@
             }).then(function (result) {
                 if (!result.ok) {
                     showToast((result.data && result.data.message) || 'Bulk update failed.', true);
+                    return;
+                }
+
+                // Intake shows as a tag on the row, and the row may no longer match the filter.
+                if (field === 'admission_intake') {
+                    showToast(result.data.message || 'Bulk update complete.', false);
+                    window.setTimeout(function () {
+                        window.location.reload();
+                    }, 450);
                     return;
                 }
 
@@ -4121,7 +4131,7 @@
 
     function currentLeadFilters() {
         var params = new URLSearchParams(window.location.search);
-        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'year_group', 'contact_method', 'assigned_to', 'view'];
+        var keys = ['search', 'follow_up', 'lead_category_id', 'source', 'form_id', 'advertising_platform', 'campaign_name', 'lead_status', 'year_group', 'admission_intake', 'contact_method', 'assigned_to', 'view'];
         var filters = {};
         keys.forEach(function (key) {
             var value = params.get(key);
@@ -4136,6 +4146,7 @@
         if (!filterBulkBar) return null;
         if (field === 'lead_status') return filterBulkBar.querySelector('[data-crm-filter-bulk-status]');
         if (field === 'assigned_to') return filterBulkBar.querySelector('[data-crm-filter-bulk-assignee]');
+        if (field === 'admission_intake') return filterBulkBar.querySelector('[data-crm-filter-bulk-intake]');
         return null;
     }
 
@@ -4150,7 +4161,7 @@
 
     if (filterBulkBar && bulkFilterUrl) {
         filterBulkBar.addEventListener('change', function (event) {
-            if (event.target.matches('[data-crm-filter-bulk-status], [data-crm-filter-bulk-assignee]')) {
+            if (event.target.matches('[data-crm-filter-bulk-status], [data-crm-filter-bulk-assignee], [data-crm-filter-bulk-intake]')) {
                 syncFilterBulkUi();
             }
         });
@@ -4167,14 +4178,16 @@
             if (!select || !select.value) return;
 
             var value = select.value;
-            if (field === 'assigned_to' && value === '__unassigned__') {
+            if (value === '__unassigned__') {
                 value = '';
             }
 
             var total = parseInt(page.getAttribute('data-filtered-total') || '0', 10);
             var confirmMessage = field === 'assigned_to'
                 ? 'Assign all ' + total + ' matching leads?'
-                : 'Move all ' + total + ' matching leads to the selected status?';
+                : field === 'admission_intake'
+                    ? 'Set the admission intake on all ' + total + ' matching leads?'
+                    : 'Move all ' + total + ' matching leads to the selected status?';
             if (!window.confirm(confirmMessage)) {
                 return;
             }

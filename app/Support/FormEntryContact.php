@@ -50,8 +50,36 @@ final class FormEntryContact
             'email' => $email ? (string) $email : null,
             'phone' => $phone ? (string) $phone : null,
             'company' => $company ? (string) $company : null,
-            'year_group' => self::pick($fields, ['year_group', 'student_year']),
+            ...self::children($fields),
             'preview' => $preview ?: null,
+        ];
+    }
+
+    /**
+     * The student application form lists each child under "students".
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array{year_group: ?string, extra_year_groups: ?list<string>, admission_intake: ?string}
+     */
+    private static function children(array $fields): array
+    {
+        $students = array_filter(is_array($fields['students'] ?? null) ? $fields['students'] : [], 'is_array');
+
+        $years = array_slice(array_values(array_filter(
+            array_map(fn ($student) => is_string($student['year_group'] ?? null) ? trim($student['year_group']) : '', $students)
+        )), 0, LeadFormOptions::MAX_CHILDREN);
+
+        $intake = null;
+        foreach ([...array_column($students, 'start_date'), $fields['student_start_date'] ?? null] as $candidate) {
+            if (is_scalar($candidate) && ($intake = LeadFormOptions::normalizeAdmissionIntake((string) $candidate)) !== null) {
+                break;
+            }
+        }
+
+        return [
+            'year_group' => self::pick($fields, ['year_group', 'student_year']) ?? ($years[0] ?? null),
+            'extra_year_groups' => array_slice($years, 1) ?: null,
+            'admission_intake' => $intake,
         ];
     }
 

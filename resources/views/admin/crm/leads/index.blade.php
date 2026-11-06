@@ -26,7 +26,7 @@
         ];
     }
     $workflowStatuses = $workflowStatuses ?? \App\Support\LeadPipeline::orderedStatuses();
-    $activeFilters = collect(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','contact_method','assigned_to']))
+    $activeFilters = collect(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','admission_intake','contact_method','assigned_to']))
         ->filter(fn ($value) => $value !== null && $value !== '')
         ->count();
 @endphp
@@ -166,7 +166,7 @@
             <div class="crm-save-filter-inline__inner">
                 <input type="text" name="name" class="form-control radius-8" placeholder="Filter name" required>
                 <input type="hidden" name="filters[view]" value="{{ $viewMode ?? 'board' }}">
-                @foreach(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','contact_method','assigned_to','sort_by','sort_order']) as $key=>$value)
+                @foreach(request()->only(['search','follow_up','lead_category_id','source','form_id','advertising_platform','campaign_name','lead_status','year_group','admission_intake','contact_method','assigned_to','sort_by','sort_order']) as $key=>$value)
                     @if($value !== null && $value !== '')<input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">@endif
                 @endforeach
                 <button type="submit" class="btn btn-outline-primary-600 radius-8">Save</button>

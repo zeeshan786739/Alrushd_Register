@@ -126,7 +126,8 @@
                     <div class="row g-3">
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Email</strong>{{ $lead->email ?? '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Phone</strong>{{ $lead->phone ?? '—' }}</div>
-                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Year group</strong>{{ $lead->year_group ?: '—' }}</div>
+                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">{{ count($lead->childYearGroups()) > 1 ? 'Year groups' : 'Year group' }}</strong>{{ implode(', ', $lead->childYearGroups()) ?: '—' }}</div>
+                        <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Admission intake</strong>{{ $lead->admission_intake ?: '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Contact method</strong>{{ $lead->contact_method ?: '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Lead source</strong>{{ $lead->lead_source ?? $lead->source ?? '—' }}</div>
                         <div class="col-md-6"><strong class="text-sm text-secondary-light d-block">Category</strong>{{ $lead->category?->name ?? '—' }}</div>

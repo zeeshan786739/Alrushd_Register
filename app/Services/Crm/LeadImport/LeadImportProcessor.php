@@ -107,6 +107,9 @@ class LeadImportProcessor
             'phone' => isset($fields['phone']) ? mb_substr((string) $fields['phone'], 0, 30) : null,
             'company' => $fields['company'] ?? null,
             'year_group' => $this->textOrNull($fields['year_group'] ?? $custom['Year'] ?? null, 50),
+            'admission_intake' => \App\Support\LeadFormOptions::normalizeAdmissionIntake($this->textOrNull($fields['admission_intake'] ?? null, 100))
+                ?? $this->textOrNull($fields['admission_intake'] ?? null, 30)
+                ?? \App\Support\LeadFormOptions::normalizeAdmissionIntake($this->textOrNull($custom['Current status'] ?? null, 100)),
             'contact_method' => $this->textOrNull(\App\Support\LeadFormOptions::normalizeContactMethod($this->textOrNull($fields['contact_method'] ?? $custom['Lead Status'] ?? null, 100)), 100),
             'city' => $fields['city'] ?? null,
             'province' => $fields['province'] ?? null,

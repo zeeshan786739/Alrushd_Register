@@ -265,6 +265,7 @@ class LeadController extends Controller
             ->with('listGroupBatch', self::LIST_GROUP_BATCH)
             ->with('sourceOptions', LeadSourceOptions::filterOptions())
             ->with('yearGroupFilterOptions', $this->usedValuesWithDefaults('year_group', LeadFormOptions::yearGroups()))
+            ->with('admissionIntakeFilterOptions', $this->usedValuesWithDefaults('admission_intake', LeadFormOptions::admissionIntakes()))
             ->with('contactMethodFilterOptions', $this->usedValuesWithDefaults('contact_method', LeadFormOptions::contactMethods()))
             ->with('smartSearchSuggestions', LeadSmartSearch::suggestions(
                 $forms,
@@ -632,6 +633,10 @@ class LeadController extends Controller
                         'icon' => 'solar:user-linear',
                     ];
                 }
+            } elseif ($field === 'admission_intake') {
+                $this->authorize('update', $lead);
+                $this->applyBulkIntake($lead, $value);
+                $results[] = ['id' => $lead->id, 'value' => $value];
             } else {
                 $this->authorize('update', $lead);
                 $lead->update(['lead_status' => $value]);
@@ -650,6 +655,7 @@ class LeadController extends Controller
         }
 
         $message = match ($field) {
+            'admission_intake' => $this->bulkIntakeMessage($updated, $value),
             'lead_status' => $updated.' lead'.($updated === 1 ? '' : 's').' moved to '.LeadStatusCatalog::label((string) $value).'.',
             default => $updated.' lead'.($updated === 1 ? '' : 's').' reassigned.',
         };
@@ -701,6 +707,9 @@ class LeadController extends Controller
                     $lead->update(['assigned_to' => $assignee->id]);
                     $lead->logActivity('assigned', 'Lead assigned to '.$assignee->name.' (filtered bulk update)');
                 }
+            } elseif ($field === 'admission_intake') {
+                $this->authorize('update', $lead);
+                $this->applyBulkIntake($lead, $value);
             } else {
                 $this->authorize('update', $lead);
                 $lead->update(['lead_status' => $value]);
@@ -710,9 +719,11 @@ class LeadController extends Controller
             $updated++;
         }
 
-        $message = $field === 'lead_status'
-            ? $updated.' matching lead'.($updated === 1 ? '' : 's').' moved to '.LeadStatusCatalog::label((string) $value).'.'
-            : $updated.' matching lead'.($updated === 1 ? '' : 's').' reassigned.';
+        $message = match ($field) {
+            'admission_intake' => $this->bulkIntakeMessage($updated, $value),
+            'lead_status' => $updated.' matching lead'.($updated === 1 ? '' : 's').' moved to '.LeadStatusCatalog::label((string) $value).'.',
+            default => $updated.' matching lead'.($updated === 1 ? '' : 's').' reassigned.',
+        };
 
         return response()->json([
             'ok' => true,
@@ -721,6 +732,20 @@ class LeadController extends Controller
             'message' => $message,
             'reload' => true,
         ]);
+    }
+
+    private function applyBulkIntake(Lead $lead, mixed $value): void
+    {
+        $intake = is_string($value) && $value !== '' ? $value : null;
+        $lead->update(['admission_intake' => $intake]);
+        $lead->logActivity('updated', $intake ? 'Admission intake set to '.$intake.' (bulk update)' : 'Admission intake cleared (bulk update)');
+    }
+
+    private function bulkIntakeMessage(int $updated, mixed $value): string
+    {
+        $leads = $updated.' lead'.($updated === 1 ? '' : 's');
+
+        return is_string($value) && $value !== '' ? $leads.' set to '.$value.' admissions.' : 'Admission intake cleared on '.$leads.'.';
     }
 
     public function setFollowUp(Request $request, Lead $lead): RedirectResponse
@@ -970,6 +995,7 @@ class LeadController extends Controller
                 'campaign_name',
                 'lead_status',
                 'year_group',
+                'admission_intake',
                 'contact_method',
                 'assigned_to',
                 'view',
@@ -997,7 +1023,8 @@ class LeadController extends Controller
                 }
             })
             ->when($request->lead_status, fn ($q, $status) => $q->where('lead_status', LeadStatus::canonicalize((string) $status)))
-            ->when($request->year_group, fn ($q, $yearGroup) => $q->where('year_group', $yearGroup))
+            ->when($request->year_group, fn ($q, $yearGroup) => $q->withChildInYearGroup((string) $yearGroup))
+            ->when($request->admission_intake, fn ($q, $intake) => $q->where('admission_intake', $intake))
             ->when($request->contact_method, fn ($q, $method) => $q->where('contact_method', $method))
             ->when($request->assigned_to === 'me', fn ($q) => $q->where('assigned_to', auth('admin')->id()))
             ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
@@ -1049,7 +1076,9 @@ class LeadController extends Controller
             $inner->whereRaw("CONCAT_WS(' ', first_name, last_name) LIKE ?", [$needle])
                 ->orWhere('email', 'like', $needle)
                 ->orWhere('phone', 'like', $needle)
-                ->orWhere('year_group', 'like', $needle);
+                ->orWhere('year_group', 'like', $needle)
+                ->orWhere('extra_year_groups', 'like', $needle)
+                ->orWhere('admission_intake', 'like', $needle);
 
             if (strlen($digits) >= 4) {
                 $inner->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?", ['%'.$digits.'%']);
@@ -1315,7 +1344,7 @@ class LeadController extends Controller
             return false;
         }
 
-        if ($request->filled('year_group') || $request->filled('contact_method')) {
+        if ($request->filled('year_group') || $request->filled('admission_intake') || $request->filled('contact_method')) {
             return false;
         }
 
