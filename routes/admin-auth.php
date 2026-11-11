@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\QualificationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\WebsiteCmsController;
+use App\Http\Controllers\Admin\WebsitePageController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\CuponController;
 use App\Http\Controllers\Admin\DebitController;
@@ -100,6 +101,19 @@ Route::prefix('admin')->name('admin.')
         Route::post('preview', [WebsiteCmsController::class, 'preview'])->name('preview');
         Route::post('upload', [WebsiteCmsController::class, 'upload'])->name('upload');
         Route::post('restore-version', [WebsiteCmsController::class, 'restoreVersion'])->name('restore-version');
+
+        // Connected (headless) website
+        Route::post('connection', [WebsiteCmsController::class, 'saveConnection'])->name('connection');
+        Route::post('connection/token', [WebsiteCmsController::class, 'rotateToken'])->name('connection.token');
+        Route::post('connection/test', [WebsiteCmsController::class, 'testConnection'])->name('connection.test');
+        Route::post('connection/revalidate', [WebsiteCmsController::class, 'revalidate'])->name('connection.revalidate');
+        Route::get('connection/preview-url', [WebsiteCmsController::class, 'previewUrl'])->name('connection.preview-url');
+
+        Route::get('pages', [WebsitePageController::class, 'index'])->name('pages.index');
+        Route::post('pages', [WebsitePageController::class, 'store'])->name('pages.store');
+        Route::post('pages/reorder', [WebsitePageController::class, 'reorder'])->name('pages.reorder');
+        Route::put('pages/{page}', [WebsitePageController::class, 'update'])->name('pages.update');
+        Route::delete('pages/{page}', [WebsitePageController::class, 'destroy'])->name('pages.destroy');
     });
 
     Route::resource('settings', SettingController::class)->except(['index']);

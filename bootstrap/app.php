@@ -35,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.admin' => EnsurePlatformAdmin::class,
             'org.active' => EnsureOrganizationIsActive::class,
             'tenant.public' => ResolvePublicOrganization::class,
+            'headless.site' => \App\Http\Middleware\AuthenticateHeadlessSite::class,
             'plan.module' => EnsurePlanModule::class,
 
 

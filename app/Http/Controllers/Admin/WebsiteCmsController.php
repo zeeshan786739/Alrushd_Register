@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Helpers\ImageHelper;
 use App\Http\Controllers\Controller;
 use App\Models\WebsiteCms;
+use App\Models\WebsitePage;
+use App\Services\HeadlessWebsiteService;
 use App\Services\WebsiteCmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,11 +16,13 @@ use Illuminate\View\View;
 class WebsiteCmsController extends Controller
 {
     public function __construct(
-        protected WebsiteCmsService $cms
+        protected WebsiteCmsService $cms,
+        protected HeadlessWebsiteService $headless,
     ) {
-        $this->middleware('permission:view setting')->only(['index', 'previewFrame']);
+        $this->middleware('permission:view setting')->only(['index', 'previewFrame', 'previewUrl']);
         $this->middleware('permission:edit setting')->only([
             'saveDraft', 'publish', 'discard', 'resetSection', 'preview', 'upload', 'restoreVersion',
+            'saveConnection', 'rotateToken', 'testConnection', 'revalidate',
         ]);
     }
 
@@ -33,11 +37,24 @@ class WebsiteCmsController extends Controller
         $previewUrl = $organization
             ? \App\Support\OrganizationUrls::publicPath($organization, '/')
             : url('/');
+        $headless = $cms->isHeadless();
+        if ($headless) {
+            $publicWebsiteUrl = $cms->externalBase();
+            $previewUrl = $this->headless->previewUrl($cms, '/') ?? $cms->externalBase();
+        }
+        $pagesChanged = WebsitePage::where('organization_id', $cms->organization_id)->get()
+            ->contains(fn (WebsitePage $p) => $p->hasUnpublishedChanges());
 
         return view('admin.website-cms.index', [
             'cmsData' => $draft,
             'publishedAt' => $cms->published_at,
-            'hasUnpublished' => $hasUnpublished,
+            'hasUnpublished' => $hasUnpublished || $pagesChanged,
+            'headless' => $headless,
+            'connection' => $this->connectionPayload($cms),
+            'pages' => $headless
+                ? WebsitePage::where('organization_id', $cms->organization_id)->orderBy('sort_order')->orderBy('id')->get()->map->toAdminArray()->all()
+                : [],
+            'availableForms' => $this->headless->availableForms($cms->organization_id),
             'versionHistory' => $cms->version_history ?? [],
             'modules' => $this->modules(),
             'publicWebsiteUrl' => $publicWebsiteUrl,
@@ -137,10 +154,98 @@ class WebsiteCmsController extends Controller
         ]);
     }
 
-    protected function modules(): array
+    public function saveConnection(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'mode' => 'required|in:builtin,headless',
+            'external_url' => 'nullable|url:https,http|max:255',
+            'redirect_legacy' => 'boolean',
+        ]);
+
+        if ($validated['mode'] === WebsiteCms::MODE_HEADLESS && empty($validated['external_url'])) {
+            return response()->json(['success' => false, 'message' => 'Enter the URL of the website to connect.'], 422);
+        }
+
+        $cms = WebsiteCms::instance();
+        $cms->fill([
+            'mode' => $validated['mode'],
+            'external_url' => $validated['external_url'] ? rtrim($validated['external_url'], '/') : null,
+            'redirect_legacy' => (bool) ($validated['redirect_legacy'] ?? true),
+        ])->save();
+
+        if ($cms->mode === WebsiteCms::MODE_HEADLESS && ! $cms->api_token) {
+            $cms->rotateApiToken();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $cms->isHeadless() ? 'Website connected. Reloading the CMS…' : 'Switched back to the built-in website.',
+            'connection' => $this->connectionPayload($cms->fresh()),
+            'reload' => true,
+        ]);
+    }
+
+    public function rotateToken(): JsonResponse
+    {
+        $cms = WebsiteCms::instance();
+        $cms->rotateApiToken();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'New API token created. Update CRM_API_TOKEN on the website, then redeploy it.',
+            'connection' => $this->connectionPayload($cms->fresh()),
+        ]);
+    }
+
+    public function testConnection(): JsonResponse
+    {
+        $result = $this->headless->testConnection(WebsiteCms::instance());
+
+        return response()->json(['success' => $result['ok'], 'message' => $result['message']]);
+    }
+
+    /** Signed draft-preview link for one page of the connected website. */
+    public function previewUrl(Request $request): JsonResponse
+    {
+        $path = WebsitePage::normalisePath((string) $request->query('path', '/'));
+
+        return response()->json(['url' => $this->headless->previewUrl(WebsiteCms::instance(), $path)]);
+    }
+
+    public function revalidate(): JsonResponse
+    {
+        $cms = WebsiteCms::instance();
+        $ok = $this->headless->revalidate($cms);
+
+        return response()->json([
+            'success' => $ok,
+            'message' => $ok ? 'The website refreshed its content.' : 'The website could not be refreshed ('.($cms->fresh()->last_revalidate_status ?? 'not connected').').',
+        ]);
+    }
+
+    protected function connectionPayload(WebsiteCms $cms): array
     {
         return [
+            'mode' => $cms->mode ?? WebsiteCms::MODE_BUILTIN,
+            'external_url' => $cms->external_url,
+            'redirect_legacy' => (bool) ($cms->redirect_legacy ?? true),
+            'api_token' => $cms->api_token,
+            'api_base' => url('/api/headless/v1'),
+            'crm_origin' => url('/'),
+            'last_revalidated_at' => $cms->last_revalidated_at?->diffForHumans(),
+            'last_revalidate_status' => $cms->last_revalidate_status,
+        ];
+    }
+
+    protected function modules(): array
+    {
+        if (WebsiteCms::instance()->isHeadless()) {
+            return $this->headlessModules();
+        }
+
+        return [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'solar:widget-5-linear', 'group' => 'Overview', 'description' => 'Quick links and publish overview'],
+            ['id' => 'connection', 'label' => 'Website Connection', 'icon' => 'solar:link-round-linear', 'group' => 'Overview', 'description' => 'Use the built-in site or connect an external website'],
             ['id' => 'branding', 'label' => 'Branding', 'icon' => 'solar:palette-linear', 'group' => 'Appearance', 'description' => 'Logo and brand identity'],
             ['id' => 'theme', 'label' => 'Theme', 'icon' => 'solar:colour-tuneing-linear', 'group' => 'Appearance', 'description' => 'Colors and visual theme'],
             ['id' => 'typography', 'label' => 'Typography', 'icon' => 'solar:text-field-linear', 'group' => 'Appearance', 'description' => 'Fonts and text styles'],
@@ -165,6 +270,30 @@ class WebsiteCmsController extends Controller
             ['id' => 'analytics', 'label' => 'Analytics', 'icon' => 'solar:graph-linear', 'group' => 'Growth', 'description' => 'Tracking and analytics codes'],
             ['id' => 'custom_code', 'label' => 'Custom Code', 'icon' => 'solar:code-linear', 'group' => 'Advanced', 'description' => 'Custom CSS and scripts'],
             ['id' => 'system', 'label' => 'System', 'icon' => 'solar:settings-linear', 'group' => 'Advanced', 'description' => 'CMS system options'],
+        ];
+    }
+
+    /**
+     * Modules that apply to a connected external website. Landing-page-only sections
+     * (hero, programs, gallery…) belong to the built-in site and are hidden here.
+     */
+    protected function headlessModules(): array
+    {
+        return [
+            ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'solar:widget-5-linear', 'group' => 'Overview', 'description' => 'Publish overview for your connected website'],
+            ['id' => 'connection', 'label' => 'Website Connection', 'icon' => 'solar:link-round-linear', 'group' => 'Overview', 'description' => 'Connected website, API token and cache refresh'],
+            ['id' => 'pages', 'label' => 'Pages', 'icon' => 'solar:documents-linear', 'group' => 'Content', 'description' => 'Create pages, manage navigation, SEO and connected forms'],
+            ['id' => 'nav_menu', 'label' => 'Navigation Menu', 'icon' => 'solar:hamburger-menu-linear', 'group' => 'Content', 'description' => 'Header links, dropdowns and the header button'],
+            ['id' => 'footer_menu', 'label' => 'Footer', 'icon' => 'solar:layers-minimalistic-linear', 'group' => 'Content', 'description' => 'Footer heading, text and link columns'],
+            ['id' => 'site_forms', 'label' => 'Website Forms', 'icon' => 'solar:document-text-linear', 'group' => 'Content', 'description' => 'Which Form Center form receives each website form'],
+            ['id' => 'website', 'label' => 'Announcement & Portal', 'icon' => 'solar:bell-linear', 'group' => 'Content', 'description' => 'Announcement bar and portal login link'],
+            ['id' => 'contact', 'label' => 'Contact Details', 'icon' => 'solar:phone-linear', 'group' => 'Content', 'description' => 'Phone, email, address and WhatsApp used across the site'],
+            ['id' => 'social', 'label' => 'Social Media', 'icon' => 'solar:share-linear', 'group' => 'Content', 'description' => 'Social profile links'],
+            ['id' => 'branding', 'label' => 'Branding', 'icon' => 'solar:palette-linear', 'group' => 'Appearance', 'description' => 'School name, tagline and copyright'],
+            ['id' => 'theme', 'label' => 'Theme Colours', 'icon' => 'solar:colour-tuneing-linear', 'group' => 'Appearance', 'description' => 'Brand colours used by the website'],
+            ['id' => 'seo', 'label' => 'SEO', 'icon' => 'solar:magnifer-linear', 'group' => 'Growth', 'description' => 'Default meta tags and search settings'],
+            ['id' => 'analytics', 'label' => 'Analytics', 'icon' => 'solar:graph-linear', 'group' => 'Growth', 'description' => 'Tracking and analytics codes'],
+            ['id' => 'custom_code', 'label' => 'Custom Code', 'icon' => 'solar:code-linear', 'group' => 'Advanced', 'description' => 'Custom CSS and scripts'],
         ];
     }
 }

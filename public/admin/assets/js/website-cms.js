@@ -330,6 +330,19 @@
         },
     };
 
+    /* ── Extensions (e.g. website-cms-headless.js) can add schemas and custom module renderers ── */
+    const EXT = window.WCM_EXT || { schemas: {}, renderers: {}, noReset: [] };
+    Object.assign(SCHEMAS, EXT.schemas || {});
+
+    function extApi() {
+        return {
+            W, editorBody, esc, fieldHtml, renderRepeater, bindEditorEvents, markDirty, schedulePreview,
+            refreshPreview, setStatus, switchModule, renderModule, getNested, setNested,
+            getData: () => cmsData,
+            setPreviewUrl: (url) => { W.previewUrl = url; refreshPreview(); },
+        };
+    }
+
     function setStatus(msg, type) {
         if (statusText) statusText.textContent = msg;
         if (statusEl) {
@@ -486,7 +499,12 @@
         // Hide reset on dashboard
         const resetBtn = $('#wcmResetSection');
         if (resetBtn) {
-            resetBtn.style.display = moduleId === 'dashboard' ? 'none' : '';
+            resetBtn.style.display = (moduleId === 'dashboard' || (EXT.noReset || []).includes(moduleId)) ? 'none' : '';
+        }
+
+        if (EXT.renderers && typeof EXT.renderers[moduleId] === 'function') {
+            EXT.renderers[moduleId](extApi());
+            return;
         }
 
         if (schema?.type === 'sections_order') {
@@ -649,7 +667,10 @@
             btn.addEventListener('click', () => {
                 const path = btn.dataset.repeater;
                 const arr = getNested(cmsData, path) || [];
-                const schema = Object.values(SCHEMAS).find(s => s.repeater && `${currentModule}.${s.repeater.key}` === path);
+                const own = SCHEMAS[currentModule];
+                const schema = own && own.repeater && `${currentModule}.${own.repeater.key}` === path
+                    ? own
+                    : Object.values(SCHEMAS).find(s => s.repeater && `${currentModule}.${s.repeater.key}` === path);
                 const empty = {};
                 (schema?.repeater?.fields || []).forEach(f => { empty[f.key] = ''; });
                 arr.push(empty);
@@ -735,6 +756,7 @@
         }).then(r => r.json()).then(res => {
             dirty = false;
             setStatus(res.message || 'Published!', 'ok');
+            if (EXT.onPublished) EXT.onPublished(extApi(), res);
             refreshPreview();
             setTimeout(() => location.reload(), 1200);
         });

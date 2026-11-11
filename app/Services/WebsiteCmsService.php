@@ -298,6 +298,32 @@ class WebsiteCmsService
                 'stripe_secret' => '',
                 'payment_online' => (bool) ($setting?->payment_method_status ?? true),
             ],
+            // Settings used only when an external (headless) website is connected.
+            'website' => [
+                'forms' => [
+                    'apply' => 'website-apply',
+                    'contact' => 'website-contact',
+                    'review' => 'website-review',
+                    'newsletter' => 'website-newsletter',
+                ],
+                'portal_url' => '',
+                'announcement' => '',
+                'announcement_url' => '',
+            ],
+            // Menus of a connected (headless) website. An item with a "group" is shown in
+            // that dropdown; an item without one is a top-level link.
+            'nav_menu' => [
+                'items' => [
+                    ['label' => 'Home', 'href' => '/', 'group' => '', 'description' => ''],
+                ],
+                'cta_text' => 'Apply Now',
+                'cta_url' => '/apply-now',
+            ],
+            'footer_menu' => [
+                'heading' => '',
+                'description' => '',
+                'items' => [],
+            ],
             'sections_order' => [
                 'hero', 'statistics', 'about', 'features', 'forms_section',
                 'how_it_works', 'programs', 'gallery', 'testimonials', 'faq', 'contact', 'cta',
@@ -375,6 +401,11 @@ class WebsiteCmsService
 
         $this->syncLegacySettings($draft);
         Cache::forget('website_cms_published');
+        Cache::forget(HeadlessWebsiteService::liveCacheKey($cms->organization_id));
+
+        $headless = app(HeadlessWebsiteService::class);
+        $headless->publishPages($cms->organization_id);
+        $headless->revalidate($cms);
 
         return $cms;
     }
@@ -384,6 +415,9 @@ class WebsiteCmsService
         $cms = WebsiteCms::instance();
         $cms->draft = $cms->published ?? $this->defaults();
         $cms->save();
+
+        Cache::forget(HeadlessWebsiteService::liveCacheKey($cms->organization_id));
+        app(HeadlessWebsiteService::class)->discardPages($cms->organization_id);
 
         return $cms;
     }
@@ -409,6 +443,8 @@ class WebsiteCmsService
     public function setLivePreview(array $data, int $adminId): void
     {
         Cache::put('cms_live_preview_'.$adminId, $data, 3600);
+        // Headless sites read draft content per organization (they have no admin session).
+        Cache::put(HeadlessWebsiteService::liveCacheKey(WebsiteCms::instance()->organization_id), $data, 3600);
     }
 
     public function restoreVersion(int $index): ?WebsiteCms

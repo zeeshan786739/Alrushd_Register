@@ -17,7 +17,7 @@
             </button>
             <div>
                 <h1 class="wcm-title">Website CMS</h1>
-                <p class="wcm-subtitle">Manage your landing page without code</p>
+                <p class="wcm-subtitle">{{ ($headless ?? false) ? 'Manage your connected website without code' : 'Manage your landing page without code' }}</p>
             </div>
         </div>
         <div class="wcm-topbar-right">
@@ -145,7 +145,22 @@
         previewUrl: @json($previewUrl ?? url('/')),
         publicWebsiteUrl: @json($publicWebsiteUrl ?? null),
         csrf: @json(csrf_token()),
+        headless: {
+            enabled: @json((bool) ($headless ?? false)),
+            connection: @json($connection ?? []),
+            pages: @json($pages ?? []),
+            forms: @json($availableForms ?? []),
+            routes: {
+                connection: @json(route('admin.website-cms.connection')),
+                token: @json(route('admin.website-cms.connection.token')),
+                test: @json(route('admin.website-cms.connection.test')),
+                revalidate: @json(route('admin.website-cms.connection.revalidate')),
+                previewUrl: @json(route('admin.website-cms.connection.preview-url')),
+                pages: @json(route('admin.website-cms.pages.index')),
+            },
+        },
     };
 </script>
-<script src="{{ asset('admin/assets/js/website-cms.js') }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-headless.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-headless.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms.js')) }}"></script>
 @endsection

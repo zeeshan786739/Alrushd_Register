@@ -44,8 +44,29 @@ use Illuminate\Support\Facades\Storage;
 
 class FrontendController extends Controller
 {
+    /**
+     * When a school has connected an external website, its old built-in pages
+     * send visitors there. Dynamic forms and payment pages keep working.
+     */
+    private function redirectToConnectedWebsite(string $path = '/'): ?\Illuminate\Http\RedirectResponse
+    {
+        if (! \App\Support\PublicOrganizationContext::has()) {
+            return null;
+        }
+
+        $cms = \App\Models\WebsiteCms::instance();
+
+        return $cms->shouldRedirectLegacy()
+            ? redirect()->away($cms->externalBase().$path, 301)
+            : null;
+    }
+
     public function index(WebsiteCmsService $cmsService)
     {
+        if ($redirect = $this->redirectToConnectedWebsite('/')) {
+            return $redirect;
+        }
+
         $preview = request('cms_preview') === '1';
         $cms = $cmsService->getForFrontend($preview);
 
@@ -71,6 +92,10 @@ class FrontendController extends Controller
 
     public function privacyPolicy(WebsiteCmsService $cmsService)
     {
+        if ($redirect = $this->redirectToConnectedWebsite('/privacy-policy')) {
+            return $redirect;
+        }
+
         $cms = $cmsService->getForFrontend(false);
 
         return view('frontend.legal.privacy-policy', [
