@@ -202,7 +202,7 @@ final class LeadSettings
     {
         $saved = self::raw()['contact_methods'] ?? null;
 
-        return is_array($saved) ? array_values($saved) : ['Phone call', 'WhatsApp', 'Email', 'SMS', 'In person', 'Other'];
+        return is_array($saved) ? array_values($saved) : ['WhatsApp', 'Calendly', 'Enquire Now', 'Admin Email', 'Admission call', 'General call', 'Social media', 'Application form', 'Other'];
     }
 
     /** @return list<array{key: string, label: string, options: list<string>}> */

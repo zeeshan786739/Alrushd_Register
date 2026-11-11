@@ -48,6 +48,20 @@ class LeadSettingsTest extends CrmTestCase
         $this->actingAsCrmAdmin()->get(route('admin.crm.settings.leads.edit'))->assertOk()->assertSee('Lead Settings');
     }
 
+    public function test_contact_methods_match_the_team_list(): void
+    {
+        $this->actingAsCrmAdmin();
+        $this->assertSame(
+            ['WhatsApp', 'Calendly', 'Enquire Now', 'Admin Email', 'Admission call', 'General call', 'Social media', 'Application form', 'Other'],
+            LeadFormOptions::contactMethods()
+        );
+        $this->assertSame('Enquire Now', LeadFormOptions::normalizeContactMethod('enquire now'));
+
+        // Older leads keep their method and can still be found by it.
+        $this->lead('OldCaller', ['contact_method' => 'Phone call']);
+        $this->leads(['contact_method' => 'Phone call'])->assertSee('OldCaller');
+    }
+
     public function test_standard_setup_is_unchanged_until_customized(): void
     {
         $this->actingAsCrmAdmin();
@@ -135,51 +149,51 @@ class LeadSettingsTest extends CrmTestCase
 
     public function test_renaming_back_and_forth_leaves_no_loop(): void
     {
-        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'SMS', 'name' => 'Text'])->assertOk();
-        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'Text', 'name' => 'SMS'])->assertOk();
+        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'Calendly', 'name' => 'Text'])->assertOk();
+        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'Text', 'name' => 'Calendly'])->assertOk();
 
-        $this->assertSame('SMS', LeadFormOptions::normalizeContactMethod('text message'));
+        $this->assertSame('Calendly', LeadFormOptions::normalizeContactMethod('calendly'));
     }
 
     public function test_duplicates_and_blank_names_are_refused(): void
     {
         $this->actingAsCrmAdmin()->postJson($this->list('contact_method'), ['name' => 'whatsapp'])->assertStatus(422);
         $this->actingAsCrmAdmin()->postJson($this->list('contact_method'), ['name' => '   '])->assertStatus(422);
-        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'SMS', 'name' => 'Email'])->assertStatus(422);
+        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'Calendly', 'name' => 'WhatsApp'])->assertStatus(422);
         $this->actingAsCrmAdmin()->postJson($this->list('admission_intake'), ['name' => str_repeat('x', 31)])->assertStatus(422);
         $this->actingAsCrmAdmin()->postJson($this->list('nonsense'), ['name' => 'x'])->assertNotFound();
     }
 
     public function test_removing_an_option_can_keep_clear_or_move_its_leads(): void
     {
-        $keep = $this->lead('Keep', ['contact_method' => 'SMS']);
-        $clear = $this->lead('Clear', ['contact_method' => 'Email']);
-        $move = $this->lead('Move', ['contact_method' => 'Other']);
+        $keep = $this->lead('Keep', ['contact_method' => 'Calendly']);
+        $clear = $this->lead('Clear', ['contact_method' => 'Admin Email']);
+        $move = $this->lead('Move', ['contact_method' => 'General call']);
 
         $this->actingAsCrmAdmin();
-        $this->deleteJson($this->list('contact_method'), ['value' => 'SMS', 'move_to' => null])->assertOk();
-        $this->deleteJson($this->list('contact_method'), ['value' => 'Email', 'move_to' => '__clear__'])->assertOk();
-        $this->deleteJson($this->list('contact_method'), ['value' => 'Other', 'move_to' => 'WhatsApp'])->assertOk();
+        $this->deleteJson($this->list('contact_method'), ['value' => 'Calendly', 'move_to' => null])->assertOk();
+        $this->deleteJson($this->list('contact_method'), ['value' => 'Admin Email', 'move_to' => '__clear__'])->assertOk();
+        $this->deleteJson($this->list('contact_method'), ['value' => 'General call', 'move_to' => 'WhatsApp'])->assertOk();
 
-        $this->assertSame('SMS', $keep->fresh()->contact_method);
+        $this->assertSame('Calendly', $keep->fresh()->contact_method);
         $this->assertNull($clear->fresh()->contact_method);
         $this->assertSame('WhatsApp', $move->fresh()->contact_method);
-        $this->assertNotContains('SMS', LeadFormOptions::contactMethods());
+        $this->assertNotContains('Calendly', LeadFormOptions::contactMethods());
 
-        $this->deleteJson($this->list('contact_method'), ['value' => 'Phone call', 'move_to' => 'Nope'])->assertStatus(422);
+        $this->deleteJson($this->list('contact_method'), ['value' => 'Other', 'move_to' => 'Nope'])->assertStatus(422);
     }
 
     public function test_a_lead_can_keep_a_removed_option_when_saved_but_new_leads_cannot_choose_it(): void
     {
-        $lead = $this->lead('Older', ['contact_method' => 'SMS']);
-        $this->actingAsCrmAdmin()->deleteJson($this->list('contact_method'), ['value' => 'SMS'])->assertOk();
+        $lead = $this->lead('Older', ['contact_method' => 'Calendly']);
+        $this->actingAsCrmAdmin()->deleteJson($this->list('contact_method'), ['value' => 'Calendly'])->assertOk();
 
         $this->actingAsCrmAdmin()->putJson(route('admin.crm.leads.update', $lead), [
-            'first_name' => 'Older', 'lead_status' => 'new', 'contact_method' => 'SMS',
+            'first_name' => 'Older', 'lead_status' => 'new', 'contact_method' => 'Calendly',
         ])->assertOk();
 
         $this->actingAsCrmAdmin()->postJson(route('admin.crm.leads.store'), [
-            'first_name' => 'Newer', 'lead_status' => 'new', 'contact_method' => 'SMS',
+            'first_name' => 'Newer', 'lead_status' => 'new', 'contact_method' => 'Calendly',
         ])->assertStatus(422);
     }
 
@@ -357,16 +371,16 @@ class LeadSettingsTest extends CrmTestCase
     {
         $this->actingAsCrmAdmin()->postJson($this->list('contact_method'), ['name' => 'Fax'])->assertOk();
         $this->addCustomFilter();
-        $outside = Lead::create(['organization_id' => $this->organizationB->id, 'source' => 'manual', 'first_name' => 'B', 'lead_status' => 'new', 'contact_method' => 'SMS']);
+        $outside = Lead::create(['organization_id' => $this->organizationB->id, 'source' => 'manual', 'first_name' => 'B', 'lead_status' => 'new', 'contact_method' => 'Calendly']);
 
-        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'SMS', 'name' => 'Texting'])->assertOk();
-        $this->assertSame('SMS', $outside->fresh()->contact_method);
+        $this->actingAsCrmAdmin()->patchJson($this->list('contact_method'), ['value' => 'Calendly', 'name' => 'Texting'])->assertOk();
+        $this->assertSame('Calendly', $outside->fresh()->contact_method);
 
         $this->actingAs($this->adminB, 'admin');
         app()->forgetInstance('crm.lead-settings.'.$this->organizationB->id);
         $this->assertNotContains('Fax', LeadFormOptions::contactMethods());
         $this->assertSame([], LeadSettings::customFilters());
-        $this->assertContains('SMS', LeadFormOptions::contactMethods());
+        $this->assertContains('Calendly', LeadFormOptions::contactMethods());
     }
 
     public function test_saving_settings_does_not_disturb_other_organization_metadata(): void

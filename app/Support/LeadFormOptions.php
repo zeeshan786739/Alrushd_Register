@@ -162,6 +162,14 @@ final class LeadFormOptions
             'email', 'e-mail', 'mail' => 'Email',
             'sms', 'text', 'text message' => 'SMS',
             'in person', 'in-person', 'visit' => 'In person',
+            'calendly', 'calendly booking' => 'Calendly',
+            'enquire now', 'enquiry', 'enquire' => 'Enquire Now',
+            'admin email' => 'Admin Email',
+            'admission call', 'admissions call' => 'Admission call',
+            'general call' => 'General call',
+            'social media', 'social' => 'Social media',
+            'application form', 'application' => 'Application form',
+            'other' => 'Other',
             default => $value,
         });
     }
