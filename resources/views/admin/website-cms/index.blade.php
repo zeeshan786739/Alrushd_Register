@@ -98,7 +98,11 @@
                 @endif
             </div>
             <div class="wcm-preview-frame-wrap">
-                <iframe id="wcmPreviewFrame" src="{{ ($previewUrl ?? url('/')).'?cms_preview=1' }}" title="Website preview"></iframe>
+                @php
+                    $frameUrl = $previewUrl ?? url('/');
+                    $frameUrl .= (str_contains($frameUrl, '?') ? '&' : '?').'cms_preview=1';
+                @endphp
+                <iframe id="wcmPreviewFrame" src="{{ $frameUrl }}" title="Website preview"></iframe>
             </div>
         </aside>
     </div>
