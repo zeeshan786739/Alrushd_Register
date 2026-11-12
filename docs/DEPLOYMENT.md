@@ -32,7 +32,11 @@ The server must be able to make outgoing HTTPS requests to the marketing website
 
 ## `.env` — staging
 
-Start from production's `.env` and change:
+**Ready-to-copy file: `deploy/staging.env.example`** (only the DB credentials and `APP_KEY` need filling).
+Then, on the staging DB right after cloning production, run **`deploy/staging-sanitize.sql`**; it
+does steps 1–3 below automatically and refuses to run on a database whose name lacks "staging".
+
+The key differences from production:
 
 ```dotenv
 APP_ENV=staging
