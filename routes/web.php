@@ -23,32 +23,37 @@ require __DIR__.'/saas.php';
 
 require __DIR__.'/tenant-public.php';
 
-Route::get('/cmd',function(){
-    Artisan::call('storage:link');
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('route:clear');
-    Artisan::call('view:clear');
-    Artisan::call('optimize:clear');
-    return 'Done';
+// Developer helpers. Only registered locally: in production /email-test would mail a real
+// submission to an outside address and /cmd would let anyone clear caches.
+// On servers run `php artisan optimize:clear` during deployment instead.
+if (app()->environment('local')) {
+    Route::get('/cmd',function(){
+        Artisan::call('storage:link');
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
+        Artisan::call('route:clear');
+        Artisan::call('view:clear');
+        Artisan::call('optimize:clear');
+        return 'Done';
 
-});
+    });
 
-Route::get('/email-test',function(){
-     // Dummy order অথবা latest order data
-    // $order = Order::latest()->first();
-    $order = FormSubmission::latest()->first();
-    // $order = FormSubmission::find(32);
-    try {
-        // Mail::to('rajusheikh061@gmail.com')->send(new PaymentInvoiceMail($order));
-        Mail::to('rajusheikh061@gmail.com')->send(new PaymentSuccessMail($order));
-        return '✅ Test email sent successfully.';
-    } catch (\Exception $e) {
-        \Log::error('Email sending failed: ' . $e->getMessage());
-        return '❌ Failed to send email. Check log for details.';
-    }
+    Route::get('/email-test',function(){
+         // Dummy order অথবা latest order data
+        // $order = Order::latest()->first();
+        $order = FormSubmission::latest()->first();
+        // $order = FormSubmission::find(32);
+        try {
+            // Mail::to('rajusheikh061@gmail.com')->send(new PaymentInvoiceMail($order));
+            Mail::to('rajusheikh061@gmail.com')->send(new PaymentSuccessMail($order));
+            return '✅ Test email sent successfully.';
+        } catch (\Exception $e) {
+            \Log::error('Email sending failed: ' . $e->getMessage());
+            return '❌ Failed to send email. Check log for details.';
+        }
 
-});
+    });
+}
 
 
 Route::get('/student-admission', fn () => redirect('/forms/student-admission', 301));
