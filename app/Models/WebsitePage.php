@@ -62,8 +62,32 @@ class WebsitePage extends Model
             $draft['seo'][$key] = Str::limit(trim((string) $draft['seo'][$key]), 500, '');
         }
 
+        $draft = self::normaliseVisibility($draft, $kind);
+
         // System pages are rendered by code; blocks are only meaningful for custom pages.
         $draft['blocks'] = $kind === self::KIND_CUSTOM ? self::normaliseBlocks($input['blocks'] ?? []) : [];
+
+        return $draft;
+    }
+
+    /**
+     * The editor offers visibility as one choice, so the two stored flags must agree.
+     *
+     * Built-in pages: "Hidden from search" = hidden + noindex (both mean "no index, not in
+     * the sitemap" for a page rendered by code). A page with only one flag set is treated
+     * as hidden and both flags are switched on.
+     * Custom pages: `hidden` takes the page offline (404), which also implies noindex.
+     * `noindex` alone keeps the page reachable but out of search and the sitemap.
+     */
+    public static function normaliseVisibility(array $draft, string $kind): array
+    {
+        if ($kind === self::KIND_SYSTEM) {
+            $hide = $draft['hidden'] || $draft['seo']['noindex'];
+            $draft['hidden'] = $hide;
+            $draft['seo']['noindex'] = $hide;
+        } elseif ($draft['hidden']) {
+            $draft['seo']['noindex'] = true;
+        }
 
         return $draft;
     }

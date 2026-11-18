@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\WebsiteCms;
 use App\Services\HeadlessWebsiteService;
+use App\Support\PreviewToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,6 +28,17 @@ class HeadlessSiteController extends Controller
             'organization' => $cms->organization?->slug,
             'mode' => $cms->mode,
         ]);
+    }
+
+    /**
+     * The website asks before switching on preview (draft) mode: is this CMS preview token
+     * valid, unexpired, for this school and for an admin who may view website settings?
+     */
+    public function verifyPreview(Request $request): JsonResponse
+    {
+        $result = PreviewToken::verify((string) $request->query('token', ''), $this->cms($request));
+
+        return response()->json($result, $result['ok'] ? 200 : 401);
     }
 
     public function site(Request $request): JsonResponse

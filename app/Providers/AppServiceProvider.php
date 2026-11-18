@@ -53,6 +53,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        // Website CMS → AI assistant: the school's saved settings, falling back to .env.
+        $this->app->bind(\App\Services\AiAssistant\AiProvider::class, fn () => \App\Services\AiAssistant\OpenAiCompatibleProvider::fromConfig(
+            \App\Services\AiAssistant\AiAssistantConfig::forOrganization(\App\Models\WebsiteCms::instance()->organization_id)
+        ));
         $this->app->bind(MailboxClientInterface::class, function () {
             if (class_exists(\Webklex\PHPIMAP\ClientManager::class)) {
                 return new WebklexMailboxClient;

@@ -3346,6 +3346,150 @@ h5, .h5, h6, .h6 { font-size: 0.875rem !important; font-weight: 600 !important; 
     display: block !important;
 }
 
+/* ── Collapsed sidebar: hover-to-expand ("peek") ──
+ * alrushad-ui.js (initSidebarPeek) adds .is-peek after a short hover intent
+ * delay. The sidebar expands OVER the page (content margin stays at 86px),
+ * so nothing reflows; labels, group titles and sub-menus become usable.
+ * Declared after the collapsed :hover rules above so equal-specificity
+ * !important rules win by source order. */
+@media (min-width: 1200px) {
+    .sidebar {
+        transition:
+            width 0.28s var(--crm-ease),
+            box-shadow 0.28s var(--crm-ease) !important;
+    }
+
+    .sidebar.active {
+        overflow-x: hidden;
+    }
+
+    .sidebar.active.is-peek {
+        width: 13.75rem !important;
+        z-index: 1030 !important;
+        box-shadow: 12px 0 32px -8px rgba(15, 39, 74, 0.22), 1px 0 0 var(--crm-border) !important;
+    }
+}
+
+@media (min-width: 1400px) {
+    .sidebar.active.is-peek { width: 17.1875rem !important; }
+}
+
+@media (min-width: 1650px) {
+    .sidebar.active.is-peek { width: 19.5rem !important; }
+}
+
+[data-theme="dark"] .sidebar.active.is-peek {
+    box-shadow: 12px 0 36px -8px rgba(0, 0, 0, 0.55), 1px 0 0 var(--crm-border) !important;
+}
+
+/* Brand block */
+.sidebar.active.is-peek .sidebar-logo--brand {
+    justify-content: flex-start !important;
+    padding: var(--crm-sidebar-item-py) var(--crm-sidebar-item-px) !important;
+}
+
+.sidebar.active.is-peek .sidebar-logo--brand .crm-logo-img {
+    margin: 0 !important;
+}
+
+.sidebar.active.is-peek .sidebar-logo--brand .crm-brand-text {
+    display: flex !important;
+}
+
+/* Section titles */
+.sidebar.active.is-peek .sidebar-menu-group-title,
+.sidebar.active.is-peek .sidebar-menu li.sidebar-menu-group-title {
+    display: block !important;
+    white-space: nowrap;
+}
+
+/* Top-level rows: same geometry as the expanded sidebar */
+.sidebar.active.is-peek .sidebar-menu > li > a,
+.sidebar.active.is-peek .sidebar-menu > li > a:hover {
+    justify-content: flex-start !important;
+    padding: var(--crm-sidebar-item-py) var(--crm-sidebar-item-px) !important;
+    margin: 0 !important;
+    white-space: nowrap;
+}
+
+.sidebar.active.is-peek .sidebar-menu > li > a .menu-icon,
+.sidebar.active.is-peek .sidebar-menu > li > a iconify-icon,
+.sidebar.active.is-peek .sidebar-menu > li > a > i:not(.circle-icon) {
+    margin: 0 !important;
+    margin-inline-end: 10px !important;
+}
+
+.sidebar.active.is-peek .sidebar-menu li a span,
+.sidebar.active.is-peek .sidebar-menu > li > a span {
+    display: inline-block !important;
+}
+
+.sidebar.active.is-peek .sidebar-menu li.dropdown > a::after {
+    display: inline-block !important;
+}
+
+/* Sub-menus: closed ones stay closed (no !important, so jQuery's slide
+ * animation can drive them); the open section is shown. */
+.sidebar.active.is-peek .sidebar-menu li.dropdown .sidebar-submenu {
+    display: none;
+}
+
+.sidebar.active.is-peek .sidebar-menu li.dropdown.open > .sidebar-submenu,
+.sidebar.active.is-peek .sidebar-menu li.dropdown.dropdown-open > .sidebar-submenu {
+    display: block !important;
+}
+
+.sidebar.active.is-peek .sidebar-menu .sidebar-submenu li a,
+.sidebar.active.is-peek .sidebar-menu .sidebar-submenu li a:hover {
+    justify-content: flex-start !important;
+    padding: 7px var(--crm-sidebar-item-px) 7px 1.35rem !important;
+    margin: 0 !important;
+    white-space: nowrap;
+}
+
+.sidebar.active.is-peek .sidebar-menu .sidebar-submenu li a .menu-icon,
+.sidebar.active.is-peek .sidebar-menu .sidebar-submenu li a iconify-icon {
+    margin: 0 !important;
+    margin-inline-end: 12px !important;
+}
+
+/* Labels fade/slide in once the panel has started opening */
+@keyframes crmSidebarPeekIn {
+    from { opacity: 0; transform: translateX(-4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes crmSidebarPeekFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.sidebar.active.is-peek .sidebar-menu > li > a span,
+.sidebar.active.is-peek .sidebar-menu-group-title,
+.sidebar.active.is-peek .sidebar-submenu,
+.sidebar.active.is-peek .crm-brand-text {
+    animation: crmSidebarPeekIn 0.22s var(--crm-ease) 0.08s both;
+}
+
+/* Chevron has its own rotate transform — fade only, never touch transform */
+.sidebar.active.is-peek .sidebar-menu > li.dropdown > a::after {
+    animation: crmSidebarPeekFade 0.22s var(--crm-ease) 0.08s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar {
+        transition: none !important;
+    }
+
+    .sidebar.active.is-peek .sidebar-menu > li > a span,
+    .sidebar.active.is-peek .sidebar-menu > li > a::after,
+    .sidebar.active.is-peek .sidebar-menu-group-title,
+    .sidebar.active.is-peek .sidebar-submenu,
+    .sidebar.active.is-peek .crm-brand-text {
+        animation: none;
+    }
+}
+
 .crm-brand-name {
     font-size: 15px;
     font-weight: 700;

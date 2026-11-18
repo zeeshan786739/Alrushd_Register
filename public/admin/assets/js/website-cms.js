@@ -340,8 +340,15 @@
             refreshPreview, setStatus, switchModule, renderModule, getNested, setNested,
             getData: () => cmsData,
             setPreviewUrl: (url) => { W.previewUrl = url; refreshPreview(); },
+            // AI assistant: the server saved these sections; take them and redraw the open section.
+            replaceSections: (sections) => {
+                Object.assign(cmsData, sections || {});
+                renderModule(currentModule);
+            },
+            currentModule: () => currentModule,
         };
     }
+    EXT.api = extApi;
 
     function setStatus(msg, type) {
         if (statusText) statusText.textContent = msg;
@@ -499,7 +506,9 @@
         // Hide reset on dashboard
         const resetBtn = $('#wcmResetSection');
         if (resetBtn) {
-            resetBtn.style.display = (moduleId === 'dashboard' || (EXT.noReset || []).includes(moduleId)) ? 'none' : '';
+            // !important: the global `.btn { display: inline-flex !important }` override would otherwise win.
+            if (moduleId === 'dashboard' || (EXT.noReset || []).includes(moduleId)) resetBtn.style.setProperty('display', 'none', 'important');
+            else resetBtn.style.removeProperty('display');
         }
 
         if (EXT.renderers && typeof EXT.renderers[moduleId] === 'function') {
@@ -712,6 +721,8 @@
     }
 
     function refreshPreview() {
+        // Connected website: the live preview panel (website-cms-preview.js) re-renders in place.
+        if (EXT.preview) return EXT.preview.refresh();
         if (!previewFrame) return;
         const base = (W.previewUrl || previewFrame.src.split('?')[0]).replace(/\?$/, '');
         previewFrame.src = base + (base.includes('?') ? '&' : '?') + 'cms_preview=1&t=' + Date.now();

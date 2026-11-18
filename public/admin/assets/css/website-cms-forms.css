@@ -1,0 +1,75 @@
+/**
+ * Website CMS → Website forms. Builds on website-cms-pages.css (.wcp tokens) and
+ * website-cms-nav.css (.wcn-actions, .wcn-eyebrow).
+ */
+
+.wcfm .wcp-input { border-color: #DDD5C4; }
+[data-theme="dark"] .wcfm .wcp-input { border-color: var(--wcp-border-strong); }
+.wcfm {
+    --wcfm-ok-bg: #E6F4EA; --wcfm-ok: #1B6B3A;
+    --wcfm-warn-bg: #FBF0D9; --wcfm-warn: #6B4300;
+}
+[data-theme="dark"] .wcfm {
+    --wcfm-ok-bg: rgba(111, 211, 157, 0.12); --wcfm-ok: #8FE0B2;
+    --wcfm-warn-bg: rgba(242, 194, 107, 0.12); --wcfm-warn: #F2C26B;
+}
+
+/* ── How it works ── */
+.wcfm-how { padding: 18px 22px; margin-bottom: 20px; }
+.wcfm-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin: 12px 0 0; padding: 0; list-style: none; }
+.wcfm-steps > li:not(.wcfm-arrow) { display: flex; align-items: center; gap: 12px; flex: 1 1 200px; min-width: 0; }
+.wcfm-steps strong { display: block; font-size: 14px; color: var(--wcp-text); }
+.wcfm-steps li > span:last-child > span { display: block; font-size: 13.5px; color: var(--wcp-muted); }
+.wcfm-arrow { color: var(--wcp-gold); font-size: 20px; display: flex; }
+.wcfm-tile-green { background: var(--wcfm-ok-bg); color: var(--wcfm-ok); }
+@container wcp (max-width: 700px) {
+    .wcfm-arrow { display: none; }
+    .wcfm-steps > li:not(.wcfm-arrow) { flex-basis: 100%; }
+}
+
+/* ── Form cards ── */
+.wcfm-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@container wcp (min-width: 760px) {
+    .wcfm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.wcfm-card { display: flex; flex-direction: column; gap: 16px; padding: 22px; }
+.wcfm-card-head { display: flex; gap: 14px; align-items: flex-start; }
+.wcfm-tile { width: 44px; height: 44px; border-radius: 12px; }
+.wcfm-title { margin: 0 !important; font-size: 18px !important; font-weight: 700; color: var(--wcp-navy); line-height: 1.3; }
+[data-theme="dark"] .wcfm-title { color: var(--wcp-text); }
+.wcfm-purpose { margin: 2px 0 0 !important; color: var(--wcp-muted); font-size: 14px; }
+.wcfm-shown { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0 !important; font-size: 12.5px; color: var(--wcp-muted); }
+.wcfm-chip { padding: 2px 9px; border-radius: 999px; background: var(--wcp-gold-soft); color: var(--wcp-text); font-size: 12px; }
+.wcfm-chip.is-mono { font-family: var(--wcp-mono); }
+.wcfm-card .wcp-field label { font-size: 14px; font-weight: 600; }
+
+.wcfm-status {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 11px 14px; border-radius: var(--wcp-radius-sm);
+    font-size: 13.5px; font-weight: 500; line-height: 1.45;
+}
+.wcfm-status iconify-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.wcfm-status.is-ok { background: var(--wcfm-ok-bg); color: var(--wcfm-ok); }
+.wcfm-status.is-warn { background: var(--wcfm-warn-bg); color: var(--wcfm-warn); }
+.wcfm-status.is-error { background: var(--wcp-error-bg); color: var(--wcp-error); }
+.wcfm-status.is-checking { background: var(--wcp-tint); color: var(--wcp-muted); align-items: center; }
+.wcfm-spin { width: 16px; height: 16px; border-width: 2px; }
+.wcfm-auto { font-weight: 400; }
+.wcfm-link {
+    display: inline; padding: 0; border: 0; background: none;
+    color: inherit; font: inherit; font-weight: 700;
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+
+.wcfm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--wcp-border); }
+
+/* ── Tip ── */
+.wcfm-tip {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+    margin-top: 20px; padding: 18px 20px;
+    border: 1.5px dashed var(--wcp-border-strong); border-radius: var(--wcp-radius);
+    background: color-mix(in srgb, var(--wcp-gold-soft) 35%, transparent);
+}
+.wcfm-tip > div { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; }
+.wcfm-tip strong { font-size: 15px; color: var(--wcp-text); }
+.wcfm-tip span { font-size: 13.5px; color: var(--wcp-muted); }

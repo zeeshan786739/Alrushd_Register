@@ -1,0 +1,49 @@
+/**
+ * Website CMS → Analytics. Builds on website-cms-pages.css (.wcp tokens), website-cms-nav.css
+ * (headings, actions row), website-cms-announce.css (switch) and website-cms-seo.css (.wcseo-mono).
+ */
+
+.wcan .wcp-input { border-color: #DDD5C4; }
+[data-theme="dark"] .wcan .wcp-input { border-color: var(--wcp-border-strong); }
+.wcan .wcp-input[aria-invalid="true"] { border-color: var(--wcp-error); }
+
+.wcan-pill { padding: 6px 14px; border-radius: 999px; background: #EEE9DE; color: #1F2A3A; font-size: 13px; font-weight: 600; }
+[data-theme="dark"] .wcan-pill { background: var(--wcp-tint); color: var(--wcp-text); }
+
+.wcan-consent { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-bottom: 20px; }
+.wcan-consent-text { flex: 1 1 280px; min-width: 0; }
+.wcan-consent-text .wcp-card-desc { margin-bottom: 4px !important; }
+.wcan-consent-text .wcp-badge-ok { font-size: 11.5px; vertical-align: 2px; }
+
+.wcan-double {
+    display: flex; gap: 10px; align-items: flex-start; margin: 0 0 20px !important;
+    padding: 12px 14px; border-radius: 12px; background: #F1F5FB; color: #1E4D8C; font-size: 13.5px;
+}
+.wcan-double[hidden] { display: none; }
+.wcan-double iconify-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+[data-theme="dark"] .wcan-double { background: rgba(61, 115, 176, .16); color: #b9d3f2; }
+
+.wcan-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@container wcp (min-width: 760px) {
+    .wcan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.wcan-tool { display: flex; flex-direction: column; gap: 14px; }
+.wcan-tool-head { display: flex; align-items: flex-start; gap: 12px; }
+.wcan-initials { width: 44px; height: 44px; border-radius: 12px; font-size: 13px; font-weight: 700; }
+.wcan-tool-title { flex: 1; min-width: 0; }
+.wcan-tool-title .wcp-hint { margin-top: 2px; font-size: 13.5px; }
+.wcan-start { display: inline-block; margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: #F5EFE1; color: #7A6535; font-size: 11.5px; font-weight: 600; vertical-align: 2px; }
+[data-theme="dark"] .wcan-start { background: var(--wcp-gold-soft); color: #D4C08E; }
+
+.wcan-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.wcan-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.wcan-chip.is-empty { background: #EEE9DE; color: #5B6473; }
+.wcan-chip.is-ok { background: #E6F4EA; color: #1B6B3A; }
+.wcan-chip.is-bad { background: #FBF0D9; color: #8A5300; }
+[data-theme="dark"] .wcan-chip.is-empty { background: var(--wcp-tint); color: var(--wcp-muted); }
+
+.wcan-help { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--wcp-border); }
+.wcan-help summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--wcp-navy); }
+[data-theme="dark"] .wcan-help summary { color: #b9d3f2; }
+.wcan-help summary:focus-visible { outline: 2px solid #AE9A66; outline-offset: 2px; border-radius: 4px; }
+.wcan-help p { margin: 8px 0 0; font-size: 13.5px; color: var(--wcp-muted); }

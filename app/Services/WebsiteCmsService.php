@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\Form;
 use App\Models\Setting;
 use App\Models\WebsiteCms;
+use App\Support\AnalyticsSettings;
+use App\Support\ContactDetails;
+use App\Support\SeoSettings;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -33,6 +36,14 @@ class WebsiteCmsService
                 'default_language' => 'en',
                 'copyright' => $setting?->copyright ?? '© '.date('Y').' AL-Rushd Online School. All rights reserved.',
                 'company_registration' => '',
+                // Connected website only (Branding screen). Empty = the website keeps its own
+                // built-in crest / browser icons. Kept apart from logo/favicon above, which the
+                // built-in landing page uses.
+                'website_logo' => '',
+                'website_favicon' => '',
+                'website_favicon_icons' => [],
+                // true: the footer shows "© {current year} {copyright}" (what the website always did).
+                'copyright_auto_year' => true,
             ],
             'theme' => [
                 'primary' => '#0F274A',
@@ -206,6 +217,16 @@ class WebsiteCmsService
                 'working_hours' => 'Monday – Friday, 8:30 am – 6:00 pm',
                 'support_email' => $setting?->email_two ?? '',
                 'emergency_contact' => '',
+                // Contact details editor (see App\Support\ContactDetails). null = not set yet:
+                // the stored whatsapp link / working_hours text is used as it is.
+                'whatsapp_enabled' => null,
+                'whatsapp_same_as_phone' => null,
+                'whatsapp_number' => '',
+                'whatsapp_message' => '',
+                'opening_days' => null,
+                'opening_from' => '08:30',
+                'opening_until' => '16:30',
+                'opening_timezone' => 'UK',
             ],
             'cta' => [
                 'enabled' => true,
@@ -240,6 +261,8 @@ class WebsiteCmsService
                 'tiktok' => '',
                 'whatsapp' => '',
                 'threads' => '',
+                // The WhatsApp icon uses the link from Contact details (what the website always did).
+                'whatsapp_use_contact' => true,
                 'enabled' => [
                     'facebook' => true,
                     'instagram' => true,
@@ -286,8 +309,14 @@ class WebsiteCmsService
                 'facebook_pixel' => '',
                 'hotjar' => '',
                 'microsoft_clarity' => '',
+                // Connected website: tools load only after a visitor accepts the cookie banner.
+                'require_consent' => true,
             ],
             'custom_code' => [
+                // Off = the code is kept but not added to the website.
+                'custom_css_enabled' => true,
+                'head_code_enabled' => true,
+                'footer_code_enabled' => true,
                 'custom_css' => '',
                 'custom_js' => '',
                 'head_scripts' => '',
@@ -307,8 +336,14 @@ class WebsiteCmsService
                     'newsletter' => 'website-newsletter',
                 ],
                 'portal_url' => '',
+                'portal_button_text' => 'Parent & student login',
                 'announcement' => '',
                 'announcement_url' => '',
+                'announcement_enabled' => false,
+                'announcement_link_text' => '',
+                'announcement_style' => 'gold',
+                'announcement_starts_at' => '',
+                'announcement_ends_at' => '',
             ],
             // Menus of a connected (headless) website. An item with a "group" is shown in
             // that dropdown; an item without one is a top-level link.
@@ -331,9 +366,261 @@ class WebsiteCmsService
         ];
     }
 
+    /** Portal button label the website showed before it became editable. */
+    public const LEGACY_PORTAL_BUTTON_TEXT = 'Portal Login';
+
+    public const ANNOUNCEMENT_STYLES = ['gold', 'navy', 'cream'];
+
     public function merge(array $data): array
     {
-        return array_replace_recursive($this->defaults(), $data);
+        $data = self::upgradeContactSection(self::upgradeWebsiteSection($data));
+        $merged = array_replace_recursive($this->defaults(), $data);
+        $merged['website'] = self::normaliseWebsiteSection($merged['website'] ?? []);
+        $merged['contact'] = self::normaliseContactSection($merged['contact'] ?? []);
+        $merged['seo'] = self::normaliseSeoSection($merged['seo'] ?? []);
+        foreach (array_keys(AnalyticsSettings::TOOLS) as $tool) {
+            $merged['analytics'][$tool] = AnalyticsSettings::normalise($tool, $merged['analytics'][$tool] ?? '');
+        }
+        $merged['analytics']['require_consent'] = AnalyticsSettings::requiresConsent($merged['analytics'] ?? []);
+        foreach (['custom_css_enabled', 'head_code_enabled', 'footer_code_enabled'] as $flag) {
+            $merged['custom_code'][$flag] = filter_var($merged['custom_code'][$flag] ?? true, FILTER_VALIDATE_BOOLEAN);
+        }
+        // Icon sizes belong to one upload: never mix old and new sizes, and drop them with the icon.
+        if (isset($data['branding']) && array_key_exists('website_favicon_icons', $data['branding'])) {
+            $merged['branding']['website_favicon_icons'] = is_array($data['branding']['website_favicon_icons']) ? $data['branding']['website_favicon_icons'] : [];
+        }
+        if (trim((string) ($merged['branding']['website_favicon'] ?? '')) === '') {
+            $merged['branding']['website_favicon_icons'] = [];
+        }
+
+        // Menu item lists are ordered lists, not settings: array_replace_recursive would merge
+        // them index-by-index with the defaults (so removing every link brought "Home" back,
+        // and a short list inherited fields from default rows). Use the saved list as-is.
+        foreach (['nav_menu', 'footer_menu'] as $menu) {
+            if (isset($data[$menu]['items']) && is_array($data[$menu]['items'])) {
+                $merged[$menu]['items'] = array_values($data[$menu]['items']);
+            }
+        }
+        if (isset($data['nav_menu']['items']) && is_array($data['nav_menu']['items'])) {
+            $merged['nav_menu']['items'] = self::normaliseNavItems($data['nav_menu']['items']);
+        }
+        if (isset($data['footer_menu']['items']) && is_array($data['footer_menu']['items'])) {
+            $merged['footer_menu']['items'] = self::normaliseFooterItems($data['footer_menu']['items']);
+        }
+        if (isset($data['footer_menu']['heading']) && is_string($data['footer_menu']['heading'])) {
+            $merged['footer_menu']['heading'] = self::normaliseFooterHeading($data['footer_menu']['heading']);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Settings saved before Announcement & portal gained its switch and button label: keep the
+     * website exactly as it was — the bar shows when it has text, the button says "Portal Login".
+     */
+    public static function upgradeWebsiteSection(array $data): array
+    {
+        if (! isset($data['website']) || ! is_array($data['website'])) {
+            return $data;
+        }
+        $website = $data['website'];
+        if (! array_key_exists('announcement_enabled', $website)) {
+            $website['announcement_enabled'] = trim((string) ($website['announcement'] ?? '')) !== '';
+        }
+        if (! array_key_exists('portal_button_text', $website)) {
+            $website['portal_button_text'] = self::LEGACY_PORTAL_BUTTON_TEXT;
+        }
+        $data['website'] = $website;
+
+        return $data;
+    }
+
+    /**
+     * Contact settings saved before the structured editor: read the WhatsApp link and the
+     * opening-hours text into the new fields when they rebuild to exactly the same value;
+     * otherwise leave them unset so the existing link / text stays as it is.
+     */
+    public static function upgradeContactSection(array $data): array
+    {
+        if (! isset($data['contact']) || ! is_array($data['contact'])) {
+            return $data;
+        }
+        $c = $data['contact'];
+        $link = trim((string) ($c['whatsapp'] ?? ''));
+        if (! array_key_exists('whatsapp_enabled', $c)) {
+            $c['whatsapp_enabled'] = $link !== '';
+            // No link yet: leave the number unset, so nothing is generated until WhatsApp is switched on.
+            if ($parsed = ContactDetails::parseWhatsapp($link, (string) ($c['phone'] ?? ''))) {
+                $c += $parsed;
+            }
+        }
+        if (! array_key_exists('opening_days', $c) && ($parsed = ContactDetails::parseHours((string) ($c['working_hours'] ?? '')))) {
+            $c += $parsed;
+        }
+        $data['contact'] = $c;
+
+        return $data;
+    }
+
+    /** SEO values in the formats the website reads (see App\Support\SeoSettings). */
+    public static function normaliseSeoSection(array $seo): array
+    {
+        foreach (['meta_title', 'meta_description', 'meta_keywords', 'og_image', 'canonical_url', 'robots'] as $key) {
+            if (array_key_exists($key, $seo)) {
+                $seo[$key] = trim((string) ($seo[$key] ?? ''));
+            }
+        }
+        if (! in_array($seo['twitter_card'] ?? null, SeoSettings::TWITTER_CARDS, true)) {
+            $seo['twitter_card'] = 'summary_large_image';
+        }
+        if (($seo['robots'] ?? '') === '') {
+            $seo['robots'] = SeoSettings::ROBOTS_ALLOW;
+        }
+        // Accept the whole <meta> tag Google shows; store only the code.
+        $seo['google_verification'] = SeoSettings::verificationCode($seo['google_verification'] ?? '');
+        $seo['canonical_url'] = rtrim($seo['canonical_url'] ?? '', '/');
+
+        return $seo;
+    }
+
+    /** Clean the contact settings and rebuild the values the website reads from them. */
+    public static function normaliseContactSection(array $c): array
+    {
+        foreach (['phone', 'email', 'whatsapp', 'whatsapp_number', 'whatsapp_message', 'address', 'working_hours'] as $key) {
+            if (array_key_exists($key, $c)) {
+                $c[$key] = trim((string) ($c[$key] ?? ''));
+            }
+        }
+        $c['whatsapp_enabled'] = ($c['whatsapp_enabled'] ?? null) === null
+            ? ($c['whatsapp'] ?? '') !== ''
+            : filter_var($c['whatsapp_enabled'], FILTER_VALIDATE_BOOLEAN);
+
+        // WhatsApp: once the number is set here, the link is always built from it.
+        if (($c['whatsapp_same_as_phone'] ?? null) !== null) {
+            $c['whatsapp_same_as_phone'] = filter_var($c['whatsapp_same_as_phone'], FILTER_VALIDATE_BOOLEAN);
+            $number = $c['whatsapp_same_as_phone'] ? ($c['phone'] ?? '') : ($c['whatsapp_number'] ?? '');
+            $c['whatsapp'] = ContactDetails::whatsappLink($number, $c['whatsapp_message'] ?? '');
+        }
+
+        // Opening hours: once days are set here, the text is always built from them.
+        if (is_array($c['opening_days'] ?? null)) {
+            $c['opening_days'] = array_values(array_map(fn ($d) => filter_var($d, FILTER_VALIDATE_BOOLEAN), array_pad(array_slice($c['opening_days'], 0, 7), 7, false)));
+            foreach (['opening_from' => '08:30', 'opening_until' => '16:30'] as $key => $fallback) {
+                $c[$key] = preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) ($c[$key] ?? '')) ? $c[$key] : $fallback;
+            }
+            if (! in_array($c['opening_timezone'] ?? null, ContactDetails::TIMEZONES, true)) {
+                $c['opening_timezone'] = 'UK';
+            }
+            $c['working_hours'] = ContactDetails::hoursText($c['opening_days'], $c['opening_from'], $c['opening_until'], $c['opening_timezone']);
+        } else {
+            $c['opening_days'] = null;
+        }
+
+        return $c;
+    }
+
+    /** Types and shapes the announcement / portal settings always have once stored. */
+    public static function normaliseWebsiteSection(array $website): array
+    {
+        foreach (['announcement', 'announcement_url', 'announcement_link_text', 'portal_url', 'portal_button_text'] as $key) {
+            $website[$key] = trim((string) ($website[$key] ?? ''));
+        }
+        $website['announcement_enabled'] = filter_var($website['announcement_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if (! in_array($website['announcement_style'] ?? null, self::ANNOUNCEMENT_STYLES, true)) {
+            $website['announcement_style'] = 'gold';
+        }
+        foreach (['announcement_starts_at', 'announcement_ends_at'] as $key) {
+            $value = (string) ($website[$key] ?? '');
+            $website[$key] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : '';
+        }
+
+        return $website;
+    }
+
+    /**
+     * Whether the announcement bar shows on the given day (school time): switched on, has a
+     * message, and today is inside the optional start/end dates (both inclusive).
+     */
+    public static function announcementIsActive(array $website, ?string $today = null): bool
+    {
+        $website = self::normaliseWebsiteSection(self::upgradeWebsiteSection(['website' => $website])['website']);
+        if (! $website['announcement_enabled'] || $website['announcement'] === '') {
+            return false;
+        }
+        $today ??= now('Europe/London')->toDateString();
+        if ($website['announcement_starts_at'] !== '' && $today < $website['announcement_starts_at']) {
+            return false;
+        }
+
+        return $website['announcement_ends_at'] === '' || $today <= $website['announcement_ends_at'];
+    }
+
+    /**
+     * Footer heading is stored as "first line|second line" (the website shows the part after
+     * "|" in gold). Trim both lines; with no second line, store just the first.
+     */
+    public static function normaliseFooterHeading(string $heading): string
+    {
+        [$first, $second] = array_pad(explode('|', $heading, 2), 2, '');
+        $first = Str::limit(trim($first), 120, '');
+        $second = Str::limit(trim(str_replace('|', ' ', $second)), 120, '');
+
+        return $second === '' ? $first : "{$first}|{$second}";
+    }
+
+    /**
+     * Footer links, flat as the website reads them: { group (column heading), label, href }.
+     * Columns appear in the order of their first link. A row with a group but no label/link
+     * keeps an empty column in the CMS; the website skips such rows.
+     *
+     * @return list<array{group: string, label: string, href: string}>
+     */
+    public static function normaliseFooterItems(array $items): array
+    {
+        $clean = [];
+        foreach (array_slice(array_values($items), 0, 200) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $row = [];
+            foreach (['group' => 80, 'label' => 120, 'href' => 500] as $key => $max) {
+                $row[$key] = Str::limit(trim((string) ($item[$key] ?? '')), $max, '');
+            }
+            if ($row['label'] === '' && $row['href'] === '' && $row['group'] === '') {
+                continue;
+            }
+            $clean[] = $row;
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Navigation menu items, in the flat shape the website reads: an item with a `group` sits
+     * in the dropdown of that name (dropdowns appear where their first item is); an item
+     * without one is a top-level link. A row with a group but no label/link keeps an empty
+     * dropdown in the CMS — the website skips such rows, so empty dropdowns never show.
+     *
+     * @return list<array{label: string, href: string, group: string, description: string}>
+     */
+    public static function normaliseNavItems(array $items): array
+    {
+        $clean = [];
+        foreach (array_slice(array_values($items), 0, 200) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $row = [];
+            foreach (['label' => 120, 'href' => 500, 'group' => 120, 'description' => 300] as $key => $max) {
+                $row[$key] = Str::limit(trim((string) ($item[$key] ?? '')), $max, '');
+            }
+            if ($row['label'] === '' && $row['href'] === '' && $row['group'] === '') {
+                continue;
+            }
+            $clean[] = $row;
+        }
+
+        return $clean;
     }
 
     public function getDraft(): array

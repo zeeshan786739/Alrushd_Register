@@ -617,6 +617,105 @@
         });
     }
 
+    /**
+     * Collapsed sidebar — hover-to-expand ("peek").
+     * While the sidebar is collapsed (.sidebar.active) on desktop, resting the
+     * pointer on it (or tabbing into it) temporarily expands it over the page
+     * so labels and sub-sections are reachable. Leaving collapses it again.
+     * Hover intent delays avoid accidental opens when the cursor just passes by.
+     * The .sidebar element persists across PJAX navigations, so binding once is enough.
+     */
+    function initSidebarPeek() {
+        var OPEN_DELAY = 140;
+        var CLOSE_DELAY = 260;
+        var desktopQuery = window.matchMedia('(min-width: 1200px)');
+        var finePointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+        var openTimer = null;
+        var closeTimer = null;
+
+        function sidebarEl() {
+            return document.querySelector('.sidebar');
+        }
+
+        function canPeek(sidebar) {
+            return !!sidebar && desktopQuery.matches && sidebar.classList.contains('active');
+        }
+
+        function open() {
+            var sidebar = sidebarEl();
+            if (!canPeek(sidebar)) return;
+            sidebar.classList.add('is-peek');
+        }
+
+        function close() {
+            var sidebar = sidebarEl();
+            if (sidebar) sidebar.classList.remove('is-peek');
+        }
+
+        function scheduleOpen() {
+            clearTimeout(closeTimer);
+            var sidebar = sidebarEl();
+            if (!canPeek(sidebar) || sidebar.classList.contains('is-peek')) return;
+            clearTimeout(openTimer);
+            openTimer = setTimeout(open, OPEN_DELAY);
+        }
+
+        function scheduleClose() {
+            clearTimeout(openTimer);
+            clearTimeout(closeTimer);
+            closeTimer = setTimeout(close, CLOSE_DELAY);
+        }
+
+        document.addEventListener('mouseover', function (e) {
+            if (!finePointerQuery.matches) return;
+            if (e.target.closest && e.target.closest('.sidebar')) scheduleOpen();
+        });
+
+        document.addEventListener('mouseout', function (e) {
+            var sidebar = sidebarEl();
+            if (!sidebar || !sidebar.contains(e.target)) return;
+            if (e.relatedTarget && sidebar.contains(e.relatedTarget)) return;
+            scheduleClose();
+        });
+
+        // Keyboard: expand while focus is inside the collapsed sidebar.
+        document.addEventListener('focusin', function (e) {
+            var sidebar = sidebarEl();
+            if (!sidebar) return;
+            if (sidebar.contains(e.target)) {
+                clearTimeout(closeTimer);
+                if (e.target.matches && e.target.matches(':focus-visible')) open();
+            } else if (sidebar.classList.contains('is-peek') && !sidebar.matches(':hover')) {
+                close();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            var sidebar = sidebarEl();
+            if (sidebar && sidebar.classList.contains('is-peek')) {
+                close();
+                if (sidebar.contains(document.activeElement)) document.activeElement.blur();
+            }
+        });
+
+        // Toggle button pins/unpins the sidebar — drop any temporary peek state.
+        document.addEventListener('click', function (e) {
+            if (e.target.closest && e.target.closest('.sidebar-toggle')) {
+                clearTimeout(openTimer);
+                close();
+            }
+        });
+
+        function onViewportChange() {
+            if (!desktopQuery.matches) close();
+        }
+        if (desktopQuery.addEventListener) desktopQuery.addEventListener('change', onViewportChange);
+        else if (desktopQuery.addListener) desktopQuery.addListener(onViewportChange);
+    }
+
+    initSidebarPeek();
+
     window.CrmUI = window.CrmUI || {};
     Object.assign(window.CrmUI, {
         showLoader: showLoader,

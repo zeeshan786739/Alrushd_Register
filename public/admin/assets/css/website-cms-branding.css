@@ -1,0 +1,81 @@
+/**
+ * Website CMS → Branding. Builds on website-cms-pages.css (.wcp tokens), website-cms-nav.css
+ * (headings) and website-cms-contact.css (.wcc-check-row checkbox).
+ */
+
+.wcb .wcp-input { border-color: #DDD5C4; }
+[data-theme="dark"] .wcb .wcp-input { border-color: var(--wcp-border-strong); }
+.wcb .wcp-field + .wcp-field { margin-top: 18px; }
+
+.wcb-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.wcb-form { display: flex; flex-direction: column; gap: 20px; min-width: 0; container: wcbform / inline-size; }
+.wcb-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@container wcp (min-width: 860px) {
+    .wcb-grid { grid-template-columns: minmax(0, 65fr) minmax(260px, 35fr); }
+    .wcb-side { position: sticky; top: 20px; }
+}
+
+.wcb-row-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.wcb .wcb-row-2 .wcp-field + .wcp-field { margin-top: 0; }
+@container wcbform (min-width: 520px) {
+    .wcb-row-2 { grid-template-columns: 1fr 1fr; }
+}
+.wcb-new { display: inline-block; margin-left: 6px; padding: 2px 9px; border-radius: 999px; background: #F1F5FB; color: #1E4D8C; font-size: 11.5px; font-weight: 600; vertical-align: 3px; }
+
+/* ── Uploads ── */
+.wcb-uploads { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@container wcbform (min-width: 560px) {
+    .wcb-uploads { grid-template-columns: 1fr 1fr; }
+}
+.wcb-upload {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 16px; border: 1.5px dashed var(--wcp-border-strong); border-radius: 14px;
+    background: color-mix(in srgb, var(--wcp-gold-soft) 35%, var(--wcp-card));
+    transition: border-color .15s ease, background-color .15s ease;
+}
+.wcb-upload.is-over { border-color: var(--wcp-gold); background: var(--wcp-gold-soft); }
+.wcb-thumb {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 64px; height: 64px; border-radius: 14px; overflow: hidden;
+    background: #fff; border: 1px solid var(--wcp-border);
+    color: #143256; font-weight: 700;
+}
+.wcb-thumb.is-icon { width: 48px; height: 48px; border-radius: 10px; }
+.wcb-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+.wcb-upload-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wcb-upload-text strong { font-size: 15px; color: var(--wcp-text); }
+.wcb-source { font-size: 12px; font-weight: 600; color: var(--wcp-muted); }
+.wcb-upload-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.wcb-upload-actions label { margin: 0; }
+.wcb-spin { width: 22px; height: 22px; border-width: 3px; }
+.wcb-year { margin: 14px 0 0 !important; }
+
+/* ── Previews ── */
+.wcb-pv { margin: 0; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.wcb-pv figcaption { font-size: 13px; font-weight: 600; color: var(--wcp-text); }
+.wcb-pv .wcp-hint { margin: 0; }
+
+.wcb-tabbar { padding: 8px 8px 0; border-radius: 10px 10px 0 0; background: #E6E1D6; }
+.wcb-tab {
+    display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+    padding: 8px 12px; border-radius: 8px 8px 0 0; background: #fff;
+    font-size: 12.5px; color: #1F2A3A;
+}
+.wcb-tab-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex-shrink: 0; font-size: 7px; font-weight: 700; color: #143256; }
+.wcb-tab-icon img { width: 16px; height: 16px; object-fit: contain; }
+.wcb-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.wcb-site { border-radius: 12px; overflow: hidden; background: var(--wcb-navy, #0F2646); color: #fff; }
+.wcb-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+.wcb-logo-circle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #fff; overflow: hidden; color: #143256; font-size: 11px; font-weight: 700; }
+.wcb-logo-circle img { width: 26px; height: 26px; object-fit: contain; }
+.wcb-short { display: block; font-family: Georgia, serif; font-size: 15px; font-weight: 700; letter-spacing: .12em; }
+.wcb-sub { display: block; margin-top: 2px; font-size: 8px; font-weight: 700; letter-spacing: .1em; color: #D4C08E; }
+.wcb-hero { padding: 18px 14px 20px; background: linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(0, 0, 0, .12)); }
+.wcb-h1 { margin: 0; font-family: Georgia, serif; font-size: 21px; line-height: 1.15; color: #fff; word-break: break-word; }
+.wcb-h1 em { opacity: .5; }
+.wcb-gold { color: #D4C08E; }
+.wcb-footer { padding: 14px; border-radius: 10px; color: #AEBBD0; font-size: 12.5px; line-height: 1.5; word-break: break-word; }
+
+/* The "Where it appears" column was removed (the live preview panel shows it): one column. */
+.wcb-grid.wcb-grid--single { grid-template-columns: minmax(0, 1fr) !important; }

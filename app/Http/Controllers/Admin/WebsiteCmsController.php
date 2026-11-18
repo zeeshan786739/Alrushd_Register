@@ -8,6 +8,13 @@ use App\Models\WebsiteCms;
 use App\Models\WebsitePage;
 use App\Services\HeadlessWebsiteService;
 use App\Services\WebsiteCmsService;
+use App\Services\Platform\PlatformActivityLogger;
+use App\Support\AnalyticsSettings;
+use App\Support\BrandingImages;
+use App\Support\ContactDetails;
+use App\Support\SeoSettings;
+use App\Support\SocialProfiles;
+use App\Support\WebsiteCmsValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,9 +26,9 @@ class WebsiteCmsController extends Controller
         protected WebsiteCmsService $cms,
         protected HeadlessWebsiteService $headless,
     ) {
-        $this->middleware('permission:view setting')->only(['index', 'previewFrame', 'previewUrl']);
+        $this->middleware('permission:view setting')->only(['index', 'previewFrame', 'previewUrl', 'websiteFormStatus']);
         $this->middleware('permission:edit setting')->only([
-            'saveDraft', 'publish', 'discard', 'resetSection', 'preview', 'upload', 'restoreVersion',
+            'saveDraft', 'publish', 'discard', 'resetSection', 'preview', 'upload', 'uploadBrandingImage', 'restoreVersion',
             'saveConnection', 'rotateToken', 'testConnection', 'revalidate',
         ]);
     }
@@ -49,6 +56,33 @@ class WebsiteCmsController extends Controller
             'cmsData' => $draft,
             'publishedAt' => $cms->published_at,
             'hasUnpublished' => $hasUnpublished || $pagesChanged,
+            'siteHasUnpublished' => (bool) $hasUnpublished,
+            // Lets the Navigation menu editor show "matches the live website" and discard only the menu.
+            'publishedNavMenu' => $published['nav_menu'] ?? null,
+            'publishedFooterMenu' => $published['footer_menu'] ?? null,
+            'publishedWebsiteForms' => $published ? ($published['website']['forms'] ?? []) : null,
+            'publishedWebsite' => $published['website'] ?? null,
+            'publishedContact' => $published['contact'] ?? null,
+            'publishedSocial' => $published['social'] ?? null,
+            'publishedBranding' => $published['branding'] ?? null,
+            'publishedSeo' => $published['seo'] ?? null,
+            'publishedAnalytics' => $published['analytics'] ?? null,
+            'publishedCustomCode' => $published['custom_code'] ?? null,
+            // Live preview panel (website-cms-preview.js)
+            'previewPanel' => $headless ? [
+                'connected' => (bool) ($cms->externalBase() && $cms->api_token),
+                'origin' => HeadlessWebsiteService::origin($cms->externalBase()),
+                'base' => $cms->externalBase(),
+                'published' => $published,
+                'connectionModule' => 'connection',
+            ] : null,
+            'canEditCode' => (bool) auth('admin')->user()?->can('edit website code'),
+            'assistant' => $headless ? $this->assistantPayload($cms) : null,
+            'customCodeLastPublished' => $this->lastCustomCodePublish($cms),
+            'seoSuggestedAddress' => $headless ? SeoSettings::suggestedAddress($cms, $organization) : null,
+            'websiteFormStatus' => $headless
+                ? $this->headless->websiteFormStatus($cms->organization_id, $draft['website']['forms'] ?? [])
+                : [],
             'headless' => $headless,
             'connection' => $this->connectionPayload($cms),
             'pages' => $headless
@@ -65,7 +99,11 @@ class WebsiteCmsController extends Controller
     public function saveDraft(Request $request): JsonResponse
     {
         $data = $request->input('data', []);
-        $this->cms->saveDraft(is_array($data) ? $data : []);
+        $data = is_array($data) ? $data : [];
+        if ($invalid = $this->invalid($data)) {
+            return $invalid;
+        }
+        $this->cms->saveDraft($data);
 
         return response()->json([
             'success' => true,
@@ -77,10 +115,16 @@ class WebsiteCmsController extends Controller
     public function publish(Request $request): JsonResponse
     {
         if ($request->has('data')) {
-            $this->cms->saveDraft($request->input('data', []));
+            $data = (array) $request->input('data', []);
+            if ($invalid = $this->invalid($data)) {
+                return $invalid;
+            }
+            $this->cms->saveDraft($data);
         }
 
+        $codeBefore = $this->customCodeOf($this->cms->getPublished());
         $cms = $this->cms->publish(Auth::guard('admin')->id());
+        $this->logCustomCodeChange($codeBefore, $this->customCodeOf($this->cms->getPublished()), $cms);
 
         return response()->json([
             'success' => true,
@@ -98,6 +142,75 @@ class WebsiteCmsController extends Controller
             'message' => 'Draft discarded. Restored to last published version.',
             'data' => $this->cms->getDraft(),
         ]);
+    }
+
+    /** The CMS's save rules (shared with the AI assistant): null, or the 422/403 answer to send. */
+    private function invalid(array $data): ?JsonResponse
+    {
+        $problem = app(WebsiteCmsValidator::class)->problem($data);
+
+        return $problem
+            ? response()->json(array_filter(['message' => $problem['message'], 'errors' => $problem['errors'] ?: null]), $problem['status'])
+            : null;
+    }
+
+    /** @return array<string, mixed> */
+    private function customCodeOf(array $settings): array
+    {
+        $code = $settings['custom_code'] ?? [];
+        $out = [];
+        foreach (WebsiteCmsValidator::CUSTOM_CODE_BLOCKS as $block => $flag) {
+            $out[$block] = (string) ($code[$block] ?? '');
+            $out[$flag] = filter_var($code[$flag] ?? true, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return $out;
+    }
+
+    /** Record who put custom code on the live website, and what changed (before and after). */
+    private function logCustomCodeChange(array $before, array $after, WebsiteCms $cms): void
+    {
+        if ($before === $after) {
+            return;
+        }
+        $changes = [];
+        foreach ($after as $key => $value) {
+            if ($before[$key] !== $value) {
+                $changes[$key] = ['before' => $before[$key], 'after' => $value];
+            }
+        }
+        PlatformActivityLogger::log(
+            'website.custom_code.published',
+            'Published custom code changes: '.implode(', ', array_keys($changes)),
+            $cms->organization,
+            ['changes' => $changes],
+        );
+    }
+
+    /** Website CMS → Branding: upload the connected website's logo or browser icon. */
+    public function uploadBrandingImage(Request $request): JsonResponse
+    {
+        $kind = $request->input('kind');
+        $request->validate([
+            'kind' => 'required|in:logo,favicon',
+            'file' => $kind === 'favicon'
+                ? 'required|file|mimes:png,jpg,jpeg,webp|max:5120'
+                : 'required|file|mimes:png,svg,webp|max:2048',
+        ], [
+            'file.mimes' => $kind === 'favicon' ? 'Please choose a PNG or JPG image.' : 'Please choose a PNG, SVG or WebP image.',
+            'file.max' => $kind === 'favicon' ? 'That image is larger than 5 MB.' : 'That logo is larger than 2 MB.',
+        ]);
+
+        $organizationId = WebsiteCms::instance()->organization_id;
+        try {
+            $result = $kind === 'favicon'
+                ? BrandingImages::storeFavicon($request->file('file'), $organizationId)
+                : BrandingImages::storeLogo($request->file('file'), $organizationId);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['file' => [$e->getMessage()]]], 422);
+        }
+
+        return response()->json(['success' => true] + $result);
     }
 
     public function resetSection(Request $request): JsonResponse
@@ -123,9 +236,18 @@ class WebsiteCmsController extends Controller
 
     public function upload(Request $request): JsonResponse
     {
+        // A page's social sharing image is shown by WhatsApp/Facebook/LinkedIn, which
+        // reliably support only JPG and PNG.
+        $field = (string) $request->input('field');
+        $isSharingImage = str_starts_with($field, 'page.seo.og_image') || $field === 'seo.og_image';
+
         $request->validate([
-            'file' => 'required|image|max:5120',
+            'file' => $isSharingImage ? 'required|file|mimes:jpg,jpeg,png|max:5120' : 'required|image|max:5120',
             'field' => 'required|string|max:100',
+        ], [
+            'file.mimes' => 'Please choose a JPG or PNG image.',
+            'file.image' => 'Please choose an image file.',
+            'file.max' => 'That image is larger than 5 MB. Please choose a smaller one.',
         ]);
 
         $path = ImageHelper::uploadImage($request->file('file'));
@@ -197,19 +319,41 @@ class WebsiteCmsController extends Controller
         ]);
     }
 
-    public function testConnection(): JsonResponse
+    public function testConnection(Request $request): JsonResponse
     {
-        $result = $this->headless->testConnection(WebsiteCms::instance());
+        $result = $this->headless->testConnection(
+            WebsiteCms::instance(),
+            HeadlessWebsiteService::origin($request->getSchemeAndHttpHost()),
+            $request->getSchemeAndHttpHost().'/api/headless/v1',
+        );
 
-        return response()->json(['success' => $result['ok'], 'message' => $result['message']]);
+        return response()->json(['success' => $result['ok'], 'code' => $result['code'], 'message' => $result['message']]);
     }
 
     /** Signed draft-preview link for one page of the connected website. */
+    /** Preview links for the CMS: ?mode=draft (default, unpublished changes) or ?mode=live (published site). */
     public function previewUrl(Request $request): JsonResponse
     {
         $path = WebsitePage::normalisePath((string) $request->query('path', '/'));
+        $cms = WebsiteCms::instance();
+        $url = $request->query('mode') === 'live'
+            ? $this->headless->liveFrameUrl($cms, $path)
+            : $this->headless->previewUrl($cms, $path);
 
-        return response()->json(['url' => $this->headless->previewUrl(WebsiteCms::instance(), $path)]);
+        return response()->json(['url' => $url, 'origin' => HeadlessWebsiteService::origin($cms->externalBase())]);
+    }
+
+    /** Live check for Website CMS → Website forms: does each chosen Form Center form fit its website form? */
+    public function websiteFormStatus(Request $request): JsonResponse
+    {
+        $assigned = $request->input('forms', []);
+
+        return response()->json([
+            'forms' => $this->headless->websiteFormStatus(
+                WebsiteCms::instance()->organization_id,
+                is_array($assigned) ? $assigned : [],
+            ),
+        ]);
     }
 
     public function revalidate(): JsonResponse
@@ -221,6 +365,19 @@ class WebsiteCmsController extends Controller
             'success' => $ok,
             'message' => $ok ? 'The website refreshed its content.' : 'The website could not be refreshed ('.($cms->fresh()->last_revalidate_status ?? 'not connected').').',
         ]);
+    }
+
+    /** @return array{by: string, at: string}|null */
+    private function lastCustomCodePublish(WebsiteCms $cms): ?array
+    {
+        $log = \App\Models\PlatformActivityLog::query()
+            ->where('organization_id', $cms->organization_id)
+            ->where('action', 'website.custom_code.published')
+            ->latest('created_at')
+            ->with('admin:id,name')
+            ->first();
+
+        return $log ? ['by' => $log->admin?->name ?? 'Someone', 'at' => $log->created_at?->toIso8601String()] : null;
     }
 
     protected function connectionPayload(WebsiteCms $cms): array
@@ -277,9 +434,35 @@ class WebsiteCmsController extends Controller
      * Modules that apply to a connected external website. Landing-page-only sections
      * (hero, programs, gallery…) belong to the built-in site and are hidden here.
      */
+    /** The AI assistant drawer and settings screen (website-cms-assistant.js). The API key never leaves the server. */
+    protected function assistantPayload(WebsiteCms $cms): ?array
+    {
+        // Until `php artisan migrate` has run, the CMS works as before, without the assistant.
+        if (! \Illuminate\Support\Facades\Schema::hasTable('ai_assistant_settings')) {
+            return null;
+        }
+        $admin = auth('admin')->user();
+        $config = \App\Services\AiAssistant\AiAssistantConfig::forOrganization($cms->organization_id);
+        $canManage = (bool) $admin?->can('manage ai assistant');
+
+        return [
+            'canUse' => (bool) $admin?->can('edit setting'),
+            'blocked' => AiAssistantController::blockedReason($config),
+            'canManage' => $canManage,
+            'settings' => $canManage ? AiAssistantController::settingsPayload($config) : null,
+            'routes' => [
+                'chat' => route('admin.website-cms.ai-assistant.chat'),
+                'undo' => route('admin.website-cms.ai-assistant.undo'),
+                'reset' => route('admin.website-cms.ai-assistant.reset'),
+                'settings' => route('admin.website-cms.ai-assistant.settings.save'),
+                'test' => route('admin.website-cms.ai-assistant.settings.test'),
+            ],
+        ];
+    }
+
     protected function headlessModules(): array
     {
-        return [
+        $modules = [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'solar:widget-5-linear', 'group' => 'Overview', 'description' => 'Publish overview for your connected website'],
             ['id' => 'connection', 'label' => 'Website Connection', 'icon' => 'solar:link-round-linear', 'group' => 'Overview', 'description' => 'Connected website, API token and cache refresh'],
             ['id' => 'pages', 'label' => 'Pages', 'icon' => 'solar:documents-linear', 'group' => 'Content', 'description' => 'Create pages, manage navigation, SEO and connected forms'],
@@ -295,5 +478,10 @@ class WebsiteCmsController extends Controller
             ['id' => 'analytics', 'label' => 'Analytics', 'icon' => 'solar:graph-linear', 'group' => 'Growth', 'description' => 'Tracking and analytics codes'],
             ['id' => 'custom_code', 'label' => 'Custom Code', 'icon' => 'solar:code-linear', 'group' => 'Advanced', 'description' => 'Custom CSS and scripts'],
         ];
+        if (\Illuminate\Support\Facades\Schema::hasTable('ai_assistant_settings') && auth('admin')->user()?->can('manage ai assistant')) {
+            $modules[] = ['id' => 'ai_assistant', 'label' => 'AI Assistant', 'icon' => 'solar:magic-stick-3-linear', 'group' => 'Advanced', 'description' => 'Switch the assistant on, its API key, model and monthly limit'];
+        }
+
+        return $modules;
     }
 }

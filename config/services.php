@@ -40,4 +40,11 @@ return [
         'secret' => env('STRIPE_SECRET'),
     ],
 
+    // Website CMS → AI assistant: fallback when the school hasn't saved its own settings.
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+    ],
+
 ];

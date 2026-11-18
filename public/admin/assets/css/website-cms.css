@@ -145,6 +145,9 @@
     flex: 1;
     overflow-y: auto;
     padding: 24px;
+    /* Containing block for absolutely positioned bits inside the forms (visually-hidden labels,
+       switch knobs): without it they escape this scrolling pane and give the whole page a scrollbar. */
+    position: relative;
 }
 
 .wcm-form-grid {

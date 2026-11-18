@@ -3,7 +3,20 @@
 @section('title', 'Website CMS')
 
 @section('css')
-<link href="{{ asset('admin/assets/css/website-cms.css') }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-pages.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-pages.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-nav.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-nav.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-footer.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-footer.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-forms.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-forms.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-announce.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-announce.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-contact.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-contact.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-social.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-social.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-branding.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-branding.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-seo.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-seo.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-analytics.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-analytics.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-code.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-code.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-preview.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-preview.css')) }}" rel="stylesheet">
+<link href="{{ asset('admin/assets/css/website-cms-assistant.css') }}?v={{ filemtime(public_path('admin/assets/css/website-cms-assistant.css')) }}" rel="stylesheet">
 @endsection
 
 @section('content')
@@ -144,6 +157,24 @@
         modules: @json($modules),
         versionHistory: @json($versionHistory),
         hasUnpublished: @json((bool) $hasUnpublished),
+        siteHasUnpublished: @json((bool) ($siteHasUnpublished ?? $hasUnpublished)),
+        publishedNavMenu: @json($publishedNavMenu ?? null),
+        publishedFooterMenu: @json($publishedFooterMenu ?? null),
+        publishedWebsiteForms: @json($publishedWebsiteForms ?? null),
+        publishedWebsite: @json($publishedWebsite ?? null),
+        publishedContact: @json($publishedContact ?? null),
+        publishedSocial: @json($publishedSocial ?? null),
+        publishedBranding: @json($publishedBranding ?? null),
+        publishedSeo: @json($publishedSeo ?? null),
+        publishedAnalytics: @json($publishedAnalytics ?? null),
+        publishedCustomCode: @json($publishedCustomCode ?? null),
+        previewPanel: @json($previewPanel ?? null),
+        canEditCode: @json((bool) ($canEditCode ?? false)),
+        assistant: @json($assistant ?? null),
+        customCodeLastPublished: @json($customCodeLastPublished ?? null),
+        seoSuggestedAddress: @json($seoSuggestedAddress ?? null),
+        socialNetworks: @json(\App\Support\SocialProfiles::NETWORKS),
+        contactTimezones: @json(\App\Support\ContactDetails::TIMEZONES),
         publishedAt: @json($publishedAt?->toIso8601String()),
         publishedAtHuman: @json($publishedAt?->diffForHumans()),
         previewUrl: @json($previewUrl ?? url('/')),
@@ -154,6 +185,7 @@
             connection: @json($connection ?? []),
             pages: @json($pages ?? []),
             forms: @json($availableForms ?? []),
+            formStatus: @json($websiteFormStatus ?? []),
             routes: {
                 connection: @json(route('admin.website-cms.connection')),
                 token: @json(route('admin.website-cms.connection.token')),
@@ -161,10 +193,27 @@
                 revalidate: @json(route('admin.website-cms.connection.revalidate')),
                 previewUrl: @json(route('admin.website-cms.connection.preview-url')),
                 pages: @json(route('admin.website-cms.pages.index')),
+                formStatus: @json(route('admin.website-cms.website-forms.status')),
+                brandingImage: @json(route('admin.website-cms.branding-image')),
+                formEdit: @json(route('admin.form-manager.edit', ['form' => '__FORM__'])),
+                formAnswers: @json(\Illuminate\Support\Facades\Route::has('admin.crm.form-entries.form') ? route('admin.crm.form-entries.form', ['form' => '__FORM__']) : route('admin.form-manager.entries', ['form' => '__FORM__'])),
             },
         },
     };
 </script>
 <script src="{{ asset('admin/assets/js/website-cms-headless.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-headless.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-pages.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-pages.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-nav.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-nav.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-footer.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-footer.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-forms.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-forms.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-announce.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-announce.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-contact.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-contact.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-social.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-social.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-branding.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-branding.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-seo.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-seo.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-analytics.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-analytics.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-code.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-code.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-preview.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-preview.js')) }}"></script>
+<script src="{{ asset('admin/assets/js/website-cms-assistant.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms-assistant.js')) }}"></script>
 <script src="{{ asset('admin/assets/js/website-cms.js') }}?v={{ filemtime(public_path('admin/assets/js/website-cms.js')) }}"></script>
 @endsection

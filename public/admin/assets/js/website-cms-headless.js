@@ -3,8 +3,8 @@
  *
  * Registers extra modules on the main editor (website-cms.js) through window.WCM_EXT:
  *   connection  – built-in site vs. external website, API token, cache refresh
- *   pages       – page list, page editor (SEO, visibility) and block builder for custom pages
- *   site_forms  – which Form Center form receives each of the website's own forms
+ *   pages       – see website-cms-pages.js (uses the BLOCKS / bpField helpers shared below)
+ *   site_forms  – see website-cms-forms.js
  *   nav_menu / footer_menu / website – plain schemas rendered by the main editor
  *
  * Must load before website-cms.js.
@@ -287,259 +287,10 @@
         });
     }
 
-    /* ═════════════════ Website forms ═════════════════ */
-    function renderSiteForms(api) {
-        const data = api.getData();
-        data.website = data.website || {};
-        data.website.forms = data.website.forms || {};
-        const slots = [
-            ['apply', 'Apply Now form', '/apply-now'],
-            ['contact', 'Contact form', '/contact'],
-            ['review', 'Review form', '/reviews'],
-            ['newsletter', 'Newsletter sign-up', 'Blog and footer'],
-        ];
-
-        api.editorBody.innerHTML = `
-            <div class="wcm-note">These forms are designed into the website. Choose which <a href="${esc(W.routes.formCenter)}" target="_blank">Form Center</a> form receives each one —
-            submissions become CRM leads. The chosen form must contain the same field keys as the website form (the <em>Website: …</em> forms already do).
-            To put any other form on a page, add a <strong>Form</strong> block to a page in <a href="#" data-goto="pages">Pages</a>.</div>
-            <div class="wcm-form-grid">
-                ${slots.map(([key, label, where]) => `
-                <div class="wcm-field wcm-field--wide"><label class="wcm-field-label">${esc(label)} <span class="wcm-muted">· ${esc(where)}</span></label>
-                    <select class="wcm-input" data-site-form="${key}">${formOptions(data.website.forms[key] || '')}</select></div>`).join('')}
-            </div>`;
-
-        api.editorBody.querySelectorAll('[data-site-form]').forEach((sel) => sel.addEventListener('change', () => {
-            api.getData().website.forms[sel.dataset.siteForm] = sel.value;
-            api.markDirty();
-            api.schedulePreview();
-        }));
-        api.editorBody.querySelector('[data-goto]')?.addEventListener('click', (e) => { e.preventDefault(); api.switchModule('pages'); });
-    }
-
-    /* ═════════════════ Pages ═════════════════ */
-    let pages = H.pages || [];
-    let editing = null; // { id|null, kind, draft }
-
-    function pageStatus(p) {
-        if (p.draft.hidden) return ['Hidden', 'is-off'];
-        if (!p.is_published) return ['Draft — not live yet', 'is-warn'];
-        if (p.has_changes) return ['Live · unpublished changes', 'is-warn'];
-        return ['Live', 'is-on'];
-    }
-
-    function previewPath(api, path) {
-        if (!H.routes.previewUrl) return;
-        fetch(H.routes.previewUrl + '?path=' + encodeURIComponent(path || '/'), { headers: { Accept: 'application/json' } })
-            .then((r) => r.json()).then((res) => { if (res.url) api.setPreviewUrl(res.url); });
-    }
-
-    function renderPages(api) {
-        if (editing) return renderPageEditor(api);
-
-        const rows = pages.map((p) => {
-            const [label, cls] = pageStatus(p);
-            return `<li class="wcm-page-row">
-                <div class="wcm-page-main">
-                    <span class="wcm-page-title">${esc(p.draft.title || '(untitled)')}</span>
-                    <span class="wcm-page-path">${esc(p.draft.path)}</span>
-                </div>
-                <span class="wcm-page-kind ${p.kind === 'custom' ? 'is-custom' : ''}">${p.kind === 'custom' ? 'Custom' : 'Built-in'}</span>
-                <span class="wcm-sort-status ${cls}">${esc(label)}</span>
-                <div class="wcm-page-actions">
-                    <button type="button" class="wcm-sort-edit" data-preview="${esc(p.draft.path)}">Preview</button>
-                    <button type="button" class="wcm-sort-edit" data-edit="${p.id}">Edit</button>
-                </div>
-            </li>`;
-        }).join('');
-
-        api.editorBody.innerHTML = `
-            <div class="wcm-pages-head">
-                <p class="wcm-muted">Built-in pages are designed in the website's code — here you manage their SEO and visibility.
-                Custom pages are built from blocks right here. Changes go live when you press <strong>Publish</strong>.</p>
-                <button type="button" class="btn btn-primary-600 btn-sm radius-8" id="wcmNewPage">+ New page</button>
-            </div>
-            <ul class="wcm-pages-list">${rows || '<li class="wcm-empty">No pages yet.</li>'}</ul>`;
-
-        api.editorBody.querySelector('#wcmNewPage').addEventListener('click', () => {
-            editing = { id: null, kind: 'custom', draft: {
-                title: '', path: '', hidden: false,
-                seo: { title: '', description: '', og_image: '', noindex: false },
-                blocks: [
-                    { id: uid(), type: 'hero', data: { title: '', lead: '' } },
-                    { id: uid(), type: 'form', data: { heading: '', form_slug: '' } },
-                ],
-            }};
-            renderPageEditor(api);
-        });
-        api.editorBody.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
-            const p = pages.find((x) => String(x.id) === b.dataset.edit);
-            editing = { id: p.id, kind: p.kind, draft: clone(p.draft), published: p.is_published };
-            renderPageEditor(api);
-            previewPath(api, p.draft.path);
-        }));
-        api.editorBody.querySelectorAll('[data-preview]').forEach((b) => b.addEventListener('click', () => previewPath(api, b.dataset.preview)));
-    }
-
-    function blockHtml(block, index, total) {
-        const def = BLOCKS[block.type];
-        if (!def) return '';
-        const base = `blocks.${index}.data`;
-        let html = `<div class="wcm-block" data-block="${index}">
-            <div class="wcm-block-head">
-                <span><iconify-icon icon="${def.icon}"></iconify-icon> ${esc(def.label)}</span>
-                <span class="wcm-block-tools">
-                    <button type="button" data-move="${index}" data-dir="-1" ${index === 0 ? 'disabled' : ''} title="Move up">↑</button>
-                    <button type="button" data-move="${index}" data-dir="1" ${index === total - 1 ? 'disabled' : ''} title="Move down">↓</button>
-                    <button type="button" data-remove-block="${index}" class="is-danger" title="Remove block">&times;</button>
-                </span>
-            </div>
-            <div class="wcm-form-grid">${def.fields.map((f) => bpField(f, (block.data || {})[f.key], `${base}.${f.key}`)).join('')}</div>`;
-        if (def.items) {
-            const items = (block.data || {}).items || [];
-            html += `<div class="wcm-block-items"><div class="wcm-repeater-header"><h4>${esc(def.items.label)}</h4>
-                <button type="button" class="btn btn-sm btn-outline-primary-600 radius-8" data-add-item="${index}">+ Add</button></div>`;
-            items.forEach((item, i) => {
-                html += `<div class="wcm-repeater-item"><div class="wcm-repeater-item-header"><span>${i + 1}</span>
-                    <button type="button" class="wcm-repeater-remove" data-remove-item="${index}" data-item="${i}">&times;</button></div>
-                    <div class="wcm-repeater-fields">${def.items.fields.map((f) => bpField(f, item[f.key], `${base}.items.${i}.${f.key}`)).join('')}</div></div>`;
-            });
-            html += '</div>';
-        }
-        return html + '</div>';
-    }
-
-    function renderPageEditor(api) {
-        const d = editing.draft;
-        const custom = editing.kind === 'custom';
-        const blocks = d.blocks || [];
-
-        api.editorBody.innerHTML = `
-            <div class="wcm-pages-head">
-                <button type="button" class="wcm-back" id="wcmBack">← All pages</button>
-                <div class="wcm-conn-actions">
-                    ${editing.id ? `<button type="button" class="btn btn-outline-primary-600 btn-sm radius-8" id="wcmAddToMenu">Add to menu</button>` : ''}
-                    ${editing.id && custom ? `<button type="button" class="btn btn-outline-danger btn-sm radius-8" id="wcmDeletePage">Delete</button>` : ''}
-                    <button type="button" class="btn btn-primary-600 btn-sm radius-8" id="wcmSavePage">Save page</button>
-                </div>
-            </div>
-            ${!custom ? '<div class="wcm-note">This page is designed in the website\'s code. You can change its SEO and hide it; its layout and wording are edited by your developer.</div>' : ''}
-            <div class="wcm-form-grid">
-                ${bpField({ key: 'title', label: 'Page title', type: 'text' }, d.title, 'title')}
-                ${custom
-                    ? bpField({ key: 'path', label: 'Page URL', type: 'text', help: 'For example /summer-school' }, d.path, 'path')
-                    : `<div class="wcm-field"><label class="wcm-field-label">Page URL</label><input class="wcm-input" value="${esc(d.path)}" disabled></div>`}
-                ${bpField({ key: 'hidden', label: custom ? 'Hide this page (returns "not found")' : 'Hide from search engines and sitemap', type: 'toggle' }, d.hidden, 'hidden')}
-            </div>
-            <h4 class="wcm-section-title">SEO</h4>
-            <div class="wcm-form-grid">
-                ${bpField({ key: 'title', label: 'Meta title', type: 'text', help: 'Leave empty to use the page\'s own title.' }, d.seo?.title, 'seo.title')}
-                ${bpField({ key: 'description', label: 'Meta description', type: 'textarea' }, d.seo?.description, 'seo.description')}
-                ${bpField({ key: 'og_image', label: 'Social sharing image', type: 'image' }, d.seo?.og_image, 'seo.og_image')}
-                ${bpField({ key: 'noindex', label: 'Ask search engines not to index this page', type: 'toggle' }, d.seo?.noindex, 'seo.noindex')}
-            </div>
-            ${custom ? `
-            <h4 class="wcm-section-title">Content blocks</h4>
-            <div class="wcm-blocks">${blocks.map((b, i) => blockHtml(b, i, blocks.length)).join('') || '<p class="wcm-empty">No blocks yet.</p>'}</div>
-            <div class="wcm-add-block">
-                <select class="wcm-input" id="wcmBlockType">${Object.entries(BLOCKS).map(([k, b]) => `<option value="${k}">${esc(b.label)}</option>`).join('')}</select>
-                <button type="button" class="btn btn-outline-primary-600 btn-sm radius-8" id="wcmAddBlock">+ Add block</button>
-            </div>` : ''}`;
-
-        bindPageEditor(api);
-    }
-
-    function bindPageEditor(api) {
-        const body = api.editorBody;
-        const d = editing.draft;
-
-        body.querySelectorAll('[data-bp]').forEach((el) => {
-            el.addEventListener(el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input', () => {
-                setPath(d, el.dataset.bp, el.type === 'checkbox' ? el.checked : el.value);
-                editing.dirty = true;
-                api.setStatus('Unsaved page changes', 'saving');
-            });
-        });
-        body.querySelectorAll('[data-bp-upload]').forEach((input) => input.addEventListener('change', () => {
-            const file = input.files[0];
-            if (!file) return;
-            const fd = new FormData();
-            fd.append('file', file);
-            fd.append('field', 'page');
-            fetch(W.routes.upload, { method: 'POST', headers: { 'X-CSRF-TOKEN': W.csrf, Accept: 'application/json' }, body: fd })
-                .then((r) => r.json()).then((res) => {
-                    if (!res.success) throw new Error(res.message || 'Upload failed');
-                    setPath(d, input.dataset.bpUpload, res.url);
-                    editing.dirty = true;
-                    renderPageEditor(api);
-                }).catch((e) => toast(api, e.message, 'error'));
-        }));
-
-        body.querySelector('#wcmBack').addEventListener('click', () => {
-            if (editing.dirty && !confirm('Leave without saving this page?')) return;
-            editing = null;
-            renderPages(api);
-        });
-        body.querySelector('#wcmSavePage').addEventListener('click', () => savePage(api));
-        body.querySelector('#wcmDeletePage')?.addEventListener('click', () => {
-            if (!confirm('Delete this page? If it is live it disappears from the website immediately.')) return;
-            request('DELETE', H.routes.pages + '/' + editing.id).then((res) => {
-                pages = res.pages; editing = null; renderPages(api); toast(api, res.message);
-            }).catch((e) => toast(api, e.message, 'error'));
-        });
-        body.querySelector('#wcmAddToMenu')?.addEventListener('click', () => {
-            const data = api.getData();
-            data.nav_menu = data.nav_menu || {};
-            data.nav_menu.items = data.nav_menu.items || [];
-            if (data.nav_menu.items.some((i) => i.href === d.path)) return toast(api, 'This page is already in the menu.');
-            data.nav_menu.items.push({ label: d.title, href: d.path, group: '', description: '' });
-            api.markDirty();
-            api.schedulePreview();
-            toast(api, 'Added to the main menu — arrange it in Navigation Menu, then Publish.');
-        });
-
-        body.querySelector('#wcmAddBlock')?.addEventListener('click', () => {
-            const type = body.querySelector('#wcmBlockType').value;
-            d.blocks = d.blocks || [];
-            d.blocks.push({ id: uid(), type, data: BLOCKS[type].items ? { items: [{}] } : {} });
-            editing.dirty = true;
-            renderPageEditor(api);
-        });
-        body.querySelectorAll('[data-remove-block]').forEach((b) => b.addEventListener('click', () => {
-            d.blocks.splice(+b.dataset.removeBlock, 1); editing.dirty = true; renderPageEditor(api);
-        }));
-        body.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => {
-            const i = +b.dataset.move, j = i + (+b.dataset.dir);
-            [d.blocks[i], d.blocks[j]] = [d.blocks[j], d.blocks[i]]; editing.dirty = true; renderPageEditor(api);
-        }));
-        body.querySelectorAll('[data-add-item]').forEach((b) => b.addEventListener('click', () => {
-            const blk = d.blocks[+b.dataset.addItem];
-            blk.data = blk.data || {};
-            blk.data.items = blk.data.items || [];
-            blk.data.items.push({}); editing.dirty = true; renderPageEditor(api);
-        }));
-        body.querySelectorAll('[data-remove-item]').forEach((b) => b.addEventListener('click', () => {
-            d.blocks[+b.dataset.removeItem].data.items.splice(+b.dataset.item, 1); editing.dirty = true; renderPageEditor(api);
-        }));
-    }
-
-    function savePage(api) {
-        const isNew = !editing.id;
-        const url = isNew ? H.routes.pages : H.routes.pages + '/' + editing.id;
-        api.setStatus('Saving page…', 'saving');
-        request(isNew ? 'POST' : 'PUT', url, { draft: editing.draft }).then((res) => {
-            pages = res.pages;
-            editing = { id: res.page.id, kind: res.page.kind, draft: clone(res.page.draft), published: res.page.is_published };
-            renderPageEditor(api);
-            toast(api, res.message);
-            W.hasUnpublished = true;
-            previewPath(api, res.page.draft.path);
-        }).catch((e) => toast(api, e.message, 'error'));
-    }
-
     /* ═════════════════ Dashboard (connected site) ═════════════════ */
     function renderDashboard(api) {
         const c = H.connection || {};
+        const pages = (ext.getPages ? ext.getPages() : H.pages) || [];
         const live = pages.filter((p) => p.is_published && !p.draft.hidden).length;
         const custom = pages.filter((p) => p.kind === 'custom').length;
         const changed = pages.filter((p) => p.has_changes).length;
@@ -605,14 +356,142 @@
     ext.noReset.push('connection', 'pages', 'site_forms');
     ext.renderers.connection = renderConnection;
 
+    // Shared with website-cms-pages.js (Pages list, page editor and block builder).
+    /**
+     * Drag-and-drop reordering for CMS lists (Navigation menu, Footer). Pointer events, so it works
+     * with a mouse, touch and pen. The dragged row stays in the list as a dashed placeholder that moves
+     * as you drag; a copy follows the pointer. The editor pane scrolls when you drag near its edges.
+     * Keyboard: the drag handle is a button; the arrow keys move the item by one place.
+     *
+     *   sortable(root, {
+     *     lists: '.wcf-links',          // containers inside root (omit: root itself is the list)
+     *     item: 'li.wcf-link',          // a direct child of a list
+     *     handle: '[data-drag]',
+     *     connect: true,                // items may move between the lists
+     *     axis: 'y' | 'grid',           // grid: items side by side (left/right counts)
+     *     tail: '.add-button-li',       // inserted before this when dropped at the end
+     *     scroller: element,            // scrolled while dragging near its edges
+     *     onDrop({ el, fromList, fromIndex, toList, toIndex, keyboard }),
+     *   })
+     * onDrop must update the data and re-render; on cancel (Esc) the row goes back.
+     */
+    function sortable(root, o) {
+        const listsOf = () => (o.lists ? [...root.querySelectorAll(o.lists)] : [root]);
+        const itemsOf = (list) => [...list.children].filter((c) => c.matches(o.item));
+        const ownerList = (el) => listsOf().find((l) => l === el.parentElement);
+
+        root.addEventListener('keydown', (e) => {
+            const h = e.target.closest(o.handle);
+            if (!h || !root.contains(h)) return;
+            const dir = { ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1 }[e.key];
+            if (!dir || (o.axis !== 'grid' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) return;
+            const el = h.closest(o.item);
+            const list = el && ownerList(el);
+            if (!list) return;
+            e.preventDefault();
+            const from = itemsOf(list).indexOf(el);
+            const to = from + dir;
+            if (to < 0 || to >= itemsOf(list).length) return;
+            o.onDrop({ el, fromList: list, fromIndex: from, toList: list, toIndex: to, keyboard: true });
+        });
+
+        root.addEventListener('pointerdown', (e) => {
+            const h = e.target.closest(o.handle);
+            if (!h || !root.contains(h) || e.button !== 0) return;
+            const el = h.closest(o.item);
+            const fromList = el && ownerList(el);
+            if (!fromList) return;
+            e.preventDefault();
+            // Listen on window: moving the row in the DOM would release pointer capture on the handle.
+            const fromIndex = itemsOf(fromList).indexOf(el);
+            const origNext = el.nextSibling;
+            const r0 = el.getBoundingClientRect();
+            const sx = e.clientX;
+            const sy = e.clientY;
+            let x = sx;
+            let y = sy;
+            let ghost = null;
+            let frame = 0;
+
+            const place = () => {
+                const lists = o.connect ? listsOf() : [fromList];
+                const inside = (l) => { const r = l.getBoundingClientRect(); return x >= r.left - 12 && x <= r.right + 12 && y >= r.top - 12 && y <= r.bottom + 12; };
+                const list = lists.find(inside) || el.parentElement;
+                const sibs = itemsOf(list).filter((s) => s !== el);
+                const before = sibs.find((s) => {
+                    const r = s.getBoundingClientRect();
+                    return o.axis === 'grid' ? (y < r.top || (y <= r.bottom && x < r.left + r.width / 2)) : y < r.top + r.height / 2;
+                });
+                if (before) { if (el.nextElementSibling !== before) list.insertBefore(el, before); return; }
+                const last = sibs[sibs.length - 1];
+                if (last) { if (last.nextElementSibling !== el) last.after(el); return; }
+                const tail = o.tail && [...list.children].find((c) => c.matches(o.tail));
+                if (el.parentElement !== list || (tail && el.nextElementSibling !== tail)) list.insertBefore(el, tail || null);
+            };
+            const tick = () => {
+                const pane = o.scroller;
+                if (pane) {
+                    const pr = pane.getBoundingClientRect();
+                    const edge = 48;
+                    if (y < pr.top + edge) pane.scrollTop -= Math.ceil((pr.top + edge - y) / 4);
+                    else if (y > pr.bottom - edge) pane.scrollTop += Math.ceil((y - pr.bottom + edge) / 4);
+                }
+                place();
+                frame = requestAnimationFrame(tick);
+            };
+            const start = () => {
+                ghost = el.cloneNode(true);
+                ghost.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+                ghost.removeAttribute('id');
+                ghost.classList.add('wcp-drag-ghost');
+                ghost.setAttribute('aria-hidden', 'true');
+                Object.assign(ghost.style, { position: 'fixed', left: `${r0.left}px`, top: `${r0.top}px`, width: `${r0.width}px`, height: `${r0.height}px`, margin: '0', pointerEvents: 'none', zIndex: '2000' });
+                document.body.appendChild(ghost);
+                el.classList.add('is-drag-source');
+                document.body.classList.add('wcp-dragging');
+                frame = requestAnimationFrame(tick);
+            };
+            const move = (ev) => {
+                if (ev.pointerId !== e.pointerId) return;
+                x = ev.clientX;
+                y = ev.clientY;
+                if (!ghost) { if (Math.hypot(x - sx, y - sy) < 5) return; start(); }
+                ghost.style.transform = `translate(${x - sx}px, ${y - sy}px)`;
+            };
+            const end = (cancel) => {
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', up);
+                window.removeEventListener('pointercancel', abort);
+                document.removeEventListener('keydown', esc);
+                cancelAnimationFrame(frame);
+                if (!ghost) return;
+                if (!cancel) place(); // a quick drag can end before the next animation frame
+                ghost.remove();
+                el.classList.remove('is-drag-source');
+                document.body.classList.remove('wcp-dragging');
+                if (cancel) { fromList.insertBefore(el, origNext); return; }
+                const toList = el.parentElement;
+                const toIndex = itemsOf(toList).indexOf(el);
+                if (toList !== fromList || toIndex !== fromIndex) o.onDrop({ el, fromList, fromIndex, toList, toIndex, keyboard: false });
+            };
+            const up = () => end(false);
+            const abort = () => end(true);
+            const esc = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); end(true); } };
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up);
+            window.addEventListener('pointercancel', abort);
+            document.addEventListener('keydown', esc);
+        });
+    }
+
+    /** The drag handle button (six dots). */
+    const dragHandle = (attrs, name) => `<button type="button" class="wcp-drag" ${attrs} aria-label="Reorder ${esc(name)}: drag, or press the arrow keys" title="Drag to reorder"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></button>`;
+
+    ext.shared = { esc, uid, clone, formOptions, BLOCKS, bpField, getPath, setPath, sortable, dragHandle };
+
     if (!H.enabled) return;
 
-    ext.renderers.pages = renderPages;
-    ext.renderers.site_forms = renderSiteForms;
     ext.renderers.dashboard = renderDashboard;
-    ext.onPublished = () => {
-        pages = pages.map((p) => ({ ...p, is_published: true, has_changes: false }));
-    };
 
     ext.schemas.nav_menu = {
         fields: [
@@ -658,38 +537,8 @@
             { key: 'heading', label: 'Dark text', type: 'color' },
         ],
     };
-    ext.schemas.branding = {
-        fields: [
-            { key: 'company_name', label: 'School name', type: 'text' },
-            { key: 'short_name', label: 'Short name', type: 'text' },
-            { key: 'tagline', label: 'Tagline', type: 'text' },
-            { key: 'website_description', label: 'Website description', type: 'textarea' },
-            { key: 'copyright', label: 'Footer copyright line', type: 'text' },
-        ],
-    };
-    ext.schemas.contact = {
-        fields: [
-            { key: 'phone', label: 'Phone', type: 'text' },
-            { key: 'email', label: 'Email', type: 'email' },
-            { key: 'whatsapp', label: 'WhatsApp link (https://wa.me/…)', type: 'url' },
-            { key: 'address', label: 'Address', type: 'textarea' },
-            { key: 'working_hours', label: 'Opening hours', type: 'text' },
-        ],
-    };
-    ext.schemas.analytics = {
-        fields: [
-            { key: 'google_analytics', label: 'Google Analytics 4 ID (G-…)', type: 'text' },
-            { key: 'google_tag_manager', label: 'Google Tag Manager ID (GTM-…)', type: 'text' },
-            { key: 'facebook_pixel', label: 'Meta Pixel ID', type: 'text' },
-            { key: 'microsoft_clarity', label: 'Microsoft Clarity project ID', type: 'text' },
-        ],
-    };
-    ext.schemas.custom_code = {
-        note: 'Custom CSS is added to every page. Scripts run on every page of the live website — only paste code from sources you trust.',
-        fields: [
-            { key: 'custom_css', label: 'Custom CSS', type: 'code' },
-            { key: 'head_scripts', label: 'Head scripts (HTML)', type: 'code' },
-            { key: 'footer_scripts', label: 'Footer scripts (HTML)', type: 'code' },
-        ],
-    };
+    // Branding: see website-cms-branding.js.
+    // Contact details: see website-cms-contact.js.
+    // Analytics: see website-cms-analytics.js.
+    // Custom code: see website-cms-code.js.
 })();

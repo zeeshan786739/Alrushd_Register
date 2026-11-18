@@ -100,6 +100,7 @@ Route::prefix('admin')->name('admin.')
         Route::post('reset-section', [WebsiteCmsController::class, 'resetSection'])->name('reset-section');
         Route::post('preview', [WebsiteCmsController::class, 'preview'])->name('preview');
         Route::post('upload', [WebsiteCmsController::class, 'upload'])->name('upload');
+        Route::post('branding-image', [WebsiteCmsController::class, 'uploadBrandingImage'])->name('branding-image');
         Route::post('restore-version', [WebsiteCmsController::class, 'restoreVersion'])->name('restore-version');
 
         // Connected (headless) website
@@ -108,12 +109,22 @@ Route::prefix('admin')->name('admin.')
         Route::post('connection/test', [WebsiteCmsController::class, 'testConnection'])->name('connection.test');
         Route::post('connection/revalidate', [WebsiteCmsController::class, 'revalidate'])->name('connection.revalidate');
         Route::get('connection/preview-url', [WebsiteCmsController::class, 'previewUrl'])->name('connection.preview-url');
+        Route::post('website-forms/status', [WebsiteCmsController::class, 'websiteFormStatus'])->name('website-forms.status');
 
         Route::get('pages', [WebsitePageController::class, 'index'])->name('pages.index');
         Route::post('pages', [WebsitePageController::class, 'store'])->name('pages.store');
         Route::post('pages/reorder', [WebsitePageController::class, 'reorder'])->name('pages.reorder');
         Route::put('pages/{page}', [WebsitePageController::class, 'update'])->name('pages.update');
+        Route::post('pages/{page}/discard', [WebsitePageController::class, 'discard'])->name('pages.discard');
         Route::delete('pages/{page}', [WebsitePageController::class, 'destroy'])->name('pages.destroy');
+
+        // AI assistant (no publish route: only the Publish button publishes)
+        Route::post('ai-assistant/chat', [\App\Http\Controllers\Admin\AiAssistantController::class, 'chat'])->name('ai-assistant.chat');
+        Route::post('ai-assistant/undo', [\App\Http\Controllers\Admin\AiAssistantController::class, 'undo'])->name('ai-assistant.undo');
+        Route::post('ai-assistant/reset', [\App\Http\Controllers\Admin\AiAssistantController::class, 'reset'])->name('ai-assistant.reset');
+        Route::get('ai-assistant/settings', [\App\Http\Controllers\Admin\AiAssistantController::class, 'settings'])->name('ai-assistant.settings');
+        Route::post('ai-assistant/settings', [\App\Http\Controllers\Admin\AiAssistantController::class, 'saveSettings'])->name('ai-assistant.settings.save');
+        Route::post('ai-assistant/settings/test', [\App\Http\Controllers\Admin\AiAssistantController::class, 'testSettings'])->name('ai-assistant.settings.test');
     });
 
     Route::resource('settings', SettingController::class)->except(['index']);

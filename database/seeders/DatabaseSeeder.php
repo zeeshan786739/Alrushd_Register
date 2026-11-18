@@ -232,6 +232,8 @@ class DatabaseSeeder extends Seeder
             'edit setting',
             'view setting',
             'delete setting',
+            // Website CMS → Custom code (scripts run on the live website)
+            'edit website code',
 
 
 

@@ -1,0 +1,110 @@
+/**
+ * Website CMS → Custom code. Builds on website-cms-pages.css (.wcp tokens), website-cms-nav.css
+ * (headings, actions row) and website-cms-announce.css (switch, card head).
+ */
+
+.wcode-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: #F1F5FB; color: #1E4D8C; font-size: 13px; font-weight: 600; }
+.wcode-pill iconify-icon { font-size: 16px; }
+[data-theme="dark"] .wcode-pill { background: rgba(61, 115, 176, .16); color: #b9d3f2; }
+
+.wcode-warning {
+    display: flex; gap: 12px; align-items: flex-start; margin-bottom: 20px;
+    padding: 16px 18px; border: 1px solid #F0D9A8; border-radius: 16px; background: #FBF0D9; color: #6B4300;
+}
+.wcode-warning iconify-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; color: #8A5300; }
+.wcode-warning p { margin: 0; font-size: 14px; line-height: 1.55; }
+.wcode-warning .wcs-inline-link { color: inherit; font-weight: 700; }
+[data-theme="dark"] .wcode-warning { background: rgba(242, 194, 107, .1); border-color: rgba(242, 194, 107, .3); color: #F2C26B; }
+
+.wcode-readonly { display: flex; gap: 8px; align-items: center; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: #EEE9DE; color: #1F2A3A; font-size: 13.5px; }
+[data-theme="dark"] .wcode-readonly { background: var(--wcp-tint); color: var(--wcp-text); }
+
+.wcode-card { padding: 0; overflow: hidden; }
+
+/* ── Tab bar ── */
+.wcode-tabs {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    padding: 10px 12px 0;
+    background: #FAF8F3; border-bottom: 1px solid #EEE9DE;
+}
+[data-theme="dark"] .wcode-tabs { background: rgba(255, 255, 255, .03); border-bottom-color: var(--wcp-border); }
+.wcode-tab {
+    display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px;
+    min-height: 48px; padding: 6px 16px 5px;
+    border: 0; border-bottom: 3px solid transparent; border-radius: 10px 10px 0 0;
+    background: transparent; color: #3F4A5B; font-family: inherit; text-align: left; cursor: pointer;
+}
+.wcode-tab:hover { background: rgba(255, 255, 255, .6); }
+.wcode-tab[aria-selected="true"] { background: #fff; border-bottom-color: #AE9A66; color: #143256; }
+[data-theme="dark"] .wcode-tab { color: var(--wcp-muted); }
+[data-theme="dark"] .wcode-tab[aria-selected="true"] { background: var(--wcp-card); color: var(--wcp-text); }
+.wcode-tab:focus-visible { outline: 2px solid #AE9A66; outline-offset: -2px; }
+.wcode-tab-name { font-size: 14.5px; font-weight: 600; line-height: 1.25; }
+.wcode-tab-status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 400; color: #5B6473; line-height: 1.25; }
+[data-theme="dark"] .wcode-tab-status { color: var(--wcp-muted); }
+.wcode-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.wcode-dot.is-empty { background: #A8A193; }
+.wcode-dot.is-on { background: #2E9B57; }
+.wcode-dot.is-off { background: #D9921A; }
+
+/* ── Panel ── */
+.wcode-panel { padding: 22px 24px 20px; }
+.wcode-panel .wca-card-head { align-items: flex-start; }
+.wcode-panel .wca-switch-wrap { padding-top: 2px; }
+.wcode-off { display: flex; align-items: center; gap: 8px; margin: 0 0 12px !important; font-size: 13.5px; font-weight: 600; color: #8A5300; }
+[data-theme="dark"] .wcode-off { color: var(--wcp-warn); }
+
+/* ── Editor: fixed 52px gutter + code. Both use the same font, line height and top padding
+      (the JS uses LINE_H = 13 × 1.6 and PAD_Y = 14), so every number sits beside its line. ── */
+.wcode-editor {
+    display: flex; height: 380px;
+    border-radius: 12px; overflow: hidden;
+    background: #0F1B2D; border: 1px solid #1F3354;
+}
+.wcode-editor:focus-within { outline: 2px solid #AE9A66; outline-offset: 2px; }
+.wcode-editor.is-off { opacity: .5; }
+.wcode-gutter {
+    flex: 0 0 52px; /* fixed: never grows */
+    overflow: hidden;
+    padding: 14px 10px 14px 0;
+    background: #0B1524; color: #5D6E8A;
+    text-align: right; user-select: none;
+    font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+}
+.wcode-gutter > div { height: calc(13px * 1.6); white-space: nowrap; } /* exactly one code line each */
+.wcode-text {
+    flex: 1 1 auto; min-width: 0; height: 100%;
+    margin: 0; border: 0; outline: none; resize: none; border-radius: 0;
+    /* !important: the admin theme forces `textarea { color: … !important }` (dark text). */
+    background: transparent !important; color: #E2E8F0 !important; -webkit-text-fill-color: #E2E8F0;
+    caret-color: #AE9A66;
+    padding: 14px 16px !important;
+    white-space: pre; overflow: auto; tab-size: 2;
+    font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    box-shadow: none !important;
+}
+.wcode-text::placeholder { color: #5D6E8A; font-style: italic; opacity: 1; }
+.wcode-text::selection { background: rgba(174, 154, 102, .25); }
+.wcode-text[readonly] { cursor: default; }
+.wcode-text[aria-invalid="true"] { box-shadow: inset 3px 0 0 #B42318 !important; }
+.wcode-text::-webkit-scrollbar { width: 10px; height: 10px; }
+.wcode-text::-webkit-scrollbar-thumb { background: #2A3B57; border-radius: 10px; border: 2px solid #0F1B2D; }
+.wcode-text::-webkit-scrollbar-corner { background: #0F1B2D; }
+
+.wcode-resize {
+    display: flex; justify-content: center; align-items: center;
+    height: 16px; margin-top: 2px; cursor: ns-resize; touch-action: none; border-radius: 6px;
+}
+.wcode-resize span { width: 44px; height: 4px; border-radius: 4px; background: #D6CFBF; }
+.wcode-resize:hover span, .wcode-resize:focus-visible span { background: #AE9A66; }
+.wcode-resize:focus-visible { outline: 2px solid #AE9A66; outline-offset: 2px; }
+
+.wcode-meta { margin-top: 6px !important; font-size: 13px; color: #5B6473; }
+[data-theme="dark"] .wcode-meta { color: var(--wcp-muted); }
+.wcode-panel > .wcp-error { margin-top: 10px; }
+.wcode-last { margin-top: 12px !important; }
+
+/* Header status pill on this screen: short, never cut mid-word (full sentence in its tooltip). */
+.wcm-app:has(.wcode) .wcm-status { max-width: 220px; white-space: nowrap; overflow: hidden; }
+.wcm-app:has(.wcode) #wcmStatusText { overflow: hidden; text-overflow: ellipsis; }

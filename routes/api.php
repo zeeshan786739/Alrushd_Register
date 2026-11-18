@@ -27,6 +27,7 @@ Route::prefix('frontend')->group(function () {
 */
 Route::prefix('headless/v1')->middleware(['headless.site', 'throttle:600,1'])->group(function () {
     Route::get('/ping', [HeadlessSiteController::class, 'ping']);
+    Route::get('/preview/verify', [HeadlessSiteController::class, 'verifyPreview']);
     Route::get('/site', [HeadlessSiteController::class, 'site']);
     Route::get('/pages', [HeadlessSiteController::class, 'pages']);
     Route::get('/page', [HeadlessSiteController::class, 'page']);

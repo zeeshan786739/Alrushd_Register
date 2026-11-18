@@ -7,6 +7,7 @@ use App\Models\WebsiteCms;
 use App\Models\WebsitePage;
 use App\Services\HeadlessWebsiteService;
 use App\Support\OrganizationContext;
+use App\Support\WebsitePageDrafts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +18,6 @@ use Illuminate\Support\Facades\DB;
  */
 class WebsitePageController extends Controller
 {
-    private const RESERVED_PREFIXES = ['/api', '/_next', '/admin', '/w/'];
-
     public function __construct(private HeadlessWebsiteService $headless)
     {
         $this->middleware('permission:view setting')->only(['index']);
@@ -35,8 +34,8 @@ class WebsitePageController extends Controller
         $orgId = OrganizationContext::idOrFail();
         $draft = WebsitePage::normaliseDraft((array) $request->input('draft', []), WebsitePage::KIND_CUSTOM);
 
-        if ($error = $this->validateDraft($draft, $orgId)) {
-            return response()->json(['message' => $error], 422);
+        if ($error = WebsitePageDrafts::problem($draft, $orgId)) {
+            return $this->invalid($error);
         }
 
         $page = WebsitePage::create([
@@ -59,13 +58,31 @@ class WebsitePageController extends Controller
             $draft['path'] = $page->draft['path'] ?? $draft['path'];
         }
 
-        if ($error = $this->validateDraft($draft, $page->organization_id, $page->id)) {
-            return response()->json(['message' => $error], 422);
+        if ($error = WebsitePageDrafts::problem($draft, $page->organization_id, $page->id)) {
+            return $this->invalid($error);
         }
 
         $page->update(['draft' => $draft]);
 
         return response()->json(['message' => 'Page saved as a draft.', 'page' => $page->toAdminArray(), 'pages' => $this->list()]);
+    }
+
+    /** Throw away this page's draft so it matches the live website again. */
+    public function discard(WebsitePage $page): JsonResponse
+    {
+        $this->authorizePage($page);
+
+        if (! $page->isPublished()) {
+            return response()->json(['message' => 'This page has never been published, so there is no live version to go back to.'], 422);
+        }
+
+        $page->discard();
+
+        return response()->json([
+            'message' => 'Changes discarded. This page matches your live website again.',
+            'page' => $page->fresh()->toAdminArray(),
+            'pages' => $this->list(),
+        ]);
     }
 
     public function destroy(WebsitePage $page): JsonResponse
@@ -110,32 +127,13 @@ class WebsitePageController extends Controller
             ->all();
     }
 
-    private function validateDraft(array $draft, int $orgId, ?int $ignoreId = null): ?string
+    /** @param  array{field: string, message: string}  $error */
+    private function invalid(array $error): JsonResponse
     {
-        if ($draft['title'] === '') {
-            return 'Please give the page a title.';
-        }
-
-        $path = $draft['path'];
-        if ($path === '' || $path === '/') {
-            if ($ignoreId === null || ! WebsitePage::whereKey($ignoreId)->where('kind', WebsitePage::KIND_SYSTEM)->exists()) {
-                return 'Please choose a page URL, for example /summer-school.';
-            }
-        }
-
-        foreach (self::RESERVED_PREFIXES as $prefix) {
-            if ($path === rtrim($prefix, '/') || str_starts_with($path, rtrim($prefix, '/').'/')) {
-                return "The URL {$path} is reserved by the website.";
-            }
-        }
-
-        $taken = WebsitePage::query()
-            ->where('organization_id', $orgId)
-            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
-            ->get()
-            ->contains(fn (WebsitePage $p) => ($p->draft['path'] ?? null) === $path || $p->path === $path);
-
-        return $taken ? "Another page already uses the URL {$path}." : null;
+        return response()->json([
+            'message' => $error['message'],
+            'errors' => [$error['field'] => [$error['message']]],
+        ], 422);
     }
 
     private function authorizePage(WebsitePage $page): void

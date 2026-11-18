@@ -1,0 +1,66 @@
+/**
+ * Website CMS → SEO. Builds on website-cms-pages.css (.wcp tokens, radio cards, Google/share
+ * previews, drop zone), website-cms-branding.css (.wcb-grid two columns) and website-cms-nav.css.
+ */
+
+.wcseo .wcp-input { border-color: #DDD5C4; }
+[data-theme="dark"] .wcseo .wcp-input { border-color: var(--wcp-border-strong); }
+.wcseo .wcp-field + .wcp-field { margin-top: 18px; }
+.wcseo-mono { font-family: var(--wcp-mono) !important; font-size: 14px !important; }
+.wcseo .wcp-input[aria-invalid="true"] { border-color: var(--wcp-error); }
+
+/* ── Quick check ── */
+.wcseo-check { margin-bottom: 20px; }
+.wcseo-check-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.wcseo-summary { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.wcseo-summary.is-ok { background: #E6F4EA; color: #1B6B3A; }
+.wcseo-summary.is-warn { background: #FBF0D9; color: #8A5300; }
+.wcseo-summary.is-error { background: #FDF1F0; color: #B42318; }
+.wcseo-checks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.wcseo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border-radius: 12px; }
+.wcseo-row-icon { font-size: 22px; flex-shrink: 0; }
+.wcseo-row-text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.wcseo-row-text strong { font-size: 14px; color: #1F2A3A; }
+.wcseo-row-text span { font-size: 13px; color: #5B6473; word-break: break-word; }
+.wcseo-row.is-error { background: #FDF1F0; }
+.wcseo-row.is-error .wcseo-row-icon { color: #B42318; }
+.wcseo-row.is-warning { background: #FBF0D9; }
+.wcseo-row.is-warning .wcseo-row-icon { color: #D9921A; }
+.wcseo-row.is-info { background: #F1F5FB; }
+.wcseo-row.is-info .wcseo-row-icon { color: #1E4D8C; }
+.wcseo-row.is-ok { background: #E6F4EA; }
+.wcseo-row.is-ok .wcseo-row-icon { color: #2E9B57; }
+[data-theme="dark"] .wcseo-row-text strong { color: var(--wcp-text); }
+[data-theme="dark"] .wcseo-row-text span { color: var(--wcp-muted); }
+[data-theme="dark"] .wcseo-row.is-error { background: rgba(253, 162, 155, .1); }
+[data-theme="dark"] .wcseo-row.is-warning { background: rgba(242, 194, 107, .1); }
+[data-theme="dark"] .wcseo-row.is-info { background: rgba(61, 115, 176, .14); }
+[data-theme="dark"] .wcseo-row.is-ok { background: rgba(111, 211, 157, .1); }
+
+/* ── Cards ── */
+.wcseo-radios { margin: 18px 0 0; padding: 0; border: 0; min-width: 0; }
+.wcseo-radios legend { float: none; width: auto; margin: 0 0 8px; padding: 0; font-size: 14px; font-weight: 600; color: var(--wcp-text); }
+#wcseo-access .wcseo-radios { margin-top: 0; }
+.wcp-radio.is-danger.is-selected { border-color: var(--wcp-error); background: #FDF1F0; }
+.wcp-radio.is-danger.is-selected input:checked { border-color: var(--wcp-error); box-shadow: inset 0 0 0 4px var(--wcp-card), inset 0 0 0 10px var(--wcp-error); }
+.wcp-radio.is-danger.is-selected .wcp-radio-title { color: var(--wcp-error); }
+[data-theme="dark"] .wcp-radio.is-danger.is-selected { background: rgba(253, 162, 155, .1); }
+.wca-check.is-bad { color: var(--wcp-error); font-weight: 600; }
+
+.wcseo-steps { margin: 16px 0 0; padding: 12px 14px 12px 34px; border-radius: 10px; background: var(--wcp-bg); font-size: 13px; color: var(--wcp-text); line-height: 1.7; }
+.wcseo-steps code { padding: 1px 5px; border-radius: 4px; background: var(--wcp-card); font-size: 12px; color: inherit; }
+.wcseo-steps a { color: var(--wcp-navy); font-weight: 600; text-underline-offset: 3px; }
+[data-theme="dark"] .wcseo-steps a { color: #b9d3f2; }
+
+.wcseo-advanced { padding: 0; }
+.wcseo-advanced summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 20px 24px; cursor: pointer; list-style: none;
+}
+.wcseo-advanced summary::-webkit-details-marker { display: none; }
+.wcseo-advanced summary > span { display: flex; flex-direction: column; gap: 2px; }
+.wcseo-advanced summary:focus-visible { outline: 2px solid #AE9A66; outline-offset: -2px; border-radius: 16px; }
+.wcseo-chevron { font-size: 18px; color: var(--wcp-muted); transition: transform .15s ease; }
+.wcseo-advanced[open] .wcseo-chevron { transform: rotate(180deg); }
+.wcseo-advanced > .wcp-field { padding: 0 24px 22px; }
+.wcseo-empty-icon { font-size: 26px; }
