@@ -1060,7 +1060,8 @@ class LeadController extends Controller
             ->when($request->assigned_to === 'unassigned', fn ($q) => $q->whereNull('assigned_to'))
             ->when(
                 $request->assigned_to && ! in_array($request->assigned_to, ['me', 'unassigned'], true),
-                fn ($q, $assigned) => $q->where('assigned_to', $assigned)
+                // when() passes its (boolean) condition to the closure, so read the admin id from the request.
+                fn ($q) => $q->where('assigned_to', (int) $request->assigned_to)
             )
             ->when($request->follow_up === 'today', fn ($q) => $q->followUpToday())
             ->when($request->follow_up === 'overdue', fn ($q) => $q->overdueFollowUp())
